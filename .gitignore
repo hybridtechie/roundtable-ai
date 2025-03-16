@@ -2,3 +2,5 @@
 
 .venv/
 agents.db
+
+chroma_data/
