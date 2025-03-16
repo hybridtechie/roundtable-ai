@@ -1,3 +1,4 @@
+import sqlite3
 import chromadb
 
 # Define the list of default agents with their attributes
@@ -34,15 +35,55 @@ agents = [
     }
 ]
 
-# Initialize the ChromaDB client and create a collection named "agents"
-chroma_client = chromadb.Client()
-collection = chroma_client.create_collection(name="agents")
+# Initialize SQLite database
+def init_sqlite_db():
+    conn = sqlite3.connect("agents.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS agents (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            persona_description TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-# Add each agent to the ChromaDB collection
-for agent in agents:
-    collection.add(
-        documents=[agent["system_prompt"]],  # Store the system prompt as the document
-        metadatas=[{"id": agent["id"], "name": agent["name"], "persona_description": agent["persona_description"]}],  # Store other attributes as metadata
-        ids=[agent["id"]]  # Use the agent's ID as the unique identifier
-    )
-    print(f"Agent '{agent['name']}' with ID '{agent['id']}' added to the database.")
+# Initialize ChromaDB client and get or create the "agents" collection
+chroma_client = chromadb.Client()
+try:
+    collection = chroma_client.create_collection(name="agents")
+except Exception:
+    collection = chroma_client.get_collection(name="agents")
+
+# Function to add agents to SQLite and ChromaDB
+def add_default_agents():
+    # Initialize the SQLite database
+    init_sqlite_db()
+
+    # Add each agent to SQLite and ChromaDB
+    conn = sqlite3.connect("agents.db")
+    cursor = conn.cursor()
+
+    for agent in agents:
+        # Insert into SQLite
+        try:
+            cursor.execute("INSERT INTO agents (id, name, persona_description) VALUES (?, ?, ?)",
+                           (agent["id"], agent["name"], agent["persona_description"]))
+        except sqlite3.IntegrityError:
+            print(f"Agent '{agent['name']}' with ID '{agent['id']}' already exists in SQLite, skipping insertion.")
+            continue
+
+        # Insert into ChromaDB
+        collection.add(
+            documents=[agent["system_prompt"]],  # Store the system prompt as the document
+            ids=[agent["id"]]  # Use the agent's ID as the unique identifier
+        )
+        print(f"Agent '{agent['name']}' with ID '{agent['id']}' added to the database.")
+
+    conn.commit()
+    conn.close()
+
+# Run the script
+if __name__ == "__main__":
+    add_default_agents()

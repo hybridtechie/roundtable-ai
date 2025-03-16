@@ -26,7 +26,7 @@ def init_sqlite_db():
         CREATE TABLE IF NOT EXISTS agents (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            persona TEXT NOT NULL
+            persona_description TEXT NOT NULL
         )
     """)
     conn.commit()
@@ -43,7 +43,7 @@ except Exception:
 class AgentCreate(BaseModel):
     id: str  # Now requiring ID explicitly
     name: str
-    persona: str
+    persona_description: str  # Changed from persona to persona_description
     context: str
 
 class ChatMessage(BaseModel):
@@ -68,8 +68,8 @@ async def create_agent(agent: AgentCreate):
     conn = sqlite3.connect("agents.db")
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO agents (id, name, persona) VALUES (?, ?, ?)",
-                       (agent.id, agent.name, agent.persona))
+        cursor.execute("INSERT INTO agents (id, name, persona_description) VALUES (?, ?, ?)",
+                       (agent.id, agent.name, agent.persona_description))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
@@ -89,8 +89,8 @@ async def list_agents():
     """List all agents from SQLite."""
     conn = sqlite3.connect("agents.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, persona FROM agents")
-    agents = [{"id": row[0], "name": row[1], "persona": row[2]} for row in cursor.fetchall()]
+    cursor.execute("SELECT id, name, persona_description FROM agents")
+    agents = [{"id": row[0], "name": row[1], "persona_description": row[2]} for row in cursor.fetchall()]
     conn.close()
     return {"agents": agents}
 
@@ -123,12 +123,12 @@ async def chat(message: ChatMessage):
     # Retrieve agent persona from SQLite
     conn = sqlite3.connect("agents.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT name, persona FROM agents WHERE id = ?", (message.agent_id,))
+    cursor.execute("SELECT name, persona_description FROM agents WHERE id = ?", (message.agent_id,))
     result = cursor.fetchone()
     conn.close()
     if not result:
         raise HTTPException(status_code=404, detail=f"Agent ID '{message.agent_id}' not found")
-    agent_name, persona = result
+    agent_name, persona_description = result
 
     # Retrieve agent context from ChromaDB
     results = collection.get(ids=[message.agent_id])
@@ -139,7 +139,7 @@ async def chat(message: ChatMessage):
     # Generate a response using Azure OpenAI
     llm_client = get_llm_client()
     messages = [
-        {"role": "system", "content": f"You are {agent_name} with persona: {persona}. Context: {context}"},
+        {"role": "system", "content": f"You are {agent_name} with persona: {persona_description}. Context: {context}"},
         {"role": "user", "content": message.message}
     ]
     response = llm_client.send_request(messages)
