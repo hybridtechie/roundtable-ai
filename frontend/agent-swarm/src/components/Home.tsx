@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { listAgents } from '@/lib/api';
+import { Agent } from '@/types/types';
 
 const Home: React.FC = () => {
-  const [agents, setAgents] = useState<any[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
 
   useEffect(() => {
     listAgents().then((res) => setAgents(res.data.agents)).catch(console.error);
