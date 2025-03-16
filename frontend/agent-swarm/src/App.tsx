@@ -1,12 +1,11 @@
-import './App.css'
+import { Button } from "@/components/ui/button";
 
 function App() {
-
   return (
-    <div className="p-6 text-3xl font-bold text-blue-500">
-      Tailwind v4 Works!
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <Button>Click me Now</Button>
     </div>
   );
 }
 
-export default App
+export default App;
