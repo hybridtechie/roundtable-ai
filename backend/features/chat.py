@@ -1,9 +1,19 @@
+from pydantic import BaseModel
+from utils_llm import LLMClient  # Assuming this exists
+import os
+from dotenv import load_dotenv
 import sqlite3
 import json
 from utils_llm import LLMClient  # Assuming this exists
 from fastapi import HTTPException
 from db import collection  # Import ChromaDB collection
 
+# Load environment variables
+load_dotenv()
+
+class ChatMessage(BaseModel):
+    chatroom_id: str
+    message: str
 def get_llm_client():
     return LLMClient(provider="azure")  # Adjust provider as needed
 
