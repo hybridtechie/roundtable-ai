@@ -57,18 +57,14 @@ class LLMBase(ABC):
 
         # Convert prompt and response to strings if needed
         if isinstance(prompt, list):
-            prompt_summary = " ".join([msg["content"] for msg in prompt if "content" in msg])[:50].replace(
-                "\n", " "
-            )
+            prompt_summary = " ".join([msg["content"] for msg in prompt if "content" in msg])[:50].replace("\n", " ")
         else:
             prompt_summary = str(prompt)[:50].replace("\n", " ")
 
         response_summary = str(response)[:50].replace("\n", " ")
         prompt_token_cost = 0.0000025
         completion_token_cost = 0.00001
-        cost = (completion.usage.prompt_tokens * prompt_token_cost) + (
-            completion.usage.completion_tokens * completion_token_cost
-        )
+        cost = (completion.usage.prompt_tokens * prompt_token_cost) + (completion.usage.completion_tokens * completion_token_cost)
         row = [
             date,
             time,
@@ -100,11 +96,7 @@ class LLMBase(ABC):
         response_file = os.path.join(log_dir, f"{now}_res.txt")
 
         with open(request_file, "w", encoding="utf-8") as req_file:
-            req_file.write(
-                prompt
-                if isinstance(prompt, str)
-                else " ".join(message.get("content", "") for message in prompt)
-            )
+            req_file.write(prompt if isinstance(prompt, str) else " ".join(message.get("content", "") for message in prompt))
 
         with open(response_file, "w", encoding="utf-8") as res_file:
             if isinstance(response, str):
@@ -140,7 +132,11 @@ class AzureOpenAIClient(LLMBase):
         request_tokens = completion.usage.prompt_tokens
         completion_tokens = completion.usage.completion_tokens
         total_tokens = completion.usage.total_tokens
-        return completion.choices[0].message.content.strip(), { "request_tokens": request_tokens, "completion_tokens": completion_tokens, "total_tokens": total_tokens }
+        return completion.choices[0].message.content.strip(), {
+            "request_tokens": request_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+        }
 
     def send_request_w_structured_response(self, prompt_or_messages, response_format, **kwargs):
         if isinstance(prompt_or_messages, str):
@@ -234,11 +230,7 @@ class LLMClient:
         response_file = os.path.join(log_dir, f"{now}_res.txt")
 
         with open(request_file, "w") as req_file:
-            req_file.write(
-                prompt
-                if isinstance(prompt, str)
-                else " ".join(message.get("content", "") for message in prompt)
-            )
+            req_file.write(prompt if isinstance(prompt, str) else " ".join(message.get("content", "") for message in prompt))
 
         with open(response_file, "w") as res_file:
             if isinstance(response, str):
