@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000', // Your FastAPI backend
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000', // Fallback to default if env not set
 });
 
 export const createAgent = (data: { id: string; name: string; persona_description: string; context: string }) =>
