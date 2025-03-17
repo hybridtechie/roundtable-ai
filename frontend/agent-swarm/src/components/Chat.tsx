@@ -69,25 +69,25 @@ const Chat: React.FC = () => {
 			{ meeting_id: selectedMeeting, message: chatMessage },
 			{
 				onAiTwinResponse: (response: AiTwinResponse) => {
-					if (!response.response || typeof response.response[0] !== 'string') {
-                        console.error('Invalid response format:', response)
-                        return
-                    }
-                    setMessages((prev) => {
-                        const newMessage: ChatMessage = {
-                            type: 'aitwin',
-                            name: response.name,
-                            step: response.step,
-                            content: response.response[0],
-                            timestamp: new Date()
-                        }
-                        console.log('Adding AiTwin message:', newMessage)
-                        return [...prev, newMessage]
-                    })
+					if (!response.response || typeof response.response[0] !== "string") {
+						console.error("Invalid response format:", response)
+						return
+					}
+					setMessages((prev) => {
+						const newMessage: ChatMessage = {
+							type: "aitwin",
+							name: response.name,
+							step: response.step,
+							content: response.response[0],
+							timestamp: new Date(),
+						}
+						console.log("Adding AiTwin message:", newMessage)
+						return [...prev, newMessage]
+					})
 				},
 				onFinalResponse: (response: ChatFinalResponse) => {
 					console.log("Received final response:", response)
-					if (!response.response || typeof response.response[0] !== 'string') {
+					if (!response.response || typeof response.response[0] !== "string") {
 						console.error("Invalid final response format:", response)
 						return
 					}

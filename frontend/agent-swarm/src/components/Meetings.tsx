@@ -89,23 +89,7 @@ const Meetings: React.FC = () => {
 							<CardTitle>{meeting.name || meeting.id}</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p>Topic: {meeting.topic || "Not Set"}</p>
-							<p>AI Twins: {meeting.aitwin_ids.join(", ")}</p>
-							<Input
-								placeholder="Set Topic"
-								value={newTopic}
-								onChange={(e) => {
-									setSelectedMeetingId(meeting.id)
-									setNewTopic(e.target.value)
-								}}
-								className="mt-2"
-							/>
-							<Button
-								onClick={handleSetTopic}
-								disabled={selectedMeetingId !== meeting.id || !newTopic}
-								className="mt-2">
-								Set Topic
-							</Button>
+							<p>Participants: {meeting.aitwin_ids.join(", ")}</p>
 						</CardContent>
 					</Card>
 				))}

@@ -1,6 +1,7 @@
 export interface AiTwin {
 	id: string
 	name: string
+	role: string
 	persona_description: string
 }
 
