@@ -33,19 +33,15 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement
 
-    root.classList.remove("light", "dark")
+    const isDark =
+      theme === "dark" ||
+      (theme === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
-
-      root.classList.add(systemTheme)
-      return
-    }
-
-    root.classList.add(theme)
+    console.log("Setting theme:", theme, "isDark:", isDark);
+    
+    root.classList.toggle("dark", isDark);
+    console.log("HTML class attribute:", root.className);
   }, [theme])
 
   const value = {

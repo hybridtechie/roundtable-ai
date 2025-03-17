@@ -8,49 +8,49 @@ import { FaUser, FaUsers, FaUserPlus } from "react-icons/fa"
 
 const Sidebar: React.FC = () => {
 	return (
-		<div className="flex flex-col w-64 h-screen gap-2 p-4 bg-gray-100">
-			<NavLink to="/" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="justify-start w-full">
-				<AiFillHome className="mr-2" />
+		<div className="flex flex-col w-64 h-screen p-4 space-y-2 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+			<NavLink to="/" className={({ isActive }: { isActive: boolean }) => `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`}>
+			<Button variant="ghost" className="justify-start w-full font-normal">
+			<AiFillHome className="w-4 h-4 mr-2" />
 				Home
 				</Button>
 			</NavLink>
 			<div>
 				<NavLink
-					to="/participants"
-					className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-					<Button variant="ghost" className="justify-start w-full">
-					<FaUser className="mr-2" />
-					Participants
-					</Button>
+				to="/participants"
+				className={({ isActive }: { isActive: boolean }) => `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`}>
+				<Button variant="ghost" className="justify-start w-full font-normal">
+				<FaUser className="w-4 h-4 mr-2" />
+				Participants
+				</Button>
 				</NavLink>
 				<NavLink
-					to="/participants/create"
-					className={({ isActive }: { isActive: boolean }) => `w-full pl-4 ${isActive ? "bg-gray-200" : ""}`}>
-					<Button variant="ghost" className="justify-start w-full">
-					<FaUserPlus className="mr-2" />
+				to="/participants/create"
+				className={({ isActive }: { isActive: boolean }) => `w-full pl-4 rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`}>
+				<Button variant="ghost" className="justify-start w-full font-normal">
+				<FaUserPlus className="w-4 h-4 mr-2" />
 					Create Participant
 					</Button>
 				</NavLink>
 			</div>
 			<NavLink
-				to="/groups"
-				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="justify-start w-full">
-				<FaUsers className="mr-2" />
-				Groups
-				</Button>
+			to="/groups"
+			className={({ isActive }: { isActive: boolean }) => `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`}>
+			<Button variant="ghost" className="justify-start w-full font-normal">
+			<FaUsers className="w-4 h-4 mr-2" />
+			Groups
+			</Button>
 			</NavLink>
-
-			<NavLink to="/meetings" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="justify-start w-full">
-				<TiMessages className="mr-2" />
-				Meetings
-				</Button>
+			
+			<NavLink to="/meetings" className={({ isActive }: { isActive: boolean }) => `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`}>
+			<Button variant="ghost" className="justify-start w-full font-normal">
+			<TiMessages className="w-4 h-4 mr-2" />
+			Meetings
+			</Button>
 			</NavLink>
-			<NavLink to="/meetings/new" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="justify-start w-full">
-				<FaMessage className="mr-2" />
+			<NavLink to="/meetings/new" className={({ isActive }: { isActive: boolean }) => `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`}>
+			<Button variant="ghost" className="justify-start w-full font-normal">
+			<FaMessage className="w-4 h-4 mr-2" />
 				New Meeting
 				</Button>
 			</NavLink>
