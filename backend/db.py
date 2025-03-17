@@ -2,6 +2,7 @@ import sqlite3
 import chromadb
 from chromadb.config import Settings
 
+
 # Initialize SQLite database
 def init_sqlite_db():
     conn = sqlite3.connect("aitwins.db")
@@ -31,6 +32,7 @@ def init_sqlite_db():
     )
     conn.commit()
     conn.close()
+
 
 # Initialize ChromaDB client with persistence
 chroma_client = chromadb.PersistentClient(path="./chroma_data")

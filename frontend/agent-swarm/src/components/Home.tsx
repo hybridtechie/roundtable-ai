@@ -17,22 +17,22 @@ const Home: React.FC = () => {
 			<h1 className="mb-4 text-3xl font-bold">AI Twins</h1>
 			<div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
 				{aitwins.map((aitwin) => (
-							<Card key={aitwin.id}>
-							<div className="flex p-6">
+					<Card key={aitwin.id}>
+						<div className="flex p-6">
 							<Avatar className="h-14 w-14">
-							<AvatarFallback>{aitwin.name.charAt(0) + aitwin.name.charAt(1)}</AvatarFallback>
+								<AvatarFallback>{aitwin.name.charAt(0) + aitwin.name.charAt(1)}</AvatarFallback>
 							</Avatar>
 							<div className="ml-4">
-							<CardTitle className="text-lg">{aitwin.name}</CardTitle>
-							<CardDescription>{aitwin.role}</CardDescription>
+								<CardTitle className="text-lg">{aitwin.name}</CardTitle>
+								<CardDescription>{aitwin.role}</CardDescription>
 							</div>
-							</div>
-							<CardContent >
-								{/* Show the first 100 characters of description */}
+						</div>
+						<CardContent>
+							{/* Show the first 100 characters of description */}
 							<p className="text-sm text-muted-foreground">{aitwin.persona_description.slice(0, 100)}...</p>
-							</CardContent>
-							</Card>
-							))}
+						</CardContent>
+					</Card>
+				))}
 			</div>
 		</div>
 	)

@@ -22,36 +22,44 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+
 # AiTwin endpoints
 @app.post("/aitwin")
 async def create_aitwin_endpoint(aitwin: AiTwinCreate):
     return await create_aitwin(aitwin)
 
+
 @app.get("/aitwins")
 async def list_aitwins_endpoint():
     return await list_aitwins()
+
 
 # Meetings endpoints
 @app.post("/meeting")
 async def create_meeting_endpoint(meeting: MeetingCreate):
     return await create_meeting(meeting)
 
+
 @app.get("/meetings")
 async def list_meetings_endpoint():
     return await list_meetings()
 
+
 @app.post("/meeting/topic")
 async def set_meeting_topic_endpoint(meeting_topic: MeetingTopic):
     return await set_meeting_topic(meeting_topic)
+
 
 # Chat endpoints
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
     return await start_meeting_discussion(message.meeting_id, message.message)
 
+
 @app.get("/chat-stream")
 async def chat_stream_endpoint(meeting_id: str, message: str):
     return await stream_meeting_discussion(meeting_id, message)
+
 
 # Run the app
 if __name__ == "__main__":

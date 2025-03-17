@@ -75,7 +75,19 @@ const Meetings: React.FC = () => {
 							<CardTitle>{meeting.name || meeting.id}</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p>Participants: {meeting.aitwin_ids.join(", ")}</p>
+							<div className="space-y-2">
+								<div>
+									<p className="mb-2 font-medium">Participants:</p>
+									<ul className="pl-6 space-y-1 list-disc">
+										{meeting.participants.map((participant) => (
+											<li key={participant.aitwin_id}>
+												<span className="font-medium">{participant.name}</span>
+												<span className="text-gray-600"> - {participant.role}</span>
+											</li>
+										))}
+									</ul>
+								</div>
+							</div>
 						</CardContent>
 					</Card>
 				))}

@@ -5,6 +5,7 @@ from uuid import uuid4
 from typing import Optional
 from db import collection  # Import ChromaDB collection
 
+
 def validate_aitwin_data(name: str, persona_description: str, context: str) -> None:
     """Validate AiTwin data before creation."""
     if not name or not name.strip():
@@ -19,8 +20,8 @@ def validate_aitwin_data(name: str, persona_description: str, context: str) -> N
         raise HTTPException(status_code=400, detail="Persona description must be less than 1000 characters")
     if len(context) > 10000:
         raise HTTPException(status_code=400, detail="Context must be less than 10000 characters")
-    
-    
+
+
 class AiTwinCreate(BaseModel):
     id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=100)
@@ -29,19 +30,19 @@ class AiTwinCreate(BaseModel):
     role: str = Field(default="Team Member", min_length=1, max_length=50)
     userId: str = Field(default="SuperAdmin", min_length=1)
 
+
 async def create_aitwin(aitwin: AiTwinCreate):
     """Create a new AiTwin in SQLite and store its context in ChromaDB."""
     # Validate all required fields
     validate_aitwin_data(aitwin.name, aitwin.persona_description, aitwin.context)
-    
+
     conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
-    
+
     # Generate UUID if id not provided
     if aitwin.id is None:
         aitwin.id = str(uuid4())
-        
-        
+
     try:
         cursor.execute(
             "INSERT INTO aitwins (id, name, persona_description, role, userId) VALUES (?, ?, ?, ?, ?)",
@@ -55,6 +56,7 @@ async def create_aitwin(aitwin: AiTwinCreate):
 
     collection.add(documents=[aitwin.context], ids=[aitwin.id])
     return {"message": f"AiTwin '{aitwin.name}' with ID '{aitwin.id}' created successfully"}
+
 
 async def list_aitwins():
     """List all AiTwins from SQLite."""
