@@ -1,10 +1,10 @@
 import { Routes, Route } from "react-router-dom"
 import Sidebar from "./components/Sidebar"
 import Home from "./components/Home"
-import Meetings from "./components/Meetings"
+import Groups from "./components/Groups"
 import Participants from "./components/Participants"
 import CreateParticipant from "./components/CreateParticipant"
-import Chat from "./components/Chat"
+import Chat from "./components/Meetings"
 
 function App() {
 	return (
@@ -13,10 +13,10 @@ function App() {
 			<div className="flex-1">
 				<Routes>
 					<Route path="/" element={<Home />} />
-					<Route path="/meetings" element={<Meetings />} />
 					<Route path="/participants" element={<Participants />} />
 					<Route path="/participants/create" element={<CreateParticipant />} />
-					<Route path="/chat" element={<Chat />} />
+					<Route path="/groups" element={<Groups />} />
+					<Route path="/meetings" element={<Chat />} />
 				</Routes>
 			</div>
 		</div>

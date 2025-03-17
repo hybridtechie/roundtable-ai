@@ -44,38 +44,33 @@ def format_sse_event(event_type: str, data: dict) -> str:
 
 
 # Utility Methods
-def fetch_meeting_data(meeting_id: str) -> tuple[list, str]:
+def fetch_group_data(group_id: str) -> tuple[list, str]:
     """Fetch meeting details from SQLite."""
-    logger.info("Fetching meeting data for ID: %s", meeting_id)
+    logger.info("Fetching meeting data for ID: %s", group_id)
     conn = None
     try:
         conn = sqlite3.connect("roundtableai.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT participant_ids, topic FROM meetings WHERE id = ?", (meeting_id,))
-        meeting_data = cursor.fetchone()
+        cursor.execute("SELECT participant_ids FROM groups WHERE id = ?", (group_id,))
+        group_data = cursor.fetchone()
 
-        if not meeting_data:
-            logger.error("Meeting not found: %s", meeting_id)
-            raise HTTPException(status_code=404, detail=f"Meeting ID '{meeting_id}' not found")
+        if not group_data:
+            logger.error("Group not found: %s", group_id)
+            raise HTTPException(status_code=404, detail=f"Meeting ID '{group_id}' not found")
 
-        participant_ids = json.loads(meeting_data[0])
-        topic = meeting_data[1]
-
-        if not topic:
-            logger.error("Meeting has no topic set: %s", meeting_id)
-            raise HTTPException(status_code=400, detail="Meeting has no topic set. Please set a topic first.")
+        participant_ids = json.loads(group_data[0])
 
         logger.info("Successfully fetched meeting data with %d participants", len(participant_ids))
-        return participant_ids, topic
+        return participant_ids
 
     except json.JSONDecodeError as e:
-        logger.error("Failed to parse participant_ids JSON for meeting %s: %s", meeting_id, str(e), exc_info=True)
+        logger.error("Failed to parse participant_ids JSON for meeting %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Invalid participant data format in database")
     except sqlite3.Error as e:
-        logger.error("Database error while fetching meeting %s: %s", meeting_id, str(e), exc_info=True)
+        logger.error("Database error while fetching meeting %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Database error while fetching meeting data")
     except Exception as e:
-        logger.error("Unexpected error while fetching meeting %s: %s", meeting_id, str(e), exc_info=True)
+        logger.error("Unexpected error while fetching meeting %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while fetching meeting data")
     finally:
         if conn:
@@ -127,14 +122,14 @@ def fetch_participants_data(participant_ids: list) -> dict:
             conn.close()
 
 
-def generate_participant_response(llm_client, participant_info: dict, topic: str, step: str, message: str) -> str:
+def generate_participant_response(llm_client, participant_info: dict, step: str, message: str) -> str:
     """Generate a response for an Participant based on their persona and context."""
     try:
         logger.info("Generating response for participant: %s, step: %s", participant_info["name"], step)
 
         system_prompt = (
             f"You are {participant_info['name']} with persona: {participant_info['persona_description']}. "
-            f"Context: {participant_info['context']}. You are in a meeting discussing '{topic}'. "
+            f"Context: {participant_info['context']}. You are in a meeting discussing '{message}'. "
             f"The current agenda step is: '{step}'. Respond based on your role and the user's message: '{message}'."
         )
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": message}]
@@ -177,13 +172,13 @@ def synthesize_final_response(llm_client, topic: str, message: str, discussion_l
         raise HTTPException(status_code=500, detail="Failed to synthesize final response")
 
 
-async def stream_meeting_discussion(meeting_id: str, message: str):
+async def stream_meeting_discussion(group_id: str, message: str):
     """Stream meeting discussion with SSE."""
-    logger.info("Starting streaming discussion for meeting: %s", meeting_id)
+    logger.info("Starting streaming discussion for meeting: %s", group_id)
 
     async def event_generator():
         try:
-            participant_ids, topic = fetch_meeting_data(meeting_id)
+            participant_ids = fetch_group_data(group_id)
             participants_data = fetch_participants_data(participant_ids)
             llm_client = get_llm_client()
             agenda = ["Introduce your perspective on the topic", "Discuss pros and cons", "Provide a recommendation"]
@@ -192,7 +187,7 @@ async def stream_meeting_discussion(meeting_id: str, message: str):
                 logger.debug("Processing agenda step: %s", step)
                 for participant_id, participant_info in participants_data.items():
                     try:
-                        response = generate_participant_response(llm_client, participant_info, topic, step, message)
+                        response = generate_participant_response(llm_client, participant_info, step, message)
                         yield format_sse_event("participant_response", {"participant_id": participant_id, "name": participant_info["name"], "step": step, "response": response})
                         await asyncio.sleep(0.1)
                     except Exception as e:
@@ -202,12 +197,12 @@ async def stream_meeting_discussion(meeting_id: str, message: str):
             # Synthesize final response
             logger.debug("Generating discussion log for final synthesis")
             discussion_log = [
-                {"participant_id": participant_id, "name": info["name"], "step": step, "response": generate_participant_response(llm_client, info, topic, step, message)}
+                {"participant_id": participant_id, "name": info["name"], "step": step, "response": generate_participant_response(llm_client, info, step, message)}
                 for step in agenda
                 for participant_id, info in participants_data.items()
             ]
 
-            final_response = synthesize_final_response(llm_client, topic, message, discussion_log)
+            final_response = synthesize_final_response(llm_client, message, discussion_log)
             yield format_sse_event("final_response", {"response": final_response})
             yield format_sse_event("complete", {})
             logger.info("Successfully completed streaming discussion")
@@ -227,7 +222,7 @@ async def start_meeting_discussion(meeting_id: str, message: str):
     logger.info("Starting meeting discussion for meeting: %s", meeting_id)
 
     try:
-        participant_ids, topic = fetch_meeting_data(meeting_id)
+        participant_ids, topic = fetch_group_data(meeting_id)
         participants_data = fetch_participants_data(participant_ids)
         llm_client = get_llm_client()
         discussion_log = []

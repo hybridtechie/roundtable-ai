@@ -5,8 +5,15 @@ export interface Participant {
 	persona_description: string
 }
 
-export interface ChatRequest {
-	meeting_id: string
+export interface Group {
+	id: string
+	name: string
+	descriptions: string
+	participants: Participant[]
+}
+
+export interface MeetingRequest {
+	group_id: string
 	message: string
 }
 
@@ -32,18 +39,11 @@ export enum ChatEventType {
 	Complete = "complete",
 }
 
-export interface MeetingParticipant {
-	participant_id: string
-	name: string
-	role: string
-}
-
 export interface Meeting {
 	id: string
 	name: string
 	participant_ids: string[]
+	group_ids: string[]
 	topic?: string
-	participants: MeetingParticipant[]
+	participants: Participant[]
 }
-
-// Remove chatroom type as we're fully migrating to Meeting

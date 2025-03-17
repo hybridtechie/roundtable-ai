@@ -1,99 +1,169 @@
-import React, { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import React, { useState, useRef, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { listParticipants, listMeetings, createMeeting } from "@/lib/api"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Participant, Meeting } from "@/types/types"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { streamChat, listGroups } from "@/lib/api"
+import { Group, ParticipantResponse, ChatFinalResponse } from "@/types/types"
+import { ChatMessage } from "@/components/ui/chat-message"
+import { ChatInput } from "@/components/ui/chat-input"
 
-const Meetings: React.FC = () => {
-	const [meetings, setMeetings] = useState<Meeting[]>([])
-	const [participants, setParticipants] = useState<Participant[]>([])
-	const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
+interface ChatMessage {
+	type: "participant" | "final"
+	name?: string
+	step?: string
+	content: string
+	timestamp: Date
+}
 
+const Meeting: React.FC = () => {
+	const [selectedGroup, setSelectedMeeting] = useState<string>("")
+	const [groups, setGroups] = useState<Group[]>([])
+	const [chatMessage, setChatMessage] = useState("")
+	const [messages, setMessages] = useState<ChatMessage[]>([])
+	const [isLoading, setIsLoading] = useState(false)
+	const cleanupRef = useRef<(() => void) | null>(null)
+	const chatContainerRef = useRef<HTMLDivElement>(null)
+
+	// Auto-scroll to bottom when new messages arrive
 	useEffect(() => {
-		listMeetings()
-			.then((res) => setMeetings(res.data.meetings))
-			.catch(console.error)
-		listParticipants()
-			.then((res) => setParticipants(res.data.participants))
-			.catch(console.error)
+		if (chatContainerRef.current) {
+			chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+		}
+	}, [messages])
+
+	// Fetch meetings on mount
+	useEffect(() => {
+		const fetchGroups = async () => {
+			try {
+				const response = await listGroups()
+				console.log("Fetched groups:", response.data.groups)
+				setGroups(response.data.groups)
+			} catch (error) {
+				console.error("Error fetching meetings:", error)
+			}
+		}
+		fetchGroups()
 	}, [])
 
-	const handleCreateMeeting = async () => {
-		try {
-			await createMeeting({ participant_ids: selectedParticipantIds })
-			const res = await listMeetings()
-			setMeetings(res.data.meetings)
-			setSelectedParticipantIds([])
-		} catch (error) {
-			console.error("Error creating meeting:", error)
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			cleanupRef.current?.()
 		}
+	}, [])
+
+	const handleStartChat = () => {
+		if (!selectedGroup || !chatMessage.trim()) return
+
+		console.log("Starting chat with:", { selectedGroup: selectedGroup, chatMessage })
+		setIsLoading(true)
+		setMessages([])
+
+		// If there's an existing cleanup function, call it
+		if (cleanupRef.current) {
+			console.log("Cleaning up previous chat session")
+			cleanupRef.current()
+		}
+
+		// Store new cleanup function
+		cleanupRef.current = streamChat(
+			{ group_id: selectedGroup, message: chatMessage },
+			{
+				onParticipantResponse: (response: ParticipantResponse) => {
+					if (!response.response || typeof response.response[0] !== "string") {
+						console.error("Invalid response format:", response)
+						return
+					}
+					setMessages((prev) => {
+						const newMessage: ChatMessage = {
+							type: "participant",
+							name: response.name,
+							step: response.step,
+							content: response.response[0],
+							timestamp: new Date(),
+						}
+						console.log("Adding Participant message:", newMessage)
+						return [...prev, newMessage]
+					})
+				},
+				onFinalResponse: (response: ChatFinalResponse) => {
+					console.log("Received final response:", response)
+					if (!response.response || typeof response.response[0] !== "string") {
+						console.error("Invalid final response format:", response)
+						return
+					}
+					setMessages((prev) => {
+						const newMessage: ChatMessage = {
+							type: "final",
+							content: response.response[0],
+							timestamp: new Date(),
+						}
+						console.log("Adding final message:", newMessage)
+						return [...prev, newMessage]
+					})
+				},
+				onError: (error) => {
+					console.error("Chat error:", error)
+					setIsLoading(false)
+				},
+				onComplete: () => {
+					console.log("Chat session complete")
+					setIsLoading(false)
+					setChatMessage("")
+				},
+			},
+		)
 	}
 
 	return (
-		<div className="p-6">
-			<h1 className="mb-4 text-3xl font-bold">Meetings</h1>
-			<Dialog>
-				<DialogTrigger asChild>
-					<Button>Create New Meeting</Button>
-				</DialogTrigger>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Create Meeting</DialogTitle>
-					</DialogHeader>
-					<div className="flex flex-col gap-4">
-						<div className="grid gap-2">
-							{participants.map((participant) => (
-								<div key={participant.id} className="flex items-center gap-2">
-									<input
-										type="checkbox"
-										checked={selectedParticipantIds.includes(participant.id)}
-										onChange={(e) =>
-											setSelectedParticipantIds(
-												e.target.checked
-													? [...selectedParticipantIds, participant.id]
-													: selectedParticipantIds.filter((id) => id !== participant.id),
-											)
-										}
-									/>
-									<p>{participant.name}</p>
+		<div className="flex flex-col h-[calc(100vh-2rem)]">
+			<Card className="flex flex-col flex-1">
+				<CardHeader className="py-4">
+					<CardTitle className="flex items-center gap-4">
+						<span>Chat</span>
+						<Select value={selectedGroup} onValueChange={setSelectedMeeting}>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Select a Group" />
+							</SelectTrigger>
+							<SelectContent>
+								{groups.map((group) => (
+									<SelectItem key={group.id} value={group.id}>
+										{group.name || group.id}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
+					{/* Chat messages */}
+					<div ref={chatContainerRef} className="flex-1 overflow-y-auto">
+						<div className="p-4 space-y-4">
+							{messages.length === 0 && !isLoading && (
+								<div className="text-center text-muted-foreground">
+									No messages yet. Start a chat to begin the discussion.
 								</div>
+							)}
+							{messages.map((msg, index) => (
+								<ChatMessage key={index} {...msg} />
 							))}
+							{isLoading && <div className="text-center text-muted-foreground">Participants are thinking...</div>}
 						</div>
 					</div>
-					<DialogFooter>
-						<Button onClick={handleCreateMeeting} disabled={selectedParticipantIds.length === 0}>
-							Create
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			<div className="grid gap-4 mt-4">
-				{meetings.map((meeting) => (
-					<Card key={meeting.id}>
-						<CardHeader>
-							<CardTitle>{meeting.name || meeting.id}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="space-y-2">
-								<div>
-									<p className="mb-2 font-medium">Participants:</p>
-									<ul className="pl-6 space-y-1 list-disc">
-										{meeting.participants.map((participant) => (
-											<li key={participant.participant_id}>
-												<span className="font-medium">{participant.name}</span>
-												<span className="text-gray-600"> - {participant.role}</span>
-											</li>
-										))}
-									</ul>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				))}
+				</CardContent>
+			</Card>
+
+			{/* Chat input */}
+			<div className="mt-4">
+				<ChatInput
+					value={chatMessage}
+					onChange={setChatMessage}
+					onSend={handleStartChat}
+					disabled={!selectedGroup}
+					isLoading={isLoading}
+				/>
 			</div>
 		</div>
 	)
 }
 
-export default Meetings
+export default Meeting

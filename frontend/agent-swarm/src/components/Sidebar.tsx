@@ -11,13 +11,6 @@ const Sidebar: React.FC = () => {
 					Home
 				</Button>
 			</NavLink>
-			<NavLink
-				to="/meetings"
-				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="justify-start w-full">
-					Meetings
-				</Button>
-			</NavLink>
 			<div>
 				<NavLink
 					to="/participants"
@@ -34,9 +27,17 @@ const Sidebar: React.FC = () => {
 					</Button>
 				</NavLink>
 			</div>
-			<NavLink to="/chat" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
+			<NavLink
+				to="/groups"
+				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
-					Chat
+					Groups
+				</Button>
+			</NavLink>
+
+			<NavLink to="/meetings" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
+				<Button variant="ghost" className="justify-start w-full">
+					Meetings
 				</Button>
 			</NavLink>
 		</div>

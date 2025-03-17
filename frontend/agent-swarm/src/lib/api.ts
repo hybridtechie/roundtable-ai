@@ -1,20 +1,28 @@
 import axios from "axios"
-import { Participant, ChatRequest, ParticipantResponse, ChatFinalResponse, Meeting } from "@/types/types"
+import { Participant, MeetingRequest, ParticipantResponse, ChatFinalResponse, Meeting, Group } from "@/types/types"
 
 const api = axios.create({
 	baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000", // Fallback to default if env not set
 })
 
+
+// Participants
 export const createParticipant = (data: { id: string; name: string; persona_description: string; context: string }) =>
 	api.post("/participant", data)
 
 export const listParticipants = () => api.get<{ participants: Participant[] }>("/participants")
 
+// Groups
+
+export const createGroup = (data: { participant_ids: string[] }) => api.post("/group", data)
+
+export const listGroups = () => api.get<{ groups: Group[] }>("/groups")
+
+// Meetings
+
 export const createMeeting = (data: { participant_ids: string[] }) => api.post("/meeting", data)
 
 export const setMeetingTopic = (data: { meeting_id: string; topic: string }) => api.post("/meeting/topic", data)
-
-export const startChat = (data: { meeting_id: string; message: string }) => api.post("/chat", data)
 
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>("/meetings")
 
@@ -25,9 +33,9 @@ interface StreamCallbacks {
 	onComplete?: () => void
 }
 
-export const streamChat = (data: ChatRequest, callbacks: StreamCallbacks): (() => void) => {
+export const streamChat = (data: MeetingRequest, callbacks: StreamCallbacks): (() => void) => {
 	const eventSource = new EventSource(
-		`${api.defaults.baseURL}/chat-stream?meeting_id=${data.meeting_id}&message=${encodeURIComponent(data.message)}`,
+		`${api.defaults.baseURL}/chat-stream?group_id=${data.group_id}&message=${encodeURIComponent(data.message)}`,
 	)
 
 	eventSource.addEventListener("participant_response", ((event: MessageEvent) => {
