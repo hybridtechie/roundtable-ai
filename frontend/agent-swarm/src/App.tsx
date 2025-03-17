@@ -4,6 +4,7 @@ import Home from "./components/Home"
 import Chatrooms from "./components/Chatrooms"
 import Agents from "./components/Agents"
 import CreateAgent from "./components/CreateAgent"
+import Chat from "./components/Chat"
 
 function App() {
 	return (
@@ -15,6 +16,7 @@ function App() {
 					<Route path="/chatrooms" element={<Chatrooms />} />
 					<Route path="/agents" element={<Agents />} />
 					<Route path="/agents/create" element={<CreateAgent />} />
+					<Route path="/chat" element={<Chat />} />
 				</Routes>
 			</div>
 		</div>

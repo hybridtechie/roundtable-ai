@@ -4,17 +4,17 @@ import { Button } from "@/components/ui/button"
 
 const Sidebar: React.FC = () => {
 	return (
-		<div className="w-64 h-screen bg-gray-100 p-4 flex flex-col gap-2">
-			<h2 className="text-2xl font-bold mb-4">Agent Swarm</h2>
+		<div className="flex flex-col w-64 h-screen gap-2 p-4 bg-gray-100">
+			<h2 className="mb-4 text-2xl font-bold">Agent Swarm</h2>
 			<NavLink to="/" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="w-full justify-start">
+				<Button variant="ghost" className="justify-start w-full">
 					Home
 				</Button>
 			</NavLink>
 			<NavLink
 				to="/chatrooms"
 				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-				<Button variant="ghost" className="w-full justify-start">
+				<Button variant="ghost" className="justify-start w-full">
 					Chatrooms
 				</Button>
 			</NavLink>
@@ -22,18 +22,25 @@ const Sidebar: React.FC = () => {
 				<NavLink
 					to="/agents"
 					className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
-					<Button variant="ghost" className="w-full justify-start">
+					<Button variant="ghost" className="justify-start w-full">
 						Agents
 					</Button>
 				</NavLink>
 				<NavLink
 					to="/agents/create"
 					className={({ isActive }: { isActive: boolean }) => `w-full pl-4 ${isActive ? "bg-gray-200" : ""}`}>
-					<Button variant="ghost" className="w-full justify-start">
+					<Button variant="ghost" className="justify-start w-full">
 						Create Agent
 					</Button>
 				</NavLink>
 			</div>
+			<NavLink
+				to="/chat"
+				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
+				<Button variant="ghost" className="justify-start w-full">
+					Chat
+				</Button>
+			</NavLink>
 		</div>
 	)
 }
