@@ -21,10 +21,23 @@ def init_sqlite_db():
     )
     cursor.execute(
         """
+        CREATE TABLE IF NOT EXISTS groups (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            participant_ids TEXT NOT NULL,  -- Store as JSON string,
+            userId TEXT NOT NULL DEFAULT 'SuperAdmin',
+            context TEXT
+        )
+    """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS meetings (
             id TEXT PRIMARY KEY,
             participant_ids TEXT NOT NULL,  -- Store as JSON string,
-            meeting_context TEXT,
+            group_ids TEXT,  -- Store as JSON string,
+            context TEXT,
             topic TEXT,
             userId TEXT NOT NULL DEFAULT 'SuperAdmin'
         )
