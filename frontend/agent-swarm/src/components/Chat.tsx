@@ -116,48 +116,52 @@ const Chat: React.FC = () => {
     }
 
     return (
-        <Card className="h-[600px] flex flex-col">
-            <CardHeader className="py-4">
-                <CardTitle className="flex items-center gap-4">
-                    <span>Chat</span>
-                    <Select value={selectedChatroom} onValueChange={setSelectedChatroom}>
-                        <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Select a chatroom" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {chatrooms.map((room) => (
-                                <SelectItem key={room.id} value={room.id}>
-                                    {room.name || room.id}
-                                </SelectItem>
+        <div className="flex flex-col h-[calc(100vh-2rem)]">
+            <Card className="flex flex-col flex-1">
+                <CardHeader className="py-4">
+                    <CardTitle className="flex items-center gap-4">
+                        <span>Chat</span>
+                        <Select value={selectedChatroom} onValueChange={setSelectedChatroom}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Select a chatroom" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {chatrooms.map((room) => (
+                                    <SelectItem key={room.id} value={room.id}>
+                                        {room.name || room.id}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
+                    {/* Chat messages */}
+                    <div 
+                        ref={chatContainerRef}
+                        className="flex-1 overflow-y-auto"
+                    >
+                        <div className="p-4 space-y-4">
+                            {messages.length === 0 && !isLoading && (
+                                <div className="text-center text-muted-foreground">
+                                    No messages yet. Start a chat to begin the discussion.
+                                </div>
+                            )}
+                            {messages.map((msg, index) => (
+                                <ChatMessage key={index} {...msg} />
                             ))}
-                        </SelectContent>
-                    </Select>
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col flex-1 p-0">
-                {/* Chat messages */}
-                <div 
-                    ref={chatContainerRef}
-                    className="flex-1 overflow-y-auto"
-                >
-                    <div className="p-4 space-y-4">
-                        {messages.length === 0 && !isLoading && (
-                            <div className="text-center text-muted-foreground">
-                                No messages yet. Start a chat to begin the discussion.
-                            </div>
-                        )}
-                        {messages.map((msg, index) => (
-                            <ChatMessage key={index} {...msg} />
-                        ))}
-                        {isLoading && (
-                            <div className="text-center text-muted-foreground">
-                                Agents are thinking...
-                            </div>
-                        )}
+                            {isLoading && (
+                                <div className="text-center text-muted-foreground">
+                                    Agents are thinking...
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                </CardContent>
+            </Card>
 
-                {/* Chat input */}
+            {/* Chat input */}
+            <div className="mt-4">
                 <ChatInput
                     value={chatMessage}
                     onChange={setChatMessage}
@@ -165,8 +169,8 @@ const Chat: React.FC = () => {
                     disabled={!selectedChatroom}
                     isLoading={isLoading}
                 />
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }
 
