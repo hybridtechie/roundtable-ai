@@ -6,3 +6,5 @@ agents.db
 chroma_data/
 
 aitwins.db
+
+.DS_Store
