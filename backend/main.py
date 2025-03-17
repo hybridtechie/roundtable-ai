@@ -1,24 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from features.participant import (
-    create_participant,
-    get_participant,
-    update_participant,
-    delete_participant,
-    list_participants,
-    ParticipantCreate,
-    ParticipantUpdate
-)
+from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
-from features.group import (
-    create_group,
-    get_group,
-    update_group,
-    delete_group,
-    list_groups,
-    GroupCreate,
-    GroupUpdate
-)
+from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import start_meeting_discussion, stream_meeting_discussion, ChatMessage
 import uvicorn
 from dotenv import load_dotenv

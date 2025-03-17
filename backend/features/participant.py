@@ -46,9 +46,11 @@ class ParticipantBase(BaseModel):
     role: str = Field(default="Team Member", min_length=1, max_length=50)
     userId: str = Field(default="SuperAdmin", min_length=1)
 
+
 class ParticipantCreate(ParticipantBase):
     id: Optional[str] = None
     context: str = Field(..., min_length=1, max_length=10000)
+
 
 class ParticipantUpdate(ParticipantBase):
     context: Optional[str] = Field(None, min_length=1, max_length=10000)
@@ -119,7 +121,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
         # Update participant in SQLite
         cursor.execute(
             "UPDATE participants SET name = ?, persona_description = ?, role = ?, userId = ? WHERE id = ?",
-            (participant.name, participant.persona_description, participant.role, participant.userId, participant_id)
+            (participant.name, participant.persona_description, participant.role, participant.userId, participant_id),
         )
 
         # Update context in ChromaDB if provided
@@ -148,6 +150,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
         if conn:
             conn.close()
             logger.debug("Database connection closed")
+
 
 async def delete_participant(participant_id: str):
     """Delete a Participant from SQLite and ChromaDB."""
@@ -191,6 +194,7 @@ async def delete_participant(participant_id: str):
             conn.close()
             logger.debug("Database connection closed")
 
+
 async def get_participant(participant_id: str):
     """Get a specific Participant from SQLite and its context from ChromaDB."""
     conn = None
@@ -209,19 +213,12 @@ async def get_participant(participant_id: str):
         # Get context from ChromaDB
         try:
             context_result = collection.get(ids=[participant_id])
-            context = context_result['documents'][0] if context_result['documents'] else ""
+            context = context_result["documents"][0] if context_result["documents"] else ""
         except Exception as e:
             logger.error("Failed to fetch context from ChromaDB for participant %s: %s", participant_id, str(e))
             context = ""
 
-        participant = {
-            "id": row[0],
-            "name": row[1],
-            "persona_description": row[2],
-            "role": row[3],
-            "userId": row[4],
-            "context": context
-        }
+        participant = {"id": row[0], "name": row[1], "persona_description": row[2], "role": row[3], "userId": row[4], "context": context}
 
         logger.info("Successfully retrieved participant: %s", participant_id)
         return participant
@@ -238,6 +235,7 @@ async def get_participant(participant_id: str):
         if conn:
             conn.close()
             logger.debug("Database connection closed")
+
 
 async def list_participants():
     """List all Participants from SQLite."""

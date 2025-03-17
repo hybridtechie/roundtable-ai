@@ -223,35 +223,20 @@ async def get_group(group_id: str):
 
         # Fetch participant details
         for participant_id in participant_ids:
-            cursor.execute(
-                "SELECT id, name, role FROM participants WHERE id = ?",
-                (participant_id,)
-            )
+            cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
             participant = cursor.fetchone()
             if participant:
-                participants.append({
-                    "participant_id": participant[0],
-                    "name": participant[1],
-                    "role": participant[2]
-                })
+                participants.append({"participant_id": participant[0], "name": participant[1], "role": participant[2]})
 
         # Get context from ChromaDB if available
         try:
             context_result = collection.get(ids=[group_id])
-            context = context_result['documents'][0] if context_result['documents'] else ""
+            context = context_result["documents"][0] if context_result["documents"] else ""
         except Exception as e:
             logger.error("Failed to fetch context from ChromaDB for group %s: %s", group_id, str(e))
             context = ""
 
-        group = {
-            "id": row[0],
-            "name": row[1],
-            "description": row[2],
-            "userId": row[4],
-            "participant_ids": participant_ids,
-            "participants": participants,
-            "context": context
-        }
+        group = {"id": row[0], "name": row[1], "description": row[2], "userId": row[4], "participant_ids": participant_ids, "participants": participants, "context": context}
 
         logger.info("Successfully retrieved group: %s", group_id)
         return group
@@ -286,28 +271,14 @@ async def list_groups():
         for row in groups_raw:
             try:
                 participant_ids = json.loads(row[3])
-                group = {
-                    "id": row[0],
-                    "name": row[1],
-                    "description": row[2],
-                    "userId": row[4],
-                    "participant_ids": participant_ids,
-                    "participants": []
-                }
+                group = {"id": row[0], "name": row[1], "description": row[2], "userId": row[4], "participant_ids": participant_ids, "participants": []}
 
                 # Fetch participant details for each participant_id
                 for participant_id in participant_ids:
-                    cursor.execute(
-                        "SELECT id, name, role FROM participants WHERE id = ?",
-                        (participant_id,)
-                    )
+                    cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
                     participant = cursor.fetchone()
                     if participant:
-                        group["participants"].append({
-                            "participant_id": participant[0],
-                            "name": participant[1],
-                            "role": participant[2]
-                        })
+                        group["participants"].append({"participant_id": participant[0], "name": participant[1], "role": participant[2]})
                     else:
                         logger.warning("Participant %s not found for group %s", participant_id, group["id"])
 

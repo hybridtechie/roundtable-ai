@@ -6,15 +6,11 @@ from colorama import init, Fore, Style
 # Initialize colorama for Windows support
 init()
 
+
 class ColoredFormatter(logging.Formatter):
     """Custom formatter to add colors to log levels"""
-    LEVEL_COLORS = {
-        logging.DEBUG: Fore.CYAN,
-        logging.INFO: Fore.GREEN,
-        logging.WARNING: Fore.YELLOW,
-        logging.ERROR: Fore.RED,
-        logging.CRITICAL: Fore.RED + Style.BRIGHT
-    }
+
+    LEVEL_COLORS = {logging.DEBUG: Fore.CYAN, logging.INFO: Fore.GREEN, logging.WARNING: Fore.YELLOW, logging.ERROR: Fore.RED, logging.CRITICAL: Fore.RED + Style.BRIGHT}
 
     def format(self, record):
         # Get the original formatted message
@@ -22,6 +18,7 @@ class ColoredFormatter(logging.Formatter):
         # Add color based on log level
         color = self.LEVEL_COLORS.get(record.levelno, Fore.WHITE)
         return f"{color}{message}{Style.RESET_ALL}"
+
 
 def setup_logger(name: str, level: Optional[str] = None) -> logging.Logger:
     """
@@ -43,10 +40,7 @@ def setup_logger(name: str, level: Optional[str] = None) -> logging.Logger:
         handler = logging.StreamHandler(sys.stdout)
 
         # Create colored formatter
-        formatter = ColoredFormatter(
-            "[%(asctime)s] %(levelname)s [%(name)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
+        formatter = ColoredFormatter("[%(asctime)s] %(levelname)s [%(name)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
         # Add formatter to handler
         handler.setFormatter(formatter)
@@ -58,6 +52,7 @@ def setup_logger(name: str, level: Optional[str] = None) -> logging.Logger:
     logger.setLevel(level or logging.INFO)
 
     return logger
+
 
 # Example usage:
 if __name__ == "__main__":
