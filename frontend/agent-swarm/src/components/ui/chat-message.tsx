@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface ChatMessageProps {
-  type: 'agent' | 'final'
+  type: 'aitwin' | 'final'
   name?: string
   step?: string
   content: string
@@ -21,7 +21,7 @@ export function ChatMessage({ type, name, step, content, timestamp, className }:
       <div className="flex-1 space-y-2">
         <div className="flex items-center gap-2">
           <span className="font-semibold">
-            {type === 'agent' ? name : 'Final Response'}
+            {type === 'aitwin' ? name : 'Final Response'}
           </span>
           {step && (
             <span className="text-sm text-muted-foreground">

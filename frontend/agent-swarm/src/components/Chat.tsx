@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { streamChat, listChatrooms } from "@/lib/api"
-import { Chatroom, AgentResponse, ChatFinalResponse } from "@/types/types"
+import { streamChat, listMeetings } from "@/lib/api"
+import { Meeting, AiTwinResponse, ChatFinalResponse } from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { ChatInput } from "@/components/ui/chat-input"
 
 interface ChatMessage {
-    type: 'agent' | 'final'
+    type: 'aitwin' | 'final'
     name?: string
     step?: string
     content: string
@@ -15,8 +15,8 @@ interface ChatMessage {
 }
 
 const Chat: React.FC = () => {
-    const [selectedChatroom, setSelectedChatroom] = useState<string>("")
-    const [chatrooms, setChatrooms] = useState<Chatroom[]>([])
+    const [selectedMeeting, setSelectedMeeting] = useState<string>("")
+    const [meetings, setMeetings] = useState<Meeting[]>([])
     const [chatMessage, setChatMessage] = useState("")
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [isLoading, setIsLoading] = useState(false)
@@ -30,18 +30,18 @@ const Chat: React.FC = () => {
         }
     }, [messages])
 
-    // Fetch chatrooms on mount
+    // Fetch meetings on mount
     useEffect(() => {
-        const fetchChatrooms = async () => {
+        const fetchMeetings = async () => {
             try {
-                const response = await listChatrooms()
-                console.log('Fetched chatrooms:', response.data.chatrooms)
-                setChatrooms(response.data.chatrooms)
+                const response = await listMeetings()
+                console.log('Fetched meetings:', response.data.meetings)
+                setMeetings(response.data.meetings)
             } catch (error) {
-                console.error("Error fetching chatrooms:", error)
+                console.error("Error fetching meetings:", error)
             }
         }
-        fetchChatrooms()
+        fetchMeetings()
     }, [])
 
     // Cleanup on unmount
@@ -52,9 +52,9 @@ const Chat: React.FC = () => {
     }, [])
 
     const handleStartChat = () => {
-        if (!selectedChatroom || !chatMessage.trim()) return
+        if (!selectedMeeting || !chatMessage.trim()) return
         
-        console.log('Starting chat with:', { selectedChatroom, chatMessage })
+        console.log('Starting chat with:', { selectedMeeting, chatMessage })
         setIsLoading(true)
         setMessages([])
 
@@ -66,36 +66,36 @@ const Chat: React.FC = () => {
 
         // Store new cleanup function
         cleanupRef.current = streamChat(
-            { chatroom_id: selectedChatroom, message: chatMessage },
+            { meeting_id: selectedMeeting, message: chatMessage },
             {
-                onAgentResponse: (response: AgentResponse) => {
-                    console.log('Received agent response:', response)
-                    if (!response.response || typeof response.response[0] !== 'string') {
+                onAiTwinResponse: (response: AiTwinResponse) => {
+                    console.log('Received AI twin response:', response)
+                    if (!response.response) {
                         console.error('Invalid response format:', response)
                         return
                     }
                     setMessages((prev) => {
                         const newMessage: ChatMessage = {
-                            type: 'agent',
+                            type: 'aitwin',
                             name: response.name,
                             step: response.step,
-                            content: response.response[0],
+                            content: response.response,
                             timestamp: new Date()
                         }
-                        console.log('Adding agent message:', newMessage)
+                        console.log('Adding AI twin message:', newMessage)
                         return [...prev, newMessage]
                     })
                 },
                 onFinalResponse: (response: ChatFinalResponse) => {
                     console.log('Received final response:', response)
-                    if (!response.response || typeof response.response[0] !== 'string') {
+                    if (!response.response) {
                         console.error('Invalid final response format:', response)
                         return
                     }
                     setMessages((prev) => {
                         const newMessage: ChatMessage = {
                             type: 'final',
-                            content: response.response[0],
+                            content: response.response,
                             timestamp: new Date()
                         }
                         console.log('Adding final message:', newMessage)
@@ -121,14 +121,14 @@ const Chat: React.FC = () => {
                 <CardHeader className="py-4">
                     <CardTitle className="flex items-center gap-4">
                         <span>Chat</span>
-                        <Select value={selectedChatroom} onValueChange={setSelectedChatroom}>
+                        <Select value={selectedMeeting} onValueChange={setSelectedMeeting}>
                             <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Select a chatroom" />
+                                <SelectValue placeholder="Select a meeting" />
                             </SelectTrigger>
                             <SelectContent>
-                                {chatrooms.map((room) => (
-                                    <SelectItem key={room.id} value={room.id}>
-                                        {room.name || room.id}
+                                {meetings.map((meeting) => (
+                                    <SelectItem key={meeting.id} value={meeting.id}>
+                                        {meeting.name || meeting.id}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -137,7 +137,7 @@ const Chat: React.FC = () => {
                 </CardHeader>
                 <CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
                     {/* Chat messages */}
-                    <div 
+                    <div
                         ref={chatContainerRef}
                         className="flex-1 overflow-y-auto"
                     >
@@ -152,7 +152,7 @@ const Chat: React.FC = () => {
                             ))}
                             {isLoading && (
                                 <div className="text-center text-muted-foreground">
-                                    Agents are thinking...
+                                    AI Twins are thinking...
                                 </div>
                             )}
                         </div>
@@ -166,7 +166,7 @@ const Chat: React.FC = () => {
                     value={chatMessage}
                     onChange={setChatMessage}
                     onSend={handleStartChat}
-                    disabled={!selectedChatroom}
+                    disabled={!selectedMeeting}
                     isLoading={isLoading}
                 />
             </div>

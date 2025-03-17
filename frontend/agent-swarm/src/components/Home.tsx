@@ -1,28 +1,28 @@
 import React, { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { listAgents } from "@/lib/api"
-import { Agent } from "@/types/types"
+import { listAiTwins } from "@/lib/api"
+import { AiTwin } from "@/types/types"
 
 const Home: React.FC = () => {
-	const [agents, setAgents] = useState<Agent[]>([])
+	const [aitwins, setAiTwins] = useState<AiTwin[]>([])
 
 	useEffect(() => {
-		listAgents()
-			.then((res) => setAgents(res.data.agents))
+		listAiTwins()
+			.then((res) => setAiTwins(res.data.aitwins))
 			.catch(console.error)
 	}, [])
 
 	return (
 		<div className="p-6">
-			<h1 className="text-3xl font-bold mb-4">Available Agents</h1>
+			<h1 className="mb-4 text-3xl font-bold">Available AiTwins</h1>
 			<div className="grid gap-4">
-				{agents.map((agent) => (
-					<Card key={agent.id}>
+				{aitwins.map((aitwin) => (
+					<Card key={aitwin.id}>
 						<CardHeader>
-							<CardTitle>{agent.name}</CardTitle>
+							<CardTitle>{aitwin.name}</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p>{agent.persona_description}</p>
+							<p>{aitwin.persona_description}</p>
 						</CardContent>
 					</Card>
 				))}

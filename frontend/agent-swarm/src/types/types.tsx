@@ -1,16 +1,16 @@
-export interface Agent {
+export interface AiTwin {
     id: string
     name: string
     persona_description: string
 }
 
 export interface ChatRequest {
-    chatroom_id: string
+    meeting_id: string
     message: string
 }
 
-export interface AgentResponse {
-    agent_id: string
+export interface AiTwinResponse {
+    aitwin_id: string
     name: string
     step: string
     response: string
@@ -25,15 +25,17 @@ export type ChatErrorResponse = {
 }
 
 export enum ChatEventType {
-    AgentResponse = "agent_response",
+    AiTwinResponse = "aitwin_response",
     FinalResponse = "final_response",
     Error = "error",
     Complete = "complete"
 }
 
-export interface Chatroom {
+export interface Meeting {
     id: string
     name: string
-    agent_ids: string[]
+    aitwin_ids: string[]
     topic?: string
 }
+
+// Remove chatroom type as we're fully migrating to Meeting
