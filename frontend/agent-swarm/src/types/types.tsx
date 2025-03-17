@@ -13,7 +13,8 @@ export interface Group {
 }
 
 export interface MeetingRequest {
-	group_id: string
+    group_id: string
+    strategy: string
 	message: string
 }
 

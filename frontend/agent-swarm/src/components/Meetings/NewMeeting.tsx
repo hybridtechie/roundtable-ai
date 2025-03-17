@@ -16,6 +16,7 @@ interface ChatMessage {
 
 const NewMeeting: React.FC = () => {
     const [selectedGroup, setSelectedMeeting] = useState<string>("")
+    const [discussionStrategy, setDiscussionStrategy] = useState<string>("RoundRobin")
     const [groups, setGroups] = useState<Group[]>([])
     const [chatMessage, setChatMessage] = useState("")
     const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -66,7 +67,7 @@ const NewMeeting: React.FC = () => {
         }
 
         cleanupRef.current = streamChat(
-            { group_id: selectedGroup, message: chatMessage },
+            { group_id: selectedGroup, message: chatMessage, strategy: discussionStrategy },
             {
                 onParticipantResponse: (response: ParticipantResponse) => {
                     if (!response.response || typeof response.response[0] !== "string") {
@@ -118,18 +119,34 @@ const NewMeeting: React.FC = () => {
         <div className="flex flex-col h-[calc(100vh-2rem)]">
             {!showChat ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4">
-                    <Select value={selectedGroup} onValueChange={setSelectedMeeting}>
-                        <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Select a Group" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {groups.map((group) => (
-                                <SelectItem key={group.id} value={group.id}>
-                                    {group.name || group.id}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col items-start w-[300px]">
+                        <label className="mb-2 text-lg font-semibold">Group</label>
+                        <Select value={selectedGroup} onValueChange={setSelectedMeeting}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a Group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {groups.map((group) => (
+                                    <SelectItem key={group.id} value={group.id}>
+                                        {group.name || group.id}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex flex-col items-start w-[300px] mt-4">
+                        <label className="mb-2 text-lg font-semibold">Discussion Strategy</label>
+                        <Select value={discussionStrategy} onValueChange={setDiscussionStrategy}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a Strategy" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="RoundRobin">RoundRobin</SelectItem>
+                                <SelectItem value="Weighted">Weighted</SelectItem>
+                                <SelectItem value="I am feeling Lucky">I am feeling Lucky</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="w-full max-w-md">
                         <ChatInput
                             value={chatMessage}
