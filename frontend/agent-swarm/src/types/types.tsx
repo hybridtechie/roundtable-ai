@@ -32,11 +32,18 @@ export enum ChatEventType {
 	Complete = "complete",
 }
 
+export interface MeetingParticipant {
+  aitwin_id: string
+  name: string
+  role: string
+}
+
 export interface Meeting {
-	id: string
-	name: string
-	aitwin_ids: string[]
-	topic?: string
+  id: string
+  name: string
+  aitwin_ids: string[]
+  topic?: string
+  participants: MeetingParticipant[]
 }
 
 // Remove chatroom type as we're fully migrating to Meeting

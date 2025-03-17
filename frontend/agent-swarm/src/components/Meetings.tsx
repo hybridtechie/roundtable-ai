@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { listAiTwins, listMeetings, createMeeting, setMeetingTopic } from "@/lib/api"
+import { listAiTwins, listMeetings, createMeeting } from "@/lib/api"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AiTwin, Meeting } from "@/types/types"
 
@@ -10,8 +9,6 @@ const Meetings: React.FC = () => {
 	const [meetings, setMeetings] = useState<Meeting[]>([])
 	const [aitwins, setAiTwins] = useState<AiTwin[]>([])
 	const [selectedAiTwinIds, setSelectedAiTwinIds] = useState<string[]>([])
-	const [newTopic, setNewTopic] = useState("")
-	const [selectedMeetingId, setSelectedMeetingId] = useState("")
 
 	useEffect(() => {
 		listMeetings()
@@ -30,17 +27,6 @@ const Meetings: React.FC = () => {
 			setSelectedAiTwinIds([])
 		} catch (error) {
 			console.error("Error creating meeting:", error)
-		}
-	}
-
-	const handleSetTopic = async () => {
-		try {
-			await setMeetingTopic({ meeting_id: selectedMeetingId, topic: newTopic })
-			const res = await listMeetings()
-			setMeetings(res.data.meetings)
-			setNewTopic("")
-		} catch (error) {
-			console.error("Error setting topic:", error)
 		}
 	}
 

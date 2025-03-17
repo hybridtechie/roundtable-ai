@@ -34,19 +34,38 @@ async def create_meeting(meeting: MeetingCreate):
     return {"meeting_id": meeting_id}
 
 async def list_meetings():
-    """List all meetings from SQLite."""
+    """List all meetings with participant details from SQLite."""
     conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
     cursor.execute("SELECT id, aitwin_ids, topic, userId FROM meetings")
-    meetings_data = [
-        {
-            "id": row[0], 
-            "aitwin_ids": json.loads(row[1]), 
+    meetings_raw = cursor.fetchall()
+    
+    meetings_data = []
+    for row in meetings_raw:
+        meeting = {
+            "id": row[0],
+            "aitwin_ids": json.loads(row[1]),
             "topic": row[2],
-            "userId": row[3]
-        } 
-        for row in cursor.fetchall()
-    ]
+            "userId": row[3],
+            "participants": []
+        }
+        
+        # Fetch participant details for each aitwin_id
+        for aitwin_id in meeting["aitwin_ids"]:
+            cursor.execute(
+                "SELECT id, name, role FROM aitwins WHERE id = ?",
+                (aitwin_id,)
+            )
+            aitwin = cursor.fetchone()
+            if aitwin:
+                meeting["participants"].append({
+                    "aitwin_id": aitwin[0],
+                    "name": aitwin[1],
+                    "role": aitwin[2]
+                })
+        
+        meetings_data.append(meeting)
+    
     conn.close()
     return {"meetings": meetings_data}
 
