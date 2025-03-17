@@ -21,6 +21,7 @@ const Chat: React.FC = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const cleanupRef = useRef<(() => void) | null>(null)
     
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -40,12 +41,23 @@ const Chat: React.FC = () => {
         fetchChatrooms()
     }, [])
 
-    const handleStartChat = async () => {
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            cleanupRef.current?.()
+        }
+    }, [])
+
+    const handleStartChat = () => {
         if (!selectedChatroom || !chatMessage) return
         setIsLoading(true)
         setMessages([])
 
-        const cleanup = streamChat(
+        // If there's an existing cleanup function, call it
+        cleanupRef.current?.()
+
+        // Store new cleanup function
+        cleanupRef.current = streamChat(
             { chatroom_id: selectedChatroom, message: chatMessage },
             {
                 onAgentResponse: (response) => {
@@ -72,6 +84,7 @@ const Chat: React.FC = () => {
                 },
                 onError: (error) => {
                     console.error("Chat error:", error)
+                    setIsLoading(false)
                 },
                 onComplete: () => {
                     setIsLoading(false)
@@ -79,9 +92,6 @@ const Chat: React.FC = () => {
                 }
             }
         )
-
-        // Cleanup on component unmount
-        return () => cleanup()
     }
 
     return (

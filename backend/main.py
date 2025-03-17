@@ -49,9 +49,9 @@ async def set_chatroom_topic_endpoint(chatroom_topic: ChatroomTopic):
 async def chat_endpoint(message: ChatMessage):
     return await start_chatroom_discussion(message.chatroom_id, message.message)
 
-@app.post("/chat-stream")
-async def chat_stream_endpoint(message: ChatMessage):
-    return await stream_chatroom_discussion(message.chatroom_id, message.message)
+@app.get("/chat-stream")
+async def chat_stream_endpoint(chatroom_id: str, message: str):
+    return await stream_chatroom_discussion(chatroom_id, message)
 
 # Run the app
 if __name__ == "__main__":
