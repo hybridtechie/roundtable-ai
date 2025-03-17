@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { streamChat, listChatrooms } from "@/lib/api"
-import { Chatroom } from "@/types/types"
+import { Chatroom, AgentResponse, ChatFinalResponse } from "@/types/types"
 
 interface ChatMessage {
     type: 'agent' | 'final'
@@ -33,6 +33,7 @@ const Chat: React.FC = () => {
         const fetchChatrooms = async () => {
             try {
                 const response = await listChatrooms()
+                console.log('Fetched chatrooms:', response.data.chatrooms)
                 setChatrooms(response.data.chatrooms)
             } catch (error) {
                 console.error("Error fetching chatrooms:", error)
@@ -50,43 +51,61 @@ const Chat: React.FC = () => {
 
     const handleStartChat = () => {
         if (!selectedChatroom || !chatMessage) return
+        
+        console.log('Starting chat with:', { selectedChatroom, chatMessage })
         setIsLoading(true)
         setMessages([])
 
         // If there's an existing cleanup function, call it
-        cleanupRef.current?.()
+        if (cleanupRef.current) {
+            console.log('Cleaning up previous chat session')
+            cleanupRef.current()
+        }
 
         // Store new cleanup function
         cleanupRef.current = streamChat(
             { chatroom_id: selectedChatroom, message: chatMessage },
             {
-                onAgentResponse: (response) => {
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            type: "agent",
+                onAgentResponse: (response: AgentResponse) => {
+                    console.log('Received agent response:', response)
+                    if (!response.response || typeof response.response[0] !== 'string') {
+                        console.error('Invalid response format:', response)
+                        return
+                    }
+                    setMessages((prev) => {
+                        const newMessage: ChatMessage = {
+                            type: 'agent',
                             name: response.name,
                             step: response.step,
-                            content: response.response,
+                            content: response.response[0],
                             timestamp: new Date()
                         }
-                    ])
+                        console.log('Adding agent message:', newMessage)
+                        return [...prev, newMessage]
+                    })
                 },
-                onFinalResponse: (response) => {
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            type: "final",
-                            content: response.response,
+                onFinalResponse: (response: ChatFinalResponse) => {
+                    console.log('Received final response:', response)
+                    if (!response.response || typeof response.response[0] !== 'string') {
+                        console.error('Invalid final response format:', response)
+                        return
+                    }
+                    setMessages((prev) => {
+                        const newMessage: ChatMessage = {
+                            type: 'final',
+                            content: response.response[0],
                             timestamp: new Date()
                         }
-                    ])
+                        console.log('Adding final message:', newMessage)
+                        return [...prev, newMessage]
+                    })
                 },
                 onError: (error) => {
                     console.error("Chat error:", error)
                     setIsLoading(false)
                 },
                 onComplete: () => {
+                    console.log('Chat session complete')
                     setIsLoading(false)
                     setChatMessage("")
                 }
@@ -116,7 +135,12 @@ const Chat: React.FC = () => {
                 </div>
 
                 {/* Chat messages */}
-                <div className="flex-1 mb-4 space-y-4 overflow-y-auto">
+                <div className="flex-1 p-4 mb-4 space-y-4 overflow-y-auto border rounded-md bg-background/95">
+                    {messages.length === 0 && !isLoading && (
+                        <div className="text-center text-muted-foreground">
+                            No messages yet. Start a chat to begin the discussion.
+                        </div>
+                    )}
                     {messages.map((msg, index) => (
                         <div key={index} className="p-3 rounded bg-secondary">
                             {msg.type === 'agent' ? (
@@ -124,16 +148,21 @@ const Chat: React.FC = () => {
                                     <div className="font-semibold">
                                         {msg.name} ({msg.step})
                                     </div>
-                                    <div className="mt-1">{msg.content}</div>
+                                    <div className="mt-1 whitespace-pre-wrap">{msg.content}</div>
                                 </div>
                             ) : (
                                 <div>
                                     <div className="font-semibold">Final Response</div>
-                                    <div className="mt-1">{msg.content}</div>
+                                    <div className="mt-1 whitespace-pre-wrap">{msg.content}</div>
                                 </div>
                             )}
                         </div>
                     ))}
+                    {isLoading && (
+                        <div className="text-center text-muted-foreground">
+                            Agents are thinking...
+                        </div>
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
 

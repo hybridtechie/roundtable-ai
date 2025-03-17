@@ -81,7 +81,9 @@ def generate_agent_response(llm_client, agent_info: dict, topic: str, step: str,
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": message}
     ]
-    return llm_client.send_request(messages)
+    response = llm_client.send_request(messages)
+    # Handle both string and object responses
+    return response.get('content', response) if isinstance(response, dict) else response
 
 def synthesize_final_response(llm_client, topic: str, message: str, discussion_log: list) -> str:
     """Synthesize a final response from the discussion log."""
@@ -94,7 +96,9 @@ def synthesize_final_response(llm_client, topic: str, message: str, discussion_l
         {"role": "system", "content": synthesis_prompt},
         {"role": "user", "content": "Synthesize the discussion into a final response."}
     ]
-    return llm_client.send_request(synthesis_messages)
+    response = llm_client.send_request(synthesis_messages)
+    # Handle both string and object responses
+    return response.get('content', response) if isinstance(response, dict) else response
 
 # Refactored Methods
 async def stream_chatroom_discussion(chatroom_id: str, message: str):
