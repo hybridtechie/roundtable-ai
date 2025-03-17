@@ -4,23 +4,25 @@ from chromadb.config import Settings
 
 # Initialize SQLite database
 def init_sqlite_db():
-    conn = sqlite3.connect("agents.db")
+    conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS agents (
+        CREATE TABLE IF NOT EXISTS aitwins (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            persona_description TEXT NOT NULL
+            persona_description TEXT NOT NULL,
+            userId TEXT NOT NULL DEFAULT 'SuperAdmin'
         )
     """
     )
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS chatrooms (
+        CREATE TABLE IF NOT EXISTS meetings (
             id TEXT PRIMARY KEY,
-            agent_ids TEXT NOT NULL,  -- Store as JSON string
-            topic TEXT
+            aitwin_ids TEXT NOT NULL,  -- Store as JSON string
+            topic TEXT,
+            userId TEXT NOT NULL DEFAULT 'SuperAdmin'
         )
     """
     )
@@ -30,12 +32,12 @@ def init_sqlite_db():
 # Initialize ChromaDB client with persistence
 chroma_client = chromadb.PersistentClient(path="./chroma_data")
 
-# Ensure the "agents" collection exists
+# Ensure the "aitwins" collection exists
 try:
-    collection = chroma_client.get_collection(name="agents")
+    collection = chroma_client.get_collection(name="aitwins")
 except chromadb.errors.InvalidCollectionException:
     # If it doesn't exist, create it
-    collection = chroma_client.create_collection(name="agents")
+    collection = chroma_client.create_collection(name="aitwins")
 
 # Call SQLite initialization on module load
 init_sqlite_db()

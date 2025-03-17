@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from features.agents import create_agent, list_agents, AgentCreate
-from features.chatrooms import create_chatroom, list_chatrooms, set_chatroom_topic, ChatroomCreate, ChatroomTopic
-from features.chat import start_chatroom_discussion, stream_chatroom_discussion, ChatMessage
+from features.aiTwin import create_aitwin, list_aitwins, AiTwinCreate
+from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
+from features.chat import start_meeting_discussion, stream_meeting_discussion, ChatMessage
 import uvicorn
 from dotenv import load_dotenv
 import os
@@ -22,36 +22,36 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Agents endpoints
-@app.post("/create-agent")
-async def create_agent_endpoint(agent: AgentCreate):
-    return await create_agent(agent)
+# AiTwin endpoints
+@app.post("/aitwin")
+async def create_aitwin_endpoint(aitwin: AiTwinCreate):
+    return await create_aitwin(aitwin)
 
-@app.get("/list-agents")
-async def list_agents_endpoint():
-    return await list_agents()
+@app.get("/aitwins")
+async def list_aitwins_endpoint():
+    return await list_aitwins()
 
-# Chatrooms endpoints
-@app.post("/create-chatroom")
-async def create_chatroom_endpoint(chatroom: ChatroomCreate):
-    return await create_chatroom(chatroom)
+# Meetings endpoints
+@app.post("/meeting")
+async def create_meeting_endpoint(meeting: MeetingCreate):
+    return await create_meeting(meeting)
 
-@app.get("/list-chatrooms")
-async def list_chatrooms_endpoint():
-    return await list_chatrooms()
+@app.get("/meetings")
+async def list_meetings_endpoint():
+    return await list_meetings()
 
-@app.post("/set-chatroom-topic")
-async def set_chatroom_topic_endpoint(chatroom_topic: ChatroomTopic):
-    return await set_chatroom_topic(chatroom_topic)
+@app.post("/meeting/topic")
+async def set_meeting_topic_endpoint(meeting_topic: MeetingTopic):
+    return await set_meeting_topic(meeting_topic)
 
 # Chat endpoints
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
-    return await start_chatroom_discussion(message.chatroom_id, message.message)
+    return await start_meeting_discussion(message.meeting_id, message.message)
 
 @app.get("/chat-stream")
-async def chat_stream_endpoint(chatroom_id: str, message: str):
-    return await stream_chatroom_discussion(chatroom_id, message)
+async def chat_stream_endpoint(meeting_id: str, message: str):
+    return await stream_meeting_discussion(meeting_id, message)
 
 # Run the app
 if __name__ == "__main__":

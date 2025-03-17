@@ -1,8 +1,8 @@
 import sqlite3
 import chromadb
 
-# Define the list of default agents with their attributes
-agents = [
+# Define the list of default AiTwins with their attributes
+aitwins = [
     {
         "id": "CEO_001",
         "name": "CEO",
@@ -38,14 +38,15 @@ agents = [
 
 # Initialize SQLite database
 def init_sqlite_db():
-    conn = sqlite3.connect("agents.db")
+    conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS agents (
+        CREATE TABLE IF NOT EXISTS aitwins (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            persona_description TEXT NOT NULL
+            persona_description TEXT NOT NULL,
+            userId TEXT NOT NULL DEFAULT 'SuperAdmin'
         )
     """
     )
@@ -53,40 +54,40 @@ def init_sqlite_db():
     conn.close()
 
 
-# Initialize ChromaDB client and get or create the "agents" collection
+# Initialize ChromaDB client and get or create the "aitwins" collection
 chroma_client = chromadb.Client()
 try:
-    collection = chroma_client.create_collection(name="agents")
+    collection = chroma_client.create_collection(name="aitwins")
 except Exception:
-    collection = chroma_client.get_collection(name="agents")
+    collection = chroma_client.get_collection(name="aitwins")
 
 
-# Function to add agents to SQLite and ChromaDB
-def add_default_agents():
+# Function to add aitwins to SQLite and ChromaDB
+def add_default_aitwins():
     # Initialize the SQLite database
     init_sqlite_db()
 
-    # Add each agent to SQLite and ChromaDB
-    conn = sqlite3.connect("agents.db")
+    # Add each AiTwin to SQLite and ChromaDB
+    conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
 
-    for agent in agents:
+    for aitwin in aitwins:
         # Insert into SQLite
         try:
             cursor.execute(
-                "INSERT INTO agents (id, name, persona_description) VALUES (?, ?, ?)",
-                (agent["id"], agent["name"], agent["persona_description"]),
+                "INSERT INTO aitwins (id, name, persona_description, userId) VALUES (?, ?, ?, ?)",
+                (aitwin["id"], aitwin["name"], aitwin["persona_description"], "SuperAdmin"),
             )
         except sqlite3.IntegrityError:
-            print(f"Agent '{agent['name']}' with ID '{agent['id']}' already exists in SQLite, skipping insertion.")
+            print(f"AiTwin '{aitwin['name']}' with ID '{aitwin['id']}' already exists in SQLite, skipping insertion.")
             continue
 
         # Insert into ChromaDB
         collection.add(
-            documents=[agent["system_prompt"]],  # Store the system prompt as the document
-            ids=[agent["id"]],  # Use the agent's ID as the unique identifier
+            documents=[aitwin["system_prompt"]],  # Store the system prompt as the document
+            ids=[aitwin["id"]],  # Use the AiTwin's ID as the unique identifier
         )
-        print(f"Agent '{agent['name']}' with ID '{agent['id']}' added to the database.")
+        print(f"AiTwin '{aitwin['name']}' with ID '{aitwin['id']}' added to the database.")
 
     conn.commit()
     conn.close()
@@ -94,4 +95,4 @@ def add_default_agents():
 
 # Run the script
 if __name__ == "__main__":
-    add_default_agents()
+    add_default_aitwins()
