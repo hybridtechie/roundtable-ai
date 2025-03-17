@@ -1,6 +1,10 @@
 import React from "react"
 import { NavLink } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import { AiFillHome } from "react-icons/ai"
+import { TiMessages } from "react-icons/ti";
+import { FaMessage } from "react-icons/fa6";
+import { FaUser, FaUsers, FaUserPlus } from "react-icons/fa"
 
 const Sidebar: React.FC = () => {
 	return (
@@ -8,7 +12,8 @@ const Sidebar: React.FC = () => {
 			<h2 className="mb-4 text-2xl font-bold">Roundtable AI</h2>
 			<NavLink to="/" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
-					Home
+				<AiFillHome className="mr-2" />
+				Home
 				</Button>
 			</NavLink>
 			<div>
@@ -16,14 +21,16 @@ const Sidebar: React.FC = () => {
 					to="/participants"
 					className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 					<Button variant="ghost" className="justify-start w-full">
-						Participants
+					<FaUser className="mr-2" />
+					Participants
 					</Button>
 				</NavLink>
 				<NavLink
 					to="/participants/create"
 					className={({ isActive }: { isActive: boolean }) => `w-full pl-4 ${isActive ? "bg-gray-200" : ""}`}>
 					<Button variant="ghost" className="justify-start w-full">
-						Create Participant
+					<FaUserPlus className="mr-2" />
+					Create Participant
 					</Button>
 				</NavLink>
 			</div>
@@ -31,18 +38,21 @@ const Sidebar: React.FC = () => {
 				to="/groups"
 				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
-					Groups
+				<FaUsers className="mr-2" />
+				Groups
 				</Button>
 			</NavLink>
 
 			<NavLink to="/meetings" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
-					Meetings
+				<TiMessages className="mr-2" />
+				Meetings
 				</Button>
 			</NavLink>
 			<NavLink to="/meetings/new" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
-					New Meeting
+				<FaMessage className="mr-2" />
+				New Meeting
 				</Button>
 			</NavLink>
 		</div>

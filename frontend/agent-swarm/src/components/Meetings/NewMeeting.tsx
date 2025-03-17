@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { streamChat, listGroups } from "@/lib/api"
 import { Group, ParticipantResponse, ChatFinalResponse } from "@/types/types"
@@ -116,24 +116,21 @@ const NewMeeting: React.FC = () => {
 
 	return (
 		<div className="flex flex-col h-[calc(100vh-2rem)]">
+
+			<Select value={selectedGroup} onValueChange={setSelectedMeeting}>
+				<SelectTrigger className="w-[200px]">
+					<SelectValue placeholder="Select a Group" />
+				</SelectTrigger>
+				<SelectContent>
+					{groups.map((group) => (
+						<SelectItem key={group.id} value={group.id}>
+							{group.name || group.id}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+
 			<Card className="flex flex-col flex-1">
-				<CardHeader className="py-4">
-					<CardTitle className="flex items-center gap-4">
-						<span>Chat</span>
-						<Select value={selectedGroup} onValueChange={setSelectedMeeting}>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="Select a Group" />
-							</SelectTrigger>
-							<SelectContent>
-								{groups.map((group) => (
-									<SelectItem key={group.id} value={group.id}>
-										{group.name || group.id}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</CardTitle>
-				</CardHeader>
 				<CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
 					{/* Chat messages */}
 					<div ref={chatContainerRef} className="flex-1 overflow-y-auto">
