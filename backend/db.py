@@ -12,6 +12,7 @@ def init_sqlite_db():
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             persona_description TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'Team Member',
             userId TEXT NOT NULL DEFAULT 'SuperAdmin'
         )
     """

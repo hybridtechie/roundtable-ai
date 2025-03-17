@@ -1,23 +1,30 @@
 from fastapi import HTTPException
 from pydantic import BaseModel
 import sqlite3
+from uuid import uuid4
 from db import collection  # Import ChromaDB collection
 
 class AiTwinCreate(BaseModel):
-    id: str
+    id: str | None = None
     name: str
     persona_description: str
     context: str
+    role: str = "Team Member"
     userId: str = "SuperAdmin"
 
 async def create_aitwin(aitwin: AiTwinCreate):
     """Create a new AiTwin in SQLite and store its context in ChromaDB."""
     conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
+    
+    # Generate UUID if id not provided
+    if aitwin.id is None:
+        aitwin.id = str(uuid4())
+        
     try:
         cursor.execute(
-            "INSERT INTO aitwins (id, name, persona_description, userId) VALUES (?, ?, ?, ?)",
-            (aitwin.id, aitwin.name, aitwin.persona_description, aitwin.userId),
+            "INSERT INTO aitwins (id, name, persona_description, role, userId) VALUES (?, ?, ?, ?, ?)",
+            (aitwin.id, aitwin.name, aitwin.persona_description, aitwin.role, aitwin.userId),
         )
         conn.commit()
     except sqlite3.IntegrityError:
@@ -32,7 +39,7 @@ async def list_aitwins():
     """List all AiTwins from SQLite."""
     conn = sqlite3.connect("aitwins.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, persona_description FROM aitwins")
-    aitwins = [{"id": row[0], "name": row[1], "persona_description": row[2]} for row in cursor.fetchall()]
+    cursor.execute("SELECT id, name, persona_description, role FROM aitwins")
+    aitwins = [{"id": row[0], "name": row[1], "persona_description": row[2], "role": row[3]} for row in cursor.fetchall()]
     conn.close()
     return {"aitwins": aitwins}
