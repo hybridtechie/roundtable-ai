@@ -1,39 +1,50 @@
-export interface Agent {
-    id: string
-    name: string
-    persona_description: string
+export interface Participant {
+	id: string
+	name: string
+	role: string
+	persona_description: string
 }
 
-export interface ChatRequest {
-    chatroom_id: string
-    message: string
+export interface Group {
+	id: string
+	name: string
+	descriptions: string
+	participants: Participant[]
 }
 
-export interface AgentResponse {
-    agent_id: string
-    name: string
-    step: string
-    response: string
+export interface MeetingRequest {
+	group_id: string
+	strategy: string
+	message: string
+}
+
+export interface ParticipantResponse {
+	participant_id: string
+	name: string
+	step: string
+	response: string
 }
 
 export interface ChatFinalResponse {
-    response: string
+	response: string
 }
 
 export type ChatErrorResponse = {
-    detail: string
+	detail: string
 }
 
 export enum ChatEventType {
-    AgentResponse = "agent_response",
-    FinalResponse = "final_response",
-    Error = "error",
-    Complete = "complete"
+	ParticipantResponse = "participant_response",
+	FinalResponse = "final_response",
+	Error = "error",
+	Complete = "complete",
 }
 
-export interface Chatroom {
-    id: string
-    name: string
-    agent_ids: string[]
-    topic?: string
+export interface Meeting {
+	id: string
+	name: string
+	participant_ids: string[]
+	group_ids: string[]
+	topic?: string
+	participants: Participant[]
 }
