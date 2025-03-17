@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { streamChat, listChatrooms } from "@/lib/api"
 import { Chatroom, AgentResponse, ChatFinalResponse } from "@/types/types"
+import { ChatMessage } from "@/components/ui/chat-message"
+import { ChatInput } from "@/components/ui/chat-input"
 
 interface ChatMessage {
     type: 'agent' | 'final'
@@ -20,12 +20,14 @@ const Chat: React.FC = () => {
     const [chatMessage, setChatMessage] = useState("")
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const messagesEndRef = useRef<HTMLDivElement>(null)
     const cleanupRef = useRef<(() => void) | null>(null)
+    const chatContainerRef = useRef<HTMLDivElement>(null)
     
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+        }
     }, [messages])
 
     // Fetch chatrooms on mount
@@ -50,7 +52,7 @@ const Chat: React.FC = () => {
     }, [])
 
     const handleStartChat = () => {
-        if (!selectedChatroom || !chatMessage) return
+        if (!selectedChatroom || !chatMessage.trim()) return
         
         console.log('Starting chat with:', { selectedChatroom, chatMessage })
         setIsLoading(true)
@@ -115,11 +117,9 @@ const Chat: React.FC = () => {
 
     return (
         <Card className="h-[600px] flex flex-col">
-            <CardHeader>
-                <CardTitle>Chat</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col flex-1 gap-4">
-                <div className="flex gap-4">
+            <CardHeader className="py-4">
+                <CardTitle className="flex items-center gap-4">
+                    <span>Chat</span>
                     <Select value={selectedChatroom} onValueChange={setSelectedChatroom}>
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Select a chatroom" />
@@ -132,56 +132,39 @@ const Chat: React.FC = () => {
                             ))}
                         </SelectContent>
                     </Select>
-                </div>
-
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col flex-1 p-0">
                 {/* Chat messages */}
-                <div className="flex-1 p-4 mb-4 space-y-4 overflow-y-auto border rounded-md bg-background/95">
-                    {messages.length === 0 && !isLoading && (
-                        <div className="text-center text-muted-foreground">
-                            No messages yet. Start a chat to begin the discussion.
-                        </div>
-                    )}
-                    {messages.map((msg, index) => (
-                        <div key={index} className="p-3 rounded bg-secondary">
-                            {msg.type === 'agent' ? (
-                                <div>
-                                    <div className="font-semibold">
-                                        {msg.name} ({msg.step})
-                                    </div>
-                                    <div className="mt-1 whitespace-pre-wrap">{msg.content}</div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div className="font-semibold">Final Response</div>
-                                    <div className="mt-1 whitespace-pre-wrap">{msg.content}</div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                    {isLoading && (
-                        <div className="text-center text-muted-foreground">
-                            Agents are thinking...
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
+                <div 
+                    ref={chatContainerRef}
+                    className="flex-1 overflow-y-auto"
+                >
+                    <div className="p-4 space-y-4">
+                        {messages.length === 0 && !isLoading && (
+                            <div className="text-center text-muted-foreground">
+                                No messages yet. Start a chat to begin the discussion.
+                            </div>
+                        )}
+                        {messages.map((msg, index) => (
+                            <ChatMessage key={index} {...msg} />
+                        ))}
+                        {isLoading && (
+                            <div className="text-center text-muted-foreground">
+                                Agents are thinking...
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Message input */}
-                <div className="flex gap-2">
-                    <Textarea
-                        placeholder="Enter your message"
-                        value={chatMessage}
-                        onChange={(e) => setChatMessage(e.target.value)}
-                        disabled={!selectedChatroom || isLoading}
-                        className="flex-1"
-                    />
-                    <Button 
-                        onClick={handleStartChat} 
-                        disabled={!selectedChatroom || !chatMessage || isLoading}
-                    >
-                        {isLoading ? "Chatting..." : "Start Chat"}
-                    </Button>
-                </div>
+                {/* Chat input */}
+                <ChatInput
+                    value={chatMessage}
+                    onChange={setChatMessage}
+                    onSend={handleStartChat}
+                    disabled={!selectedChatroom}
+                    isLoading={isLoading}
+                />
             </CardContent>
         </Card>
     )
