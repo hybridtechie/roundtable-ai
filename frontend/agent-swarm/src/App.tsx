@@ -13,7 +13,7 @@ function App() {
 			<div className="flex-1">
 				<Routes>
 					<Route path="/" element={<Home />} />
-					<Route path="/chatrooms" element={<Meetings />} />
+					<Route path="/meetings" element={<Meetings />} />
 					<Route path="/aitwins" element={<AiTwins />} />
 					<Route path="/aitwins/create" element={<CreateAiTwin />} />
 					<Route path="/chat" element={<Chat />} />

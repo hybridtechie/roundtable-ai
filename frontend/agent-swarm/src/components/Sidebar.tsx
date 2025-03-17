@@ -12,10 +12,10 @@ const Sidebar: React.FC = () => {
 				</Button>
 			</NavLink>
 			<NavLink
-				to="/chatrooms"
+				to="/meetings"
 				className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
-					Chatrooms
+					Meetings
 				</Button>
 			</NavLink>
 			<div>
