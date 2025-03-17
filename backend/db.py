@@ -13,7 +13,8 @@ def init_sqlite_db():
             name TEXT NOT NULL,
             persona_description TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'Team Member',
-            userId TEXT NOT NULL DEFAULT 'SuperAdmin'
+            userId TEXT NOT NULL DEFAULT 'SuperAdmin',
+            context TEXT
         )
     """
     )
@@ -21,7 +22,8 @@ def init_sqlite_db():
         """
         CREATE TABLE IF NOT EXISTS meetings (
             id TEXT PRIMARY KEY,
-            aitwin_ids TEXT NOT NULL,  -- Store as JSON string
+            aitwin_ids TEXT NOT NULL,  -- Store as JSON string,
+            meeting_context TEXT,
             topic TEXT,
             userId TEXT NOT NULL DEFAULT 'SuperAdmin'
         )
