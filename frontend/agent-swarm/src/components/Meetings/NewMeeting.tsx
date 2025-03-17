@@ -14,7 +14,7 @@ interface ChatMessage {
 	timestamp: Date
 }
 
-const Meeting: React.FC = () => {
+const NewMeeting: React.FC = () => {
 	const [selectedGroup, setSelectedMeeting] = useState<string>("")
 	const [groups, setGroups] = useState<Group[]>([])
 	const [chatMessage, setChatMessage] = useState("")
@@ -166,4 +166,4 @@ const Meeting: React.FC = () => {
 	)
 }
 
-export default Meeting
+export default NewMeeting
