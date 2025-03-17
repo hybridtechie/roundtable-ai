@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from features.aiTwin import create_aitwin, list_aitwins, AiTwinCreate
+from features.participant import create_participant, list_participants, ParticipantCreate
 from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.chat import start_meeting_discussion, stream_meeting_discussion, ChatMessage
 import uvicorn
@@ -23,15 +23,15 @@ app.add_middleware(
 )
 
 
-# AiTwin endpoints
-@app.post("/aitwin")
-async def create_aitwin_endpoint(aitwin: AiTwinCreate):
-    return await create_aitwin(aitwin)
+# Participant endpoints
+@app.post("/participant")
+async def create_participant_endpoint(participant: ParticipantCreate):
+    return await create_participant(participant)
 
 
-@app.get("/aitwins")
-async def list_aitwins_endpoint():
-    return await list_aitwins()
+@app.get("/participants")
+async def list_participants_endpoint():
+    return await list_participants()
 
 
 # Meetings endpoints

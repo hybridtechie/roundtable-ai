@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 const Sidebar: React.FC = () => {
 	return (
 		<div className="flex flex-col w-64 h-screen gap-2 p-4 bg-gray-100">
-			<h2 className="mb-4 text-2xl font-bold">AiTwin Swarm</h2>
+			<h2 className="mb-4 text-2xl font-bold">Roundtable AI</h2>
 			<NavLink to="/" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 				<Button variant="ghost" className="justify-start w-full">
 					Home
@@ -20,17 +20,17 @@ const Sidebar: React.FC = () => {
 			</NavLink>
 			<div>
 				<NavLink
-					to="/aitwins"
+					to="/participants"
 					className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
 					<Button variant="ghost" className="justify-start w-full">
-						AiTwins
+						Participants
 					</Button>
 				</NavLink>
 				<NavLink
-					to="/aitwins/create"
+					to="/participants/create"
 					className={({ isActive }: { isActive: boolean }) => `w-full pl-4 ${isActive ? "bg-gray-200" : ""}`}>
 					<Button variant="ghost" className="justify-start w-full">
-						Create AiTwin
+						Create Participant
 					</Button>
 				</NavLink>
 			</div>

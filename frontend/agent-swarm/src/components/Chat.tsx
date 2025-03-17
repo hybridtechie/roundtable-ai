@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { streamChat, listMeetings } from "@/lib/api"
-import { Meeting, AiTwinResponse, ChatFinalResponse } from "@/types/types"
+import { Meeting, ParticipantResponse, ChatFinalResponse } from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { ChatInput } from "@/components/ui/chat-input"
 
 interface ChatMessage {
-	type: "aitwin" | "final"
+	type: "participant" | "final"
 	name?: string
 	step?: string
 	content: string
@@ -68,20 +68,20 @@ const Chat: React.FC = () => {
 		cleanupRef.current = streamChat(
 			{ meeting_id: selectedMeeting, message: chatMessage },
 			{
-				onAiTwinResponse: (response: AiTwinResponse) => {
+				onParticipantResponse: (response: ParticipantResponse) => {
 					if (!response.response || typeof response.response[0] !== "string") {
 						console.error("Invalid response format:", response)
 						return
 					}
 					setMessages((prev) => {
 						const newMessage: ChatMessage = {
-							type: "aitwin",
+							type: "participant",
 							name: response.name,
 							step: response.step,
 							content: response.response[0],
 							timestamp: new Date(),
 						}
-						console.log("Adding AiTwin message:", newMessage)
+						console.log("Adding Participant message:", newMessage)
 						return [...prev, newMessage]
 					})
 				},
@@ -146,7 +146,7 @@ const Chat: React.FC = () => {
 							{messages.map((msg, index) => (
 								<ChatMessage key={index} {...msg} />
 							))}
-							{isLoading && <div className="text-center text-muted-foreground">AI Twins are thinking...</div>}
+							{isLoading && <div className="text-center text-muted-foreground">Participants are thinking...</div>}
 						</div>
 					</div>
 				</CardContent>

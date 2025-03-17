@@ -2,8 +2,8 @@ import sqlite3
 import chromadb
 from db import init_sqlite_db
 
-# Define the list of default AiTwins with their attributes, including system_prompt
-aitwins = [
+# Define the list of default Participants with their attributes, including system_prompt
+participants = [
     {
         "id": "EA_SECURITY_001",
         "name": "Emily Thompson",
@@ -62,40 +62,40 @@ aitwins = [
     },
 ]
 
-# Initialize ChromaDB client and get or create the "aitwins" collection
+# Initialize ChromaDB client and get or create the "participants" collection
 chroma_client = chromadb.Client()
 try:
-    collection = chroma_client.create_collection(name="aitwins")
+    collection = chroma_client.create_collection(name="participants")
 except Exception:
-    collection = chroma_client.get_collection(name="aitwins")
+    collection = chroma_client.get_collection(name="participants")
 
 
-# Function to add aitwins to SQLite and ChromaDB
-def add_default_aitwins():
+# Function to add participants to SQLite and ChromaDB
+def add_default_participants():
     # Initialize the SQLite database
     init_sqlite_db()
 
-    # Add each AiTwin to SQLite and ChromaDB
-    conn = sqlite3.connect("aitwins.db")
+    # Add each Participant to SQLite and ChromaDB
+    conn = sqlite3.connect("roundtableai.db")
     cursor = conn.cursor()
 
-    for aitwin in aitwins:
+    for participant in participants:
         # Insert into SQLite
         try:
             cursor.execute(
-                "INSERT INTO aitwins (id, name, persona_description, role, userId) VALUES (?, ?, ?, ?, ?)",
-                (aitwin["id"], aitwin["name"], aitwin["persona_description"], aitwin["role"], "SuperAdmin"),
+                "INSERT INTO participants (id, name, persona_description, role, userId) VALUES (?, ?, ?, ?, ?)",
+                (participant["id"], participant["name"], participant["persona_description"], participant["role"], "SuperAdmin"),
             )
         except sqlite3.IntegrityError:
-            print(f"AiTwin '{aitwin['name']}' with ID '{aitwin['id']}' already exists in SQLite, skipping insertion.")
+            print(f"Participant '{participant['name']}' with ID '{participant['id']}' already exists in SQLite, skipping insertion.")
             continue
 
         # Insert into ChromaDB
         collection.add(
-            documents=[aitwin["system_prompt"] + "\n\n" + aitwin["context"]],  # Store the system prompt as the document
-            ids=[aitwin["id"]],  # Use the AiTwin's ID as the unique identifier
+            documents=[participant["system_prompt"] + "\n\n" + participant["context"]],  # Store the system prompt as the document
+            ids=[participant["id"]],  # Use the Participant's ID as the unique identifier
         )
-        print(f"AiTwin '{aitwin['name']}' with ID '{aitwin['id']}' added to the database.")
+        print(f"Participant '{participant['name']}' with ID '{participant['id']}' added to the database.")
 
     conn.commit()
     conn.close()
@@ -103,4 +103,4 @@ def add_default_aitwins():
 
 # Run the script
 if __name__ == "__main__":
-    add_default_aitwins()
+    add_default_participants()

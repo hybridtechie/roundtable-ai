@@ -1,4 +1,4 @@
-export interface AiTwin {
+export interface Participant {
 	id: string
 	name: string
 	role: string
@@ -10,8 +10,8 @@ export interface ChatRequest {
 	message: string
 }
 
-export interface AiTwinResponse {
-	aitwin_id: string
+export interface ParticipantResponse {
+	participant_id: string
 	name: string
 	step: string
 	response: string
@@ -26,14 +26,14 @@ export type ChatErrorResponse = {
 }
 
 export enum ChatEventType {
-	AiTwinResponse = "aitwin_response",
+	ParticipantResponse = "participant_response",
 	FinalResponse = "final_response",
 	Error = "error",
 	Complete = "complete",
 }
 
 export interface MeetingParticipant {
-	aitwin_id: string
+	participant_id: string
 	name: string
 	role: string
 }
@@ -41,7 +41,7 @@ export interface MeetingParticipant {
 export interface Meeting {
 	id: string
 	name: string
-	aitwin_ids: string[]
+	participant_ids: string[]
 	topic?: string
 	participants: MeetingParticipant[]
 }

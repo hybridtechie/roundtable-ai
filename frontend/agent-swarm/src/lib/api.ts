@@ -1,16 +1,16 @@
 import axios from "axios"
-import { AiTwin, ChatRequest, AiTwinResponse, ChatFinalResponse, Meeting } from "@/types/types"
+import { Participant, ChatRequest, ParticipantResponse, ChatFinalResponse, Meeting } from "@/types/types"
 
 const api = axios.create({
 	baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000", // Fallback to default if env not set
 })
 
-export const createAiTwin = (data: { id: string; name: string; persona_description: string; context: string }) =>
-	api.post("/aitwin", data)
+export const createParticipant = (data: { id: string; name: string; persona_description: string; context: string }) =>
+	api.post("/participant", data)
 
-export const listAiTwins = () => api.get<{ aitwins: AiTwin[] }>("/aitwins")
+export const listParticipants = () => api.get<{ participants: Participant[] }>("/participants")
 
-export const createMeeting = (data: { aitwin_ids: string[] }) => api.post("/meeting", data)
+export const createMeeting = (data: { participant_ids: string[] }) => api.post("/meeting", data)
 
 export const setMeetingTopic = (data: { meeting_id: string; topic: string }) => api.post("/meeting/topic", data)
 
@@ -19,7 +19,7 @@ export const startChat = (data: { meeting_id: string; message: string }) => api.
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>("/meetings")
 
 interface StreamCallbacks {
-	onAiTwinResponse?: (response: AiTwinResponse) => void
+	onParticipantResponse?: (response: ParticipantResponse) => void
 	onFinalResponse?: (response: ChatFinalResponse) => void
 	onError?: (error: { detail: string }) => void
 	onComplete?: () => void
@@ -30,9 +30,9 @@ export const streamChat = (data: ChatRequest, callbacks: StreamCallbacks): (() =
 		`${api.defaults.baseURL}/chat-stream?meeting_id=${data.meeting_id}&message=${encodeURIComponent(data.message)}`,
 	)
 
-	eventSource.addEventListener("aitwin_response", ((event: MessageEvent) => {
-		const data = JSON.parse(event.data) as AiTwinResponse
-		callbacks.onAiTwinResponse?.(data)
+	eventSource.addEventListener("participant_response", ((event: MessageEvent) => {
+		const data = JSON.parse(event.data) as ParticipantResponse
+		callbacks.onParticipantResponse?.(data)
 	}) as EventListener)
 
 	eventSource.addEventListener("final_response", ((event: MessageEvent) => {

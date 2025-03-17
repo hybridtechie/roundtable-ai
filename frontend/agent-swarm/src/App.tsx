@@ -2,8 +2,8 @@ import { Routes, Route } from "react-router-dom"
 import Sidebar from "./components/Sidebar"
 import Home from "./components/Home"
 import Meetings from "./components/Meetings"
-import AiTwins from "./components/AiTwins"
-import CreateAiTwin from "./components/CreateAiTwin"
+import Participants from "./components/Participants"
+import CreateParticipant from "./components/CreateParticipant"
 import Chat from "./components/Chat"
 
 function App() {
@@ -14,8 +14,8 @@ function App() {
 				<Routes>
 					<Route path="/" element={<Home />} />
 					<Route path="/meetings" element={<Meetings />} />
-					<Route path="/aitwins" element={<AiTwins />} />
-					<Route path="/aitwins/create" element={<CreateAiTwin />} />
+					<Route path="/participants" element={<Participants />} />
+					<Route path="/participants/create" element={<CreateParticipant />} />
 					<Route path="/chat" element={<Chat />} />
 				</Routes>
 			</div>

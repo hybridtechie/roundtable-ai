@@ -6,8 +6,8 @@ from typing import Optional
 from db import collection  # Import ChromaDB collection
 
 
-def validate_aitwin_data(name: str, persona_description: str, context: str) -> None:
-    """Validate AiTwin data before creation."""
+def validate_participant_data(name: str, persona_description: str, context: str) -> None:
+    """Validate Participant data before creation."""
     if not name or not name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
     if not persona_description or not persona_description.strip():
@@ -22,7 +22,7 @@ def validate_aitwin_data(name: str, persona_description: str, context: str) -> N
         raise HTTPException(status_code=400, detail="Context must be less than 10000 characters")
 
 
-class AiTwinCreate(BaseModel):
+class ParticipantCreate(BaseModel):
     id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=100)
     persona_description: str = Field(..., min_length=1, max_length=1000)
@@ -31,38 +31,38 @@ class AiTwinCreate(BaseModel):
     userId: str = Field(default="SuperAdmin", min_length=1)
 
 
-async def create_aitwin(aitwin: AiTwinCreate):
-    """Create a new AiTwin in SQLite and store its context in ChromaDB."""
+async def create_participant(participant: ParticipantCreate):
+    """Create a new Participant in SQLite and store its context in ChromaDB."""
     # Validate all required fields
-    validate_aitwin_data(aitwin.name, aitwin.persona_description, aitwin.context)
+    validate_participant_data(participant.name, participant.persona_description, participant.context)
 
-    conn = sqlite3.connect("aitwins.db")
+    conn = sqlite3.connect("roundtableai.db")
     cursor = conn.cursor()
 
     # Generate UUID if id not provided
-    if aitwin.id is None:
-        aitwin.id = str(uuid4())
+    if participant.id is None:
+        participant.id = str(uuid4())
 
     try:
         cursor.execute(
-            "INSERT INTO aitwins (id, name, persona_description, role, userId) VALUES (?, ?, ?, ?, ?)",
-            (aitwin.id, aitwin.name, aitwin.persona_description, aitwin.role, aitwin.userId),
+            "INSERT INTO participants (id, name, persona_description, role, userId) VALUES (?, ?, ?, ?, ?)",
+            (participant.id, participant.name, participant.persona_description, participant.role, participant.userId),
         )
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"AiTwin ID '{aitwin.id}' already exists")
+        raise HTTPException(status_code=400, detail=f"Participant ID '{participant.id}' already exists")
     conn.close()
 
-    collection.add(documents=[aitwin.context], ids=[aitwin.id])
-    return {"message": f"AiTwin '{aitwin.name}' with ID '{aitwin.id}' created successfully"}
+    collection.add(documents=[participant.context], ids=[participant.id])
+    return {"message": f"Participant '{participant.name}' with ID '{participant.id}' created successfully"}
 
 
-async def list_aitwins():
-    """List all AiTwins from SQLite."""
-    conn = sqlite3.connect("aitwins.db")
+async def list_participants():
+    """List all Participants from SQLite."""
+    conn = sqlite3.connect("roundtableai.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, persona_description, role FROM aitwins")
-    aitwins = [{"id": row[0], "name": row[1], "persona_description": row[2], "role": row[3]} for row in cursor.fetchall()]
+    cursor.execute("SELECT id, name, persona_description, role FROM participants")
+    participants = [{"id": row[0], "name": row[1], "persona_description": row[2], "role": row[3]} for row in cursor.fetchall()]
     conn.close()
-    return {"aitwins": aitwins}
+    return {"participants": participants}
