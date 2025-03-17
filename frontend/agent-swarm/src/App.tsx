@@ -5,6 +5,7 @@ import Groups from "./components/Groups/Groups"
 import Participants from "./components/Participants/Participants"
 import CreateParticipant from "./components/Participants/CreateParticipant"
 import Chat from "./components/Meetings/Meetings"
+import NewMeeting from "./components/Meetings/NewMeeting"
 
 function App() {
 	return (
@@ -17,6 +18,7 @@ function App() {
 					<Route path="/participants/create" element={<CreateParticipant />} />
 					<Route path="/groups" element={<Groups />} />
 					<Route path="/meetings" element={<Chat />} />
+					<Route path="/meetings/new" element={<NewMeeting />} />
 				</Routes>
 			</div>
 		</div>

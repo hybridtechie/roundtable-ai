@@ -40,6 +40,11 @@ const Sidebar: React.FC = () => {
 					Meetings
 				</Button>
 			</NavLink>
+			<NavLink to="/meetings/new" className={({ isActive }: { isActive: boolean }) => `w-full ${isActive ? "bg-gray-200" : ""}`}>
+				<Button variant="ghost" className="justify-start w-full">
+					New Meeting
+				</Button>
+			</NavLink>
 		</div>
 	)
 }
