@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Backend: FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PORT": "8000"
+            }
+        },
+        {
+            "name": "Frontend: Vite",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/frontend/agent-swarm",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "env": {
+                "VITE_API_URL": "http://localhost:8000"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack: Backend + Frontend",
+            "configurations": ["Backend: FastAPI", "Frontend: Vite"],
+            "stopAll": true
+        }
+    ]
+}

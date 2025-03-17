@@ -1,0 +1,93 @@
+{
+    "project": {
+      "name": "agent-swarm",
+      "description": "A multi-agent system with a FastAPI backend and React frontend for orchestrating discussions among AI agents.",
+      "repository": "https://github.com/nitjames/agent-swarm",
+      "created_date": "2025-03-16"
+    },
+    "backend": {
+      "framework": "FastAPI",
+      "language": "Python",
+      "version": "3.9+",
+      "dependencies": {
+        "fastapi": "^0.115.0",
+        "uvicorn": "^0.30.0",
+        "sqlite3": "built-in",
+        "chromadb": "^0.5.0",
+        "openai": "^1.0.0",
+        "pydantic": "^2.0.0",
+        "python-dotenv": "^1.0.0"
+      },
+      "key_files": {
+        "main": "main.py",
+        "chat_logic": "chat.py",
+        "db_setup": "db.py"
+      },
+      "endpoints": [
+        "/create-agent",
+        "/list-agents",
+        "/create-chatroom",
+        "/list-chatrooms",
+        "/set-chatroom-topic",
+        "/chat"
+      ],
+      "guidelines": [
+        "Use SQLite for persistent storage of agents and chatrooms.",
+        "Store agent context in ChromaDB with persistent client (path: './chroma_data').",
+        "Follow RESTful conventions for API endpoints.",
+        "Ensure error handling with HTTPException for 404s and 400s.",
+        "Keep chat orchestration logic in chat.py separate from main.py."
+      ]
+    },
+    "frontend": {
+      "framework": "React",
+      "build_tool": "Vite",
+      "language": "TypeScript",
+      "version": "5.0+",
+      "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "vite": "^5.0.0",
+        "tailwindcss": "^4.0.0-alpha.1",
+        "axios": "^1.0.0",
+        "shadcn-ui": "latest (CLI-based)"
+      },
+      "key_files": {
+        "main": "src/App.tsx",
+        "api_helper": "src/lib/api.ts",
+        "utils": "src/lib/utils.ts",
+        "components": "src/components/ui/"
+      },
+      "guidelines": [
+        "Use Tailwind v4 for styling with shadcn/ui components.",
+        "Maintain path aliases (@/ for src/) in vite.config.ts and tsconfig.json.",
+        "Fetch data from backend at http://localhost:8000.",
+        "Use functional components with hooks for state management.",
+        "Keep UI responsive with Tailwind’s utility classes."
+      ]
+    },
+    "general_guidelines": {
+      "coding_style": [
+        "Follow PEP 8 for Python (backend).",
+        "Use Prettier-like formatting for TypeScript/React (frontend).",
+        "Name variables and functions descriptively (e.g., handleCreateAgent, not handleClick)."
+      ],
+      "version_control": [
+        "Commit changes with clear messages (e.g., 'feat: add chatroom creation', 'fix: resolve 404 error').",
+        "Branch naming: feature/<name>, bugfix/<name>."
+      ],
+      "testing": [
+        "Test backend endpoints with curl or Postman before frontend integration.",
+        "Add unit tests for API helpers in frontend (future task)."
+      ],
+      "performance": [
+        "Avoid excessive LLM calls in chat orchestration; consider batching if needed.",
+        "Keep frontend lightweight; lazy-load components if scaling."
+      ]
+    },
+    "notes": [
+      "Backend uses an in-memory orchestrator for chat; consider persisting chat logs if needed.",
+      "Frontend is a single-page app; add routing (e.g., React Router) for multi-page features.",
+      "Current date assumed as 2025-03-16 based on context; adjust as needed."
+    ]
+  }
