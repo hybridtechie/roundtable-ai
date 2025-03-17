@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from features.agents import create_agent, list_agents, AgentCreate
 from features.chatrooms import create_chatroom, list_chatrooms, set_chatroom_topic, ChatroomCreate, ChatroomTopic
-from features.chat import start_chatroom_discussion, ChatMessage
+from features.chat import start_chatroom_discussion, stream_chatroom_discussion, ChatMessage
 import uvicorn
 from dotenv import load_dotenv
 import os
@@ -44,10 +44,14 @@ async def list_chatrooms_endpoint():
 async def set_chatroom_topic_endpoint(chatroom_topic: ChatroomTopic):
     return await set_chatroom_topic(chatroom_topic)
 
-# Chat endpoint
+# Chat endpoints
 @app.post("/chat")
 async def chat_endpoint(message: ChatMessage):
     return await start_chatroom_discussion(message.chatroom_id, message.message)
+
+@app.post("/chat-stream")
+async def chat_stream_endpoint(message: ChatMessage):
+    return await stream_chatroom_discussion(message.chatroom_id, message.message)
 
 # Run the app
 if __name__ == "__main__":
