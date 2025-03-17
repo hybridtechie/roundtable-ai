@@ -1,6 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from features.participant import create_participant, list_participants, ParticipantCreate
+from features.participant import (
+    create_participant,
+    get_participant,
+    update_participant,
+    delete_participant,
+    list_participants,
+    ParticipantCreate,
+    ParticipantUpdate
+)
 from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.chat import start_meeting_discussion, stream_meeting_discussion, ChatMessage
 import uvicorn
@@ -45,11 +53,47 @@ async def list_participants_endpoint():
     try:
         logger.info("Fetching all participants")
         result = await list_participants()
-        logger.info("Successfully retrieved %d participants", len(result))
+        logger.info("Successfully retrieved participants")
         return result
     except Exception as e:
         logger.error("Failed to fetch participants: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch participants: {str(e)}")
+
+
+@app.get("/participant/{participant_id}")
+async def get_participant_endpoint(participant_id: str):
+    try:
+        logger.info("Fetching participant: %s", participant_id)
+        result = await get_participant(participant_id)
+        logger.info("Successfully retrieved participant: %s", participant_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch participant %s: %s", participant_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch participant: {str(e)}")
+
+
+@app.put("/participant/{participant_id}")
+async def update_participant_endpoint(participant_id: str, participant: ParticipantUpdate):
+    try:
+        logger.info("Updating participant: %s", participant_id)
+        result = await update_participant(participant_id, participant)
+        logger.info("Successfully updated participant: %s", participant_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to update participant %s: %s", participant_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update participant: {str(e)}")
+
+
+@app.delete("/participant/{participant_id}")
+async def delete_participant_endpoint(participant_id: str):
+    try:
+        logger.info("Deleting participant: %s", participant_id)
+        result = await delete_participant(participant_id)
+        logger.info("Successfully deleted participant: %s", participant_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to delete participant %s: %s", participant_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete participant: {str(e)}")
 
 
 # Meetings endpoints

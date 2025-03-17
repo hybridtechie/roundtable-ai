@@ -40,13 +40,18 @@ def validate_participant_data(name: str, persona_description: str, context: str)
         raise HTTPException(status_code=500, detail="Internal server error during validation")
 
 
-class ParticipantCreate(BaseModel):
-    id: Optional[str] = None
+class ParticipantBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     persona_description: str = Field(..., min_length=1, max_length=1000)
-    context: str = Field(..., min_length=1, max_length=10000)
     role: str = Field(default="Team Member", min_length=1, max_length=50)
     userId: str = Field(default="SuperAdmin", min_length=1)
+
+class ParticipantCreate(ParticipantBase):
+    id: Optional[str] = None
+    context: str = Field(..., min_length=1, max_length=10000)
+
+class ParticipantUpdate(ParticipantBase):
+    context: Optional[str] = Field(None, min_length=1, max_length=10000)
 
 
 async def create_participant(participant: ParticipantCreate):
@@ -96,6 +101,143 @@ async def create_participant(participant: ParticipantCreate):
             conn.close()
             logger.debug("Database connection closed")
 
+
+async def update_participant(participant_id: str, participant: ParticipantUpdate):
+    """Update a Participant in SQLite and optionally update its context in ChromaDB."""
+    conn = None
+    try:
+        logger.info("Updating participant with ID: %s", participant_id)
+        conn = sqlite3.connect("roundtableai.db")
+        cursor = conn.cursor()
+
+        # Check if participant exists
+        cursor.execute("SELECT 1 FROM participants WHERE id = ?", (participant_id,))
+        if not cursor.fetchone():
+            logger.error("Participant not found with ID: %s", participant_id)
+            raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+
+        # Update participant in SQLite
+        cursor.execute(
+            "UPDATE participants SET name = ?, persona_description = ?, role = ?, userId = ? WHERE id = ?",
+            (participant.name, participant.persona_description, participant.role, participant.userId, participant_id)
+        )
+
+        # Update context in ChromaDB if provided
+        if participant.context:
+            try:
+                collection.update(documents=[participant.context], ids=[participant_id])
+                logger.info("Successfully updated participant context in ChromaDB: %s", participant_id)
+            except Exception as e:
+                logger.error("Failed to update participant context in ChromaDB: %s - Error: %s", participant_id, str(e))
+                conn.rollback()
+                raise HTTPException(status_code=500, detail="Failed to update participant context in vector database")
+
+        conn.commit()
+        logger.info("Successfully updated participant: %s", participant_id)
+        return {"message": f"Participant with ID '{participant_id}' updated successfully"}
+
+    except sqlite3.Error as e:
+        logger.error("Database error while updating participant %s: %s", participant_id, str(e))
+        raise HTTPException(status_code=500, detail="Failed to update participant in database")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.error("Unexpected error while updating participant %s: %s", participant_id, str(e))
+        raise HTTPException(status_code=500, detail="Internal server error while updating participant")
+    finally:
+        if conn:
+            conn.close()
+            logger.debug("Database connection closed")
+
+async def delete_participant(participant_id: str):
+    """Delete a Participant from SQLite and ChromaDB."""
+    conn = None
+    try:
+        logger.info("Deleting participant with ID: %s", participant_id)
+        conn = sqlite3.connect("roundtableai.db")
+        cursor = conn.cursor()
+
+        # Check if participant exists
+        cursor.execute("SELECT 1 FROM participants WHERE id = ?", (participant_id,))
+        if not cursor.fetchone():
+            logger.error("Participant not found with ID: %s", participant_id)
+            raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+
+        # Delete from SQLite
+        cursor.execute("DELETE FROM participants WHERE id = ?", (participant_id,))
+
+        # Delete from ChromaDB
+        try:
+            collection.delete(ids=[participant_id])
+            logger.info("Successfully deleted participant context from ChromaDB: %s", participant_id)
+        except Exception as e:
+            logger.error("Failed to delete participant context from ChromaDB: %s - Error: %s", participant_id, str(e))
+            # Continue with deletion even if ChromaDB fails, as the participant should be removed from SQLite
+
+        conn.commit()
+        logger.info("Successfully deleted participant: %s", participant_id)
+        return {"message": f"Participant with ID '{participant_id}' deleted successfully"}
+
+    except sqlite3.Error as e:
+        logger.error("Database error while deleting participant %s: %s", participant_id, str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete participant from database")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.error("Unexpected error while deleting participant %s: %s", participant_id, str(e))
+        raise HTTPException(status_code=500, detail="Internal server error while deleting participant")
+    finally:
+        if conn:
+            conn.close()
+            logger.debug("Database connection closed")
+
+async def get_participant(participant_id: str):
+    """Get a specific Participant from SQLite and its context from ChromaDB."""
+    conn = None
+    try:
+        logger.info("Fetching participant with ID: %s", participant_id)
+        conn = sqlite3.connect("roundtableai.db")
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id, name, persona_description, role, userId FROM participants WHERE id = ?", (participant_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            logger.error("Participant not found with ID: %s", participant_id)
+            raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+
+        # Get context from ChromaDB
+        try:
+            context_result = collection.get(ids=[participant_id])
+            context = context_result['documents'][0] if context_result['documents'] else ""
+        except Exception as e:
+            logger.error("Failed to fetch context from ChromaDB for participant %s: %s", participant_id, str(e))
+            context = ""
+
+        participant = {
+            "id": row[0],
+            "name": row[1],
+            "persona_description": row[2],
+            "role": row[3],
+            "userId": row[4],
+            "context": context
+        }
+
+        logger.info("Successfully retrieved participant: %s", participant_id)
+        return participant
+
+    except sqlite3.Error as e:
+        logger.error("Database error while fetching participant %s: %s", participant_id, str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve participant from database")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.error("Unexpected error while fetching participant %s: %s", participant_id, str(e))
+        raise HTTPException(status_code=500, detail="Internal server error while retrieving participant")
+    finally:
+        if conn:
+            conn.close()
+            logger.debug("Database connection closed")
 
 async def list_participants():
     """List all Participants from SQLite."""
