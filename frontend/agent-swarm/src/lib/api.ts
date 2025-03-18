@@ -27,7 +27,8 @@ export const setMeetingTopic = (data: { meeting_id: string; topic: string }) => 
 
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>("/meetings")
 
-export const generateQuestions = (topic: string) => api.post<{ questions: string[] }>("/generate-questions", topic)
+export const getQuestions = (topic: string, group_id: string) =>
+	api.get<{ questions: string[] }>(`/get-questions?group_id=${group_id}&topic=${encodeURIComponent(topic)}`)
 
 interface StreamCallbacks {
 	onParticipantResponse?: (response: ParticipantResponse) => void

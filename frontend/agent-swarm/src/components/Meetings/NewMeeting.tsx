@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { streamChat, listGroups, getGroup, generateQuestions } from "@/lib/api"
+import { streamChat, listGroups, getGroup, getQuestions } from "@/lib/api"
 import { Group, Participant, ParticipantResponse, ChatFinalResponse } from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
@@ -123,8 +123,8 @@ const NewMeeting: React.FC = () => {
 				weight: 5, // Default weight
 			}))
 			setParticipants(groupParticipants)
-			const questionsResponse = await generateQuestions(topic);
-    		setQuestions(questionsResponse.data.questions);
+			const questionsResponse = await getQuestions(topic, selectedGroup)
+			setQuestions(questionsResponse.data.questions)
 			setStep("participants")
 		} catch (error) {
 			console.error("Error fetching group participants:", error)
@@ -249,7 +249,7 @@ const NewMeeting: React.FC = () => {
 						/>
 					</div>
 					<div className="flex flex-row w-[70%] mt-4">
-						<Button onClick={handleNextFromGroup} disabled={!selectedGroup || !topic.trim()} >
+						<Button onClick={handleNextFromGroup} disabled={!selectedGroup || !topic.trim()}>
 							Next
 						</Button>
 					</div>
@@ -273,10 +273,10 @@ const NewMeeting: React.FC = () => {
 						</SortableContext>
 					</DndContext>
 					<div className="flex flex-row w-[70%] mt-4">
-						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()} >
+						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()}>
 							Back
 						</Button>
-						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()} >
+						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()}>
 							Next
 						</Button>
 					</div>
@@ -299,7 +299,7 @@ const NewMeeting: React.FC = () => {
 						))}
 					</div>
 					<Button onClick={handleNextFromQuestions} disabled={selectedQuestions.length === 0}>
-						Next
+						Start Meeting
 					</Button>
 				</div>
 			)}

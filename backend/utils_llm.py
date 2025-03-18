@@ -4,6 +4,7 @@ import json
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
 from logger_config import setup_logger
+from openai import AzureOpenAI
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -130,7 +131,6 @@ class AzureOpenAIClient(LLMBase):
     def __init__(self, api_key, azure_endpoint, **kwargs):
         super().__init__(api_key=api_key, **kwargs)
         self.azure_endpoint = azure_endpoint
-        from openai import AzureOpenAI
 
         try:
             self.client = AzureOpenAI(api_key=api_key, api_version="2024-10-21", azure_endpoint=azure_endpoint)

@@ -11,6 +11,7 @@ import os
 from logger_config import setup_logger
 from utils_llm import LLMClient
 from prompts import generate_questions_prompt
+from pydantic import BaseModel
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -193,7 +194,7 @@ async def chat_stream_endpoint(group_id: str, strategy: str, message: str):
 async def generate_questions_endpoint(topic: str, group_id: str):
     try:
         logger.info("Generating questions for topic: %s and group: %s", topic, group_id)
-        
+
         # Fetch group details
         group = await get_group(group_id)
         if not group:
@@ -206,16 +207,9 @@ async def generate_questions_endpoint(topic: str, group_id: str):
 
         prompt = generate_questions_prompt(topic, group)
 
-        # Define response format for structured output
-        response_format = {
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        }
-
         messages = [{"role": "system", "content": prompt}]
-        questions = llm_client.send_request_w_structured_response(messages, response_format)
+        response, _ = llm_client.send_request(messages)
+        questions = [line.strip()[3:] for line in response.strip().split("\n") if line.strip()]
 
         if len(questions) < 10:
             raise HTTPException(status_code=500, detail="Failed to generate sufficient questions")
