@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os
 from logger_config import setup_logger
 from utils_llm import LLMClient
+from prompts import generate_questions_prompt
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -188,19 +189,37 @@ async def chat_stream_endpoint(group_id: str, strategy: str, message: str):
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
 
 
-@app.post("/generate-questions")
-async def generate_questions_endpoint(topic: str):
+@app.get("/get-questions")
+async def generate_questions_endpoint(topic: str, group_id: str):
     try:
-        logger.info("Generating questions for topic: %s", topic)
+        logger.info("Generating questions for topic: %s and group: %s", topic, group_id)
+        
+        # Fetch group details
+        group = await get_group(group_id)
+        if not group:
+            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+
+        # Initialize LLM client
         llm_client = LLMClient(provider="azure")
-        prompt = (
-            f"Generate exactly 6 concise, relevant questions for a discussion on '{topic}'. " f"List them as:\n1. Question 1\n2. Question 2\n3. Question 3\n4. Question 4\n5. Question 5\n6. Question 6"
-        )
+
+        # Get prompt from prompts.py
+
+        prompt = generate_questions_prompt(topic, group)
+
+        # Define response format for structured output
+        response_format = {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+
         messages = [{"role": "system", "content": prompt}]
-        response, _ = llm_client.send_request(messages)
-        questions = [line.strip()[3:] for line in response.strip().split("\n") if line.strip()]
-        if len(questions) < 6:
+        questions = llm_client.send_request_w_structured_response(messages, response_format)
+
+        if len(questions) < 10:
             raise HTTPException(status_code=500, detail="Failed to generate sufficient questions")
+
         logger.info("Generated questions: %s", questions)
         return {"questions": questions}
     except Exception as e:

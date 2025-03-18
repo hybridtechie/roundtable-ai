@@ -3,10 +3,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { streamChat, listGroups, getGroup } from "@/lib/api"
+import { streamChat, listGroups, getGroup, generateQuestions } from "@/lib/api"
 import { Group, Participant, ParticipantResponse, ChatFinalResponse } from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
-import { ChatInput } from "@/components/ui/chat-input"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
 import {
 	arrayMove,
@@ -16,6 +15,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { Textarea } from "@/components/ui/textarea"
 
 interface ChatMessageType {
 	type: "participant" | "final"
@@ -123,15 +123,8 @@ const NewMeeting: React.FC = () => {
 				weight: 5, // Default weight
 			}))
 			setParticipants(groupParticipants)
-			// Hardcoded questions for now; could fetch from backend
-			setQuestions([
-				"What are the benefits of this topic?",
-				"What challenges might we face?",
-				"How should we prioritize this?",
-				"Who should be responsible?",
-				"What’s the timeline for implementation?",
-				"What resources do we need?",
-			])
+			const questionsResponse = await generateQuestions(topic);
+    		setQuestions(questionsResponse.data.questions);
 			setStep("participants")
 		} catch (error) {
 			console.error("Error fetching group participants:", error)
@@ -217,12 +210,12 @@ const NewMeeting: React.FC = () => {
 		<div className="flex flex-col h-[calc(100vh-2rem)] p-4">
 			{step === "group" && (
 				<div className="flex flex-col items-center justify-center h-full gap-4">
-					<h2 className="text-2xl font-bold">Step 1: Setup Meeting</h2>
-					<div className="flex flex-col items-start w-[300px]">
-						<label className="mb-2 text-lg font-semibold">Group</label>
+					<h2 className="text-2xl font-bold">Step 1: Choose Participants</h2>
+					<div className="flex flex-col items-start w-[70%]">
+						<label className="mb-2 text-lg font-semibold">Participant Group</label>
 						<Select value={selectedGroup} onValueChange={setSelectedGroup}>
 							<SelectTrigger className="w-full">
-								<SelectValue placeholder="Select a Group" />
+								<SelectValue placeholder="Select a Participant Group" />
 							</SelectTrigger>
 							<SelectContent>
 								{groups.map((group) => (
@@ -233,7 +226,7 @@ const NewMeeting: React.FC = () => {
 							</SelectContent>
 						</Select>
 					</div>
-					<div className="flex flex-col items-start w-[300px] mt-4">
+					<div className="flex flex-col items-start w-[70%] mt-4">
 						<label className="mb-2 text-lg font-semibold">Discussion Strategy</label>
 						<Select value={discussionStrategy} onValueChange={setDiscussionStrategy}>
 							<SelectTrigger className="w-full">
@@ -245,13 +238,21 @@ const NewMeeting: React.FC = () => {
 							</SelectContent>
 						</Select>
 					</div>
-					<div className="flex flex-col items-start w-[300px] mt-4">
+					<div className="flex flex-col items-start w-[70%] mt-4">
 						<label className="mb-2 text-lg font-semibold">Topic</label>
-						<ChatInput value={topic} onChange={setTopic} onSend={handleNextFromGroup} />
+						<Textarea
+							placeholder="Enter your message"
+							value={topic}
+							onChange={(e) => setTopic(e.target.value)}
+							className="flex-1 min-h-[60px]"
+							rows={4}
+						/>
 					</div>
-					<Button onClick={handleNextFromGroup} disabled={!selectedGroup || !topic.trim()}>
-						Next
-					</Button>
+					<div className="flex flex-row w-[70%] mt-4">
+						<Button onClick={handleNextFromGroup} disabled={!selectedGroup || !topic.trim()} >
+							Next
+						</Button>
+					</div>
 				</div>
 			)}
 
@@ -260,7 +261,7 @@ const NewMeeting: React.FC = () => {
 					<h2 className="text-2xl font-bold">Step 2: Order Participants & Assign Weights</h2>
 					<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
 						<SortableContext items={participants.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-							<ul className="w-[400px] space-y-2">
+							<ul className="w-[70%] space-y-2">
 								{participants.map((participant) => (
 									<SortableParticipant
 										key={participant.id}
@@ -271,14 +272,21 @@ const NewMeeting: React.FC = () => {
 							</ul>
 						</SortableContext>
 					</DndContext>
-					<Button onClick={handleNextFromParticipants}>Next</Button>
+					<div className="flex flex-row w-[70%] mt-4">
+						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()} >
+							Back
+						</Button>
+						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()} >
+							Next
+						</Button>
+					</div>
 				</div>
 			)}
 
 			{step === "questions" && (
 				<div className="flex flex-col items-center justify-center h-full gap-4">
 					<h2 className="text-2xl font-bold">Step 3: Select Questions (Up to 5)</h2>
-					<div className="w-[400px] space-y-2">
+					<div className="w-[70%] space-y-2">
 						{questions.map((question) => (
 							<div key={question} className="flex items-center space-x-2">
 								<Checkbox
