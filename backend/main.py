@@ -4,6 +4,7 @@ from features.participant import create_participant, get_participant, update_par
 from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import stream_meeting_discussion, ChatMessage
+from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
 import os
@@ -179,7 +180,11 @@ async def list_meetings_endpoint():
 async def chat_stream_endpoint(group_id: str, strategy: str, message: str):
     try:
         logger.info("Starting streaming chat discussion for group: %s", group_id)
-        return await stream_meeting_discussion(group_id, strategy, message)
+        # Wrap the async generator in StreamingResponse
+        return StreamingResponse(
+            stream_meeting_discussion(group_id, strategy, message),
+            media_type="text/event-stream"
+        )
     except Exception as e:
         logger.error("Failed to stream chat for group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")

@@ -57,7 +57,6 @@ async def create_meeting(meeting: MeetingCreate):
             (meeting_id, participant_ids_json, group_ids_json, meeting.topic, meeting.userId, meeting.strategy)
         )
         logger.debug("Inserting meeting with ID: %s", meeting_id)
-        cursor.execute("INSERT INTO meetings (id, participant_ids, topic, userId) VALUES (?, ?, ?, ?)", (meeting_id, participant_ids_json, None, meeting.userId))
 
         conn.commit()
         logger.info("Successfully created meeting: %s", meeting_id)

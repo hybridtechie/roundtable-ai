@@ -82,12 +82,12 @@ class MeetingDiscussion:
     def generate_questions(self, llm_client):
         """Generate 3 relevant questions based on the topic."""
         prompt = (
-            f"Generate exactly 3 concise, relevant questions for a discussion on '{self.topic}'. Do not respond with any other details"
+            f"Generate exactly 3 concise, relevant questions for a discussion on '{self.topic}'. Do not respond with any other details\n"
             f"List them as:\n1. Question 1\n2. Question 2\n3. Question 3"
         )
         messages = [{"role": "system", "content": prompt}]
-        response = llm_client.send_request(messages)
-        content = response.get("content", response).strip().split("\n")
+        response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
+        content = response.strip().split("\n")
         self.questions = [line.strip()[3:] for line in content if line.strip()]
         if len(self.questions) != 3:
             raise HTTPException(status_code=500, detail="Failed to generate exactly 3 questions")
@@ -104,8 +104,8 @@ class MeetingDiscussion:
         if context:
             prompt += f"\n\nContext from previous answers: {context}"
         messages = [{"role": "system", "content": prompt}, {"role": "user", "content": self.message}]
-        response = llm_client.send_request(messages)
-        return response.get("content", response).strip()
+        response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
+        return response.strip()
 
     def gauge_opinion_strength(self, llm_client, participant_id: str, question: str):
         """Gauge how strongly a participant feels about a question."""
@@ -117,9 +117,9 @@ class MeetingDiscussion:
             f"Respond with just a number (e.g., '7'). If no opinion, respond '0'."
         )
         messages = [{"role": "system", "content": prompt}, {"role": "user", "content": question}]
-        response = llm_client.send_request(messages)
+        response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         try:
-            return int(response.get("content", response).strip())
+            return int(response.strip())
         except ValueError:
             logger.warning("Invalid strength from %s: %s", participant['name'], response)
             return 0
@@ -131,8 +131,8 @@ class MeetingDiscussion:
             f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
         )
         messages = [{"role": "system", "content": prompt}]
-        response = llm_client.send_request(messages)
-        return response.get("content", response).strip()
+        response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
+        return response.strip()
 
     async def conduct_discussion(self, llm_client):
         """Conduct the discussion based on strategy and yield SSE events."""
