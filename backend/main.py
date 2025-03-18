@@ -9,6 +9,7 @@ import uvicorn
 from dotenv import load_dotenv
 import os
 from logger_config import setup_logger
+from utils_llm import LLMClient
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -181,13 +182,30 @@ async def chat_stream_endpoint(group_id: str, strategy: str, message: str):
     try:
         logger.info("Starting streaming chat discussion for group: %s", group_id)
         # Wrap the async generator in StreamingResponse
-        return StreamingResponse(
-            stream_meeting_discussion(group_id, strategy, message),
-            media_type="text/event-stream"
-        )
+        return StreamingResponse(stream_meeting_discussion(group_id, strategy, message), media_type="text/event-stream")
     except Exception as e:
         logger.error("Failed to stream chat for group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
+
+
+@app.post("/generate-questions")
+async def generate_questions_endpoint(topic: str):
+    try:
+        logger.info("Generating questions for topic: %s", topic)
+        llm_client = LLMClient(provider="azure")
+        prompt = (
+            f"Generate exactly 6 concise, relevant questions for a discussion on '{topic}'. " f"List them as:\n1. Question 1\n2. Question 2\n3. Question 3\n4. Question 4\n5. Question 5\n6. Question 6"
+        )
+        messages = [{"role": "system", "content": prompt}]
+        response, _ = llm_client.send_request(messages)
+        questions = [line.strip()[3:] for line in response.strip().split("\n") if line.strip()]
+        if len(questions) < 6:
+            raise HTTPException(status_code=500, detail="Failed to generate sufficient questions")
+        logger.info("Generated questions: %s", questions)
+        return {"questions": questions}
+    except Exception as e:
+        logger.error("Failed to generate questions: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
 
 
 # Run the app

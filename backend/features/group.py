@@ -226,7 +226,7 @@ async def get_group(group_id: str):
             cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
             participant = cursor.fetchone()
             if participant:
-                participants.append({"participant_id": participant[0], "name": participant[1], "role": participant[2]})
+                participants.append({"id": participant[0], "name": participant[1], "role": participant[2]})
 
         # Get context from ChromaDB if available
         try:

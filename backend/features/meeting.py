@@ -20,6 +20,8 @@ class MeetingTopic(BaseModel):
     meeting_id: str
     topic: str
     userId: str = "SuperAdmin"
+
+
 async def create_meeting(meeting: MeetingCreate):
     """Create a meeting for a group with specified strategy and topic."""
     logger.info("Creating new meeting for group: %s", meeting.group_id)
@@ -32,13 +34,13 @@ async def create_meeting(meeting: MeetingCreate):
         # Fetch participant_ids from the group
         cursor.execute("SELECT participant_ids FROM groups WHERE id = ?", (meeting.group_id,))
         group_data = cursor.fetchone()
-        
+
         if not group_data:
             logger.error("Group not found: %s", meeting.group_id)
             raise HTTPException(status_code=404, detail=f"Group ID '{meeting.group_id}' not found")
-            
+
         participant_ids = json.loads(group_data[0])
-        
+
         # Validate all participant IDs exist
         for participant_id in participant_ids:
             logger.debug("Validating participant ID: %s", participant_id)
@@ -54,7 +56,7 @@ async def create_meeting(meeting: MeetingCreate):
         logger.debug("Inserting meeting with ID: %s", meeting_id)
         cursor.execute(
             "INSERT INTO meetings (id, participant_ids, group_ids, topic, userId, context) VALUES (?, ?, ?, ?, ?, ?)",
-            (meeting_id, participant_ids_json, group_ids_json, meeting.topic, meeting.userId, meeting.strategy)
+            (meeting_id, participant_ids_json, group_ids_json, meeting.topic, meeting.userId, meeting.strategy),
         )
         logger.debug("Inserting meeting with ID: %s", meeting_id)
 

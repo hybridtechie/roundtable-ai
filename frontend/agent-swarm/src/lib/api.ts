@@ -17,6 +17,8 @@ export const createGroup = (data: { participant_ids: string[] }) => api.post("/g
 
 export const listGroups = () => api.get<{ groups: Group[] }>("/groups")
 
+export const getGroup = (groupId: string) => api.get<Group>(`/group/${groupId}`)
+
 // Meetings
 
 export const createMeeting = (data: { participant_ids: string[] }) => api.post("/meeting", data)
@@ -24,6 +26,8 @@ export const createMeeting = (data: { participant_ids: string[] }) => api.post("
 export const setMeetingTopic = (data: { meeting_id: string; topic: string }) => api.post("/meeting/topic", data)
 
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>("/meetings")
+
+export const generateQuestions = (topic: string) => api.post<{ questions: string[] }>("/generate-questions", topic)
 
 interface StreamCallbacks {
 	onParticipantResponse?: (response: ParticipantResponse) => void

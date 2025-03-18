@@ -43,6 +43,7 @@ def format_sse_event(event_type: str, data: dict) -> str:
         logger.error("Failed to format SSE event: %s", str(e), exc_info=True)
         raise
 
+
 # Utility Methods
 def fetch_group_data(group_id: str) -> tuple[list, str]:
     """Fetch meeting details from SQLite."""
@@ -173,9 +174,9 @@ def synthesize_final_response(llm_client, topic: str, message: str, discussion_l
 
 
 async def stream_meeting_discussion(group_id: str, message: str):
-    
+
     create_meeting(group_id)
-    
+
     """Stream meeting discussion with SSE."""
     logger.info("Starting streaming discussion for meeting: %s", group_id)
 
@@ -183,7 +184,7 @@ async def stream_meeting_discussion(group_id: str, message: str):
         try:
             participant_ids = fetch_group_data(group_id)
             participants_data = fetch_participants_data(participant_ids)
-            
+
             llm_client = get_llm_client()
             agenda = ["Introduce your perspective on the topic", "Discuss pros and cons", "Provide a recommendation"]
 
