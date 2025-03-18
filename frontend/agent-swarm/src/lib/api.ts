@@ -34,7 +34,7 @@ interface StreamCallbacks {
 
 export const streamChat = (data: MeetingRequest, callbacks: StreamCallbacks): (() => void) => {
 	const eventSource = new EventSource(
-		`${api.defaults.baseURL}/chat-stream?group_id=${data.group_id}&message=${encodeURIComponent(data.message)}`,
+		`${api.defaults.baseURL}/chat-stream?group_id=${data.group_id}&strategy=${encodeURIComponent(data.strategy)}&message=${encodeURIComponent(data.message)}`,
 	)
 
 	eventSource.addEventListener("participant_response", ((event: MessageEvent) => {

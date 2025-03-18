@@ -10,7 +10,9 @@ logger = setup_logger(__name__)
 
 
 class MeetingCreate(BaseModel):
-    participant_ids: list[str]
+    group_id: str
+    strategy: str
+    topic: str
     userId: str = "SuperAdmin"
 
 
@@ -18,19 +20,27 @@ class MeetingTopic(BaseModel):
     meeting_id: str
     topic: str
     userId: str = "SuperAdmin"
-
-
 async def create_meeting(meeting: MeetingCreate):
-    """Create a meeting with a list of Participant IDs as participants."""
-    logger.info("Creating new meeting with %d participants", len(meeting.participant_ids))
+    """Create a meeting for a group with specified strategy and topic."""
+    logger.info("Creating new meeting for group: %s", meeting.group_id)
 
     conn = None
     try:
         conn = sqlite3.connect("roundtableai.db")
         cursor = conn.cursor()
 
+        # Fetch participant_ids from the group
+        cursor.execute("SELECT participant_ids FROM groups WHERE id = ?", (meeting.group_id,))
+        group_data = cursor.fetchone()
+        
+        if not group_data:
+            logger.error("Group not found: %s", meeting.group_id)
+            raise HTTPException(status_code=404, detail=f"Group ID '{meeting.group_id}' not found")
+            
+        participant_ids = json.loads(group_data[0])
+        
         # Validate all participant IDs exist
-        for participant_id in meeting.participant_ids:
+        for participant_id in participant_ids:
             logger.debug("Validating participant ID: %s", participant_id)
             cursor.execute("SELECT id FROM participants WHERE id = ?", (participant_id,))
             if not cursor.fetchone():
@@ -38,8 +48,14 @@ async def create_meeting(meeting: MeetingCreate):
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
 
         meeting_id = str(uuid.uuid4())
-        participant_ids_json = json.dumps(meeting.participant_ids)
+        participant_ids_json = json.dumps(participant_ids)
+        group_ids_json = json.dumps([meeting.group_id])
 
+        logger.debug("Inserting meeting with ID: %s", meeting_id)
+        cursor.execute(
+            "INSERT INTO meetings (id, participant_ids, group_ids, topic, userId, context) VALUES (?, ?, ?, ?, ?, ?)",
+            (meeting_id, participant_ids_json, group_ids_json, meeting.topic, meeting.userId, meeting.strategy)
+        )
         logger.debug("Inserting meeting with ID: %s", meeting_id)
         cursor.execute("INSERT INTO meetings (id, participant_ids, topic, userId) VALUES (?, ?, ?, ?)", (meeting_id, participant_ids_json, None, meeting.userId))
 

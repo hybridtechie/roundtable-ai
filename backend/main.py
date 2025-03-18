@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
-from features.chat import start_meeting_discussion, stream_meeting_discussion, ChatMessage
+from features.chat import stream_meeting_discussion, ChatMessage
 import uvicorn
 from dotenv import load_dotenv
 import os
@@ -175,24 +175,11 @@ async def list_meetings_endpoint():
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
 
-# Chat endpoints
-@app.post("/chat")
-async def chat_endpoint(message: ChatMessage):
-    try:
-        logger.info("Starting chat discussion for meeting: %s", message.meeting_id)
-        result = await start_meeting_discussion(message.meeting_id, message.message)
-        logger.info("Successfully processed chat message for meeting: %s", message.meeting_id)
-        return result
-    except Exception as e:
-        logger.error("Failed to process chat message for meeting %s: %s", message.meeting_id, str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to process chat message: {str(e)}")
-
-
 @app.get("/chat-stream")
-async def chat_stream_endpoint(group_id: str, message: str):
+async def chat_stream_endpoint(group_id: str, strategy: str, message: str):
     try:
         logger.info("Starting streaming chat discussion for group: %s", group_id)
-        return await stream_meeting_discussion(group_id, message)
+        return await stream_meeting_discussion(group_id, strategy, message)
     except Exception as e:
         logger.error("Failed to stream chat for group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
