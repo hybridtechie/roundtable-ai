@@ -13,6 +13,7 @@ class MeetingCreate(BaseModel):
     group_id: str
     strategy: str
     topic: str
+    questions: list
     userId: str = "SuperAdmin"
 
 

@@ -180,7 +180,7 @@ async def list_meetings_endpoint():
 
 
 @app.get("/chat-stream")
-async def chat_stream_endpoint(group_id: str, strategy: str, message: str):
+async def chat_stream_endpoint(group_id: str, strategy: str, topic: str):
     try:
         logger.info("Starting streaming chat discussion for group: %s", group_id)
         # Wrap the async generator in StreamingResponse

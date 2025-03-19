@@ -21,7 +21,7 @@ export const getGroup = (groupId: string) => api.get<Group>(`/group/${groupId}`)
 
 // Meetings
 
-export const createMeeting = (data: { participant_ids: string[] }) => api.post("/meeting", data)
+export const createMeeting = (data: MeetingRequest) => api.post("/meeting", data)
 
 export const setMeetingTopic = (data: { meeting_id: string; topic: string }) => api.post("/meeting/topic", data)
 

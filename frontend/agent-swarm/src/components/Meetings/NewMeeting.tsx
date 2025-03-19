@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { streamChat, listGroups, getGroup, getQuestions } from "@/lib/api"
+import { streamChat, listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
 import { Group, Participant, ParticipantResponse, ChatFinalResponse } from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
@@ -174,11 +174,15 @@ const NewMeeting: React.FC = () => {
 
 		setIsLoading(true)
 		setMessages([])
+
+		createMeeting({ group_id: selectedGroup, strategy: discussionStrategy, topic: topic, questions: selectedQuestions })
+
 		cleanupRef.current?.()
 
-		const strategy = discussionStrategy === "Weighted" ? "opinionated" : "round robin"
+
+
 		cleanupRef.current = streamChat(
-			{ group_id: selectedGroup, message: `${topic}\nSelected questions: ${selectedQuestions.join(", ")}`, strategy },
+			{ group_id: selectedGroup, topic: topic, questions: selectedQuestions, strategy: discussionStrategy },
 			{
 				onParticipantResponse: (response: ParticipantResponse) => {
 					setMessages((prev) => [
@@ -233,8 +237,8 @@ const NewMeeting: React.FC = () => {
 								<SelectValue placeholder="Select a Strategy" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="RoundRobin">Round Robin</SelectItem>
-								<SelectItem value="Weighted">Weighted</SelectItem>
+								<SelectItem value="round robin">Round Robin</SelectItem>
+								<SelectItem value="weighted">Weighted</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>

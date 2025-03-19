@@ -15,7 +15,8 @@ export interface Group {
 export interface MeetingRequest {
 	group_id: string
 	strategy: string
-	message: string
+	topic: string
+	questions: string[]
 }
 
 export interface ParticipantResponse {
