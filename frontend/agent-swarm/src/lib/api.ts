@@ -9,6 +9,7 @@ import {
 	ChatEventType,
 	QuestionsResponse,
 	ChatErrorResponse,
+	NextParticipantResponse,
 } from "@/types/types"
 
 const api = axios.create({
@@ -43,7 +44,7 @@ export const getQuestions = (topic: string, group_id: string) =>
 interface StreamCallbacks {
 	onEvent: (
 		eventType: ChatEventType,
-		data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse,
+		data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse | NextParticipantResponse,
 	) => void
 }
 
@@ -68,6 +69,11 @@ export const streamChat = (meeting_id: string, callbacks: StreamCallbacks): (() 
 	eventSource.addEventListener(ChatEventType.Error, ((event: MessageEvent) => {
 		const data = JSON.parse(event.data) as ChatErrorResponse
 		callbacks.onEvent(ChatEventType.Error, data)
+	}) as EventListener)
+
+	eventSource.addEventListener(ChatEventType.NextParticipant, ((event: MessageEvent) => {
+		const data = JSON.parse(event.data) as NextParticipantResponse
+		callbacks.onEvent(ChatEventType.NextParticipant, data)
 	}) as EventListener)
 
 	eventSource.addEventListener(ChatEventType.Complete, () => {

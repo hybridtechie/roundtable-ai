@@ -38,12 +38,18 @@ export type ChatErrorResponse = {
 	detail: string
 }
 
+export interface NextParticipantResponse {
+	participant_id: string
+	participant_name: string
+}
+
 export enum ChatEventType {
 	Questions = "questions",
 	ParticipantResponse = "participant_response",
 	FinalResponse = "final_response",
 	Error = "error",
 	Complete = "complete",
+	NextParticipant = "next_participant",
 }
 
 export interface Meeting {

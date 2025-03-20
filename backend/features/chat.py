@@ -113,6 +113,10 @@ class MeetingDiscussion:
             context = ""
             for question in self.questions:
                 for pid in self.participants:
+                    # Emit next participant event
+                    yield format_sse_event("next_participant", {"participant_id": pid, "participant_name": self.participants[pid]["name"]})
+                    await asyncio.sleep(0.1)  # Add delay before response
+
                     answer = self.ask_question(llm_client, pid, question, context)
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
@@ -130,6 +134,10 @@ class MeetingDiscussion:
                 context = ""
                 for pid, strength in sorted_participants:
                     if strength > 0:
+                        # Emit next participant event
+                        yield format_sse_event("next_participant", {"participant_id": pid, "participant_name": self.participants[pid]["name"]})
+                        await asyncio.sleep(0.1)  # Add delay before response
+
                         answer = self.ask_question(llm_client, pid, question, context)
                         self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})

@@ -12,6 +12,7 @@ import {
 	ChatFinalResponse,
 	QuestionsResponse,
 	ChatErrorResponse,
+	NextParticipantResponse,
 } from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
@@ -78,7 +79,12 @@ const NewMeeting: React.FC = () => {
 	const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
 	const [topic, setTopic] = useState<string>("")
 	const [groups, setGroups] = useState<Group[]>([])
-	const [participants, setParticipants] = useState<WeightedParticipant[]>([])
+	interface ExtendedParticipant extends WeightedParticipant {
+		persona_description: string
+	}
+
+	const [participants, setParticipants] = useState<ExtendedParticipant[]>([])
+	const [thinkingParticipant, setThinkingParticipant] = useState<string | null>(null)
 	const [questions, setQuestions] = useState<string[]>([])
 	const [selectedQuestions, setSelectedQuestions] = useState<string[]>([])
 	const [messages, setMessages] = useState<ChatMessageType[]>([])
@@ -130,6 +136,7 @@ const NewMeeting: React.FC = () => {
 				id: p.id,
 				name: p.name,
 				weight: 5, // Default weight
+				persona_description: p.persona_description || "Participant",
 			}))
 			setParticipants(groupParticipants)
 			const questionsResponse = await getQuestions(topic, selectedGroup)
@@ -201,9 +208,19 @@ const NewMeeting: React.FC = () => {
 			cleanupRef.current = streamChat(meeting_id, {
 				onEvent: (
 					eventType: ChatEventType,
-					data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse,
+					data:
+						| ParticipantResponse
+						| ChatFinalResponse
+						| QuestionsResponse
+						| ChatErrorResponse
+						| NextParticipantResponse,
 				) => {
 					switch (eventType) {
+						case ChatEventType.NextParticipant:
+							if ("participant_name" in data && "participant_id" in data) {
+								setThinkingParticipant(data.participant_name)
+							}
+							break
 						case ChatEventType.Questions:
 							if ("questions" in data) {
 								setQuestions(data.questions)
@@ -211,17 +228,21 @@ const NewMeeting: React.FC = () => {
 							break
 						case ChatEventType.ParticipantResponse:
 							if ("participant" in data && "question" in data && "answer" in data) {
+								setThinkingParticipant(null)
+								const participant = participants.find((p) => p.name === data.participant)
 								setMessages((prev) => [
 									...prev,
 									{
 										type: "participant",
 										name: data.participant,
+										role: participant?.persona_description,
 										question: data.question,
 										content: data.answer,
 										strength: "strength" in data ? data.strength : undefined,
 										timestamp: new Date(),
 									},
 								])
+								setThinkingParticipant(null)
 							}
 							break
 						case ChatEventType.FinalResponse:
@@ -365,8 +386,10 @@ const NewMeeting: React.FC = () => {
 									{messages.map((msg, index) => (
 										<ChatMessage key={index} {...msg} />
 									))}
-									{isLoading && (
-										<div className="text-center text-muted-foreground">Participants are thinking...</div>
+									{isLoading && thinkingParticipant && (
+										<div className="text-center text-muted-foreground">
+											{thinkingParticipant} is thinking...
+										</div>
 									)}
 								</div>
 							</div>
