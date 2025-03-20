@@ -28,7 +28,7 @@ export const setMeetingTopic = (data: { meeting_id: string; topic: string }) => 
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>("/meetings")
 
 export const getQuestions = (topic: string, group_id: string) =>
-	api.get<{ questions: string[] }>(`/get-questions?group_id=${group_id}&topic=${encodeURIComponent(topic)}`)
+	api.get<{ questions: string[] }>(`/get-questions?topic=${encodeURIComponent(topic)}&group_id=${group_id}`)
 
 interface StreamCallbacks {
 	onParticipantResponse?: (response: ParticipantResponse) => void
@@ -37,9 +37,9 @@ interface StreamCallbacks {
 	onComplete?: () => void
 }
 
-export const streamChat = (data: MeetingRequest, callbacks: StreamCallbacks): (() => void) => {
+export const streamChat = (meeting_id: string, callbacks: StreamCallbacks): (() => void) => {
 	const eventSource = new EventSource(
-		`${api.defaults.baseURL}/chat-stream?group_id=${data.group_id}&strategy=${encodeURIComponent(data.strategy)}&message=${encodeURIComponent(data.message)}`,
+		`${api.defaults.baseURL}/chat-stream?meeting_id=${meeting_id}`,
 	)
 
 	eventSource.addEventListener("participant_response", ((event: MessageEvent) => {

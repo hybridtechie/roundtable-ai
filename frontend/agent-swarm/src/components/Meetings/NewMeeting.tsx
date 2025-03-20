@@ -66,7 +66,7 @@ const SortableParticipant: React.FC<{
 const NewMeeting: React.FC = () => {
 	const [step, setStep] = useState<"group" | "participants" | "questions" | "chat">("group")
 	const [selectedGroup, setSelectedGroup] = useState<string>("")
-	const [discussionStrategy, setDiscussionStrategy] = useState<string>("RoundRobin")
+	const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
 	const [topic, setTopic] = useState<string>("")
 	const [groups, setGroups] = useState<Group[]>([])
 	const [participants, setParticipants] = useState<WeightedParticipant[]>([])
@@ -161,6 +161,10 @@ const NewMeeting: React.FC = () => {
 		})
 	}
 
+	const handleBackFromParticipants = () => {
+		setStep("group")
+	}
+
 	const handleNextFromParticipants = () => {
 		if (participants.length > 0) setStep("questions")
 	}
@@ -169,21 +173,26 @@ const NewMeeting: React.FC = () => {
 		if (selectedQuestions.length > 0) setStep("chat")
 	}
 
-	const handleStartChat = () => {
+	const handleStartChat = async () => {
 		if (!selectedGroup || !topic.trim()) return
 
 		setIsLoading(true)
 		setMessages([])
 
-		createMeeting({ group_id: selectedGroup, strategy: discussionStrategy, topic: topic, questions: selectedQuestions })
+		try {
+			// Create meeting and get meeting_id
+			const response = await createMeeting({
+				group_id: selectedGroup,
+				strategy: discussionStrategy,
+				topic: topic,
+				questions: selectedQuestions
+			})
+			const meeting_id = response.data.meeting_id
 
-		cleanupRef.current?.()
+			cleanupRef.current?.()
 
-
-
-		cleanupRef.current = streamChat(
-			{ group_id: selectedGroup, topic: topic, questions: selectedQuestions, strategy: discussionStrategy },
-			{
+			// Start streaming chat with meeting_id
+			cleanupRef.current = streamChat(meeting_id, {
 				onParticipantResponse: (response: ParticipantResponse) => {
 					setMessages((prev) => [
 						...prev,
@@ -206,8 +215,11 @@ const NewMeeting: React.FC = () => {
 				onComplete: () => {
 					setIsLoading(false)
 				},
-			},
-		)
+			})
+		} catch (error) {
+			console.error("Error starting chat:", error)
+			setIsLoading(false)
+		}
 	}
 
 	return (
@@ -238,7 +250,7 @@ const NewMeeting: React.FC = () => {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="round robin">Round Robin</SelectItem>
-								<SelectItem value="weighted">Weighted</SelectItem>
+								<SelectItem value="opinionated">Opinionated</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -276,11 +288,11 @@ const NewMeeting: React.FC = () => {
 							</ul>
 						</SortableContext>
 					</DndContext>
-					<div className="flex flex-row w-[70%] mt-4">
-						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()}>
+					<div className="flex flex-row w-[70%] mt-4 justify-between">
+						<Button onClick={handleBackFromParticipants}>
 							Back
 						</Button>
-						<Button onClick={handleNextFromParticipants} disabled={!selectedGroup || !topic.trim()}>
+						<Button onClick={handleNextFromParticipants}>
 							Next
 						</Button>
 					</div>
