@@ -120,8 +120,8 @@ class MeetingDiscussion:
                     answer = self.ask_question(llm_client, pid, question, context)
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
+                    await asyncio.sleep(0.1)  # Add delay after each response
                     context += f"{self.participants[pid]['name']}: {answer}\n"
-                await asyncio.sleep(0.1)
 
         elif self.strategy == "opinionated":
             for question in self.questions:
@@ -137,8 +137,8 @@ class MeetingDiscussion:
                         answer = self.ask_question(llm_client, pid, question, context)
                         self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
+                        await asyncio.sleep(0.1)  # Add delay after each response
                         context += f"{self.participants[pid]['name']} (Strength {strength}): {answer}\n"
-                await asyncio.sleep(0.1)
 
         # Synthesize final response
         final_response = self.synthesize_response(llm_client)

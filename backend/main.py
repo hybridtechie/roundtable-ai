@@ -212,7 +212,7 @@ async def generate_questions_endpoint(topic: str, group_id: str):
         response, _ = llm_client.send_request(messages)
         questions = [line.strip()[3:] for line in response.strip().split("\n") if line.strip()]
 
-        if len(questions) < 10:
+        if len(questions) < 5:
             raise HTTPException(status_code=500, detail="Failed to generate sufficient questions")
 
         logger.info("Generated questions: %s", questions)
