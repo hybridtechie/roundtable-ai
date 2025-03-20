@@ -15,18 +15,23 @@ export interface Group {
 export interface MeetingRequest {
 	group_id: string
 	strategy: string
-	message: string
+	topic: string
+	questions: string[]
 }
 
 export interface ParticipantResponse {
-	participant_id: string
-	name: string
-	step: string
-	response: string
+	participant: string
+	question: string
+	answer: string
+	strength?: number
 }
 
 export interface ChatFinalResponse {
 	response: string
+}
+
+export interface QuestionsResponse {
+	questions: string[]
 }
 
 export type ChatErrorResponse = {
@@ -34,6 +39,7 @@ export type ChatErrorResponse = {
 }
 
 export enum ChatEventType {
+	Questions = "questions",
 	ParticipantResponse = "participant_response",
 	FinalResponse = "final_response",
 	Error = "error",
