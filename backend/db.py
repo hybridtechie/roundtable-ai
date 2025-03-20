@@ -47,6 +47,8 @@ def init_sqlite_db():
                 group_ids TEXT,  -- Store as JSON string,
                 context TEXT,
                 topic TEXT,
+                strategy TEXT,
+                questions TEXT,  -- Store as JSON string,
                 userId TEXT NOT NULL DEFAULT 'SuperAdmin'
             )
         """

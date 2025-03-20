@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
-from features.chat import stream_meeting_discussion, ChatMessage
+from features.chat import stream_meeting_discussion
 from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
@@ -32,7 +32,7 @@ app.add_middleware(
 )
 
 
-# Participant endpoints
+# 01 Create Participant
 @app.post("/participant")
 async def create_participant_endpoint(participant: ParticipantCreate):
     try:
@@ -44,7 +44,7 @@ async def create_participant_endpoint(participant: ParticipantCreate):
         logger.error("Failed to create participant: %s - Error: %s", participant.name, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create participant: {str(e)}")
 
-
+# 02 List Participants
 @app.get("/participants")
 async def list_participants_endpoint():
     try:
@@ -56,7 +56,7 @@ async def list_participants_endpoint():
         logger.error("Failed to fetch participants: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch participants: {str(e)}")
 
-
+# 03 Get Participant
 @app.get("/participant/{participant_id}")
 async def get_participant_endpoint(participant_id: str):
     try:
@@ -68,7 +68,7 @@ async def get_participant_endpoint(participant_id: str):
         logger.error("Failed to fetch participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch participant: {str(e)}")
 
-
+# 04 Update Participant
 @app.put("/participant/{participant_id}")
 async def update_participant_endpoint(participant_id: str, participant: ParticipantUpdate):
     try:
@@ -80,7 +80,7 @@ async def update_participant_endpoint(participant_id: str, participant: Particip
         logger.error("Failed to update participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update participant: {str(e)}")
 
-
+# 05 Delete Participant
 @app.delete("/participant/{participant_id}")
 async def delete_participant_endpoint(participant_id: str):
     try:
@@ -93,7 +93,7 @@ async def delete_participant_endpoint(participant_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete participant: {str(e)}")
 
 
-# Group endpoints
+# 06 Create Group
 @app.post("/group")
 async def create_group_endpoint(group: GroupCreate):
     try:
@@ -105,7 +105,7 @@ async def create_group_endpoint(group: GroupCreate):
         logger.error("Failed to create group: %s - Error: %s", group.name, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create group: {str(e)}")
 
-
+#  07 List Groups
 @app.get("/groups")
 async def list_groups_endpoint():
     try:
@@ -118,6 +118,7 @@ async def list_groups_endpoint():
         raise HTTPException(status_code=500, detail=f"Failed to fetch groups: {str(e)}")
 
 
+# 08 Get Group
 @app.get("/group/{group_id}")
 async def get_group_endpoint(group_id: str):
     try:
@@ -129,7 +130,7 @@ async def get_group_endpoint(group_id: str):
         logger.error("Failed to fetch group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch group: {str(e)}")
 
-
+#  09 Update Group
 @app.put("/group/{group_id}")
 async def update_group_endpoint(group_id: str, group: GroupUpdate):
     try:
@@ -141,7 +142,7 @@ async def update_group_endpoint(group_id: str, group: GroupUpdate):
         logger.error("Failed to update group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update group: {str(e)}")
 
-
+#  10 Delete Group
 @app.delete("/group/{group_id}")
 async def delete_group_endpoint(group_id: str):
     try:
@@ -154,11 +155,11 @@ async def delete_group_endpoint(group_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete group: {str(e)}")
 
 
-# Meetings endpoints
+# 11 Create Meeting
 @app.post("/meeting")
 async def create_meeting_endpoint(meeting: MeetingCreate):
     try:
-        logger.info("Creating new meeting with participants: %s", meeting.participant_ids)
+        logger.info("Creating new meeting with group: %s", meeting.group_id)
         result = await create_meeting(meeting)
         logger.info("Successfully created meeting: %s", result.get("id"))
         return result
@@ -166,7 +167,7 @@ async def create_meeting_endpoint(meeting: MeetingCreate):
         logger.error("Failed to create meeting: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
 
-
+# 12 List Meetings
 @app.get("/meetings")
 async def list_meetings_endpoint():
     try:
@@ -178,18 +179,18 @@ async def list_meetings_endpoint():
         logger.error("Failed to fetch meetings: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
-
+# 13 Start Meeting
 @app.get("/chat-stream")
-async def chat_stream_endpoint(group_id: str, strategy: str, topic: str):
+async def chat_stream_endpoint(meeting_id: str):
     try:
-        logger.info("Starting streaming chat discussion for group: %s", group_id)
+        logger.info("Starting streaming chat discussion for Meeting: %s", meeting_id)
         # Wrap the async generator in StreamingResponse
-        return StreamingResponse(stream_meeting_discussion(group_id, strategy, message), media_type="text/event-stream")
+        return StreamingResponse(stream_meeting_discussion(meeting_id), media_type="text/event-stream")
     except Exception as e:
-        logger.error("Failed to stream chat for group %s: %s", group_id, str(e), exc_info=True)
+        logger.error("Failed to stream chat for group %s: %s", meeting_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
 
-
+# 14 Generate Questions
 @app.get("/get-questions")
 async def generate_questions_endpoint(topic: str, group_id: str):
     try:

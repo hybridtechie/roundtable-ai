@@ -9,19 +9,10 @@ from fastapi.responses import StreamingResponse
 from db import collection
 import asyncio
 from logger_config import setup_logger
-from features.meeting import create_meeting, MeetingCreate
+from features.meeting import create_meeting, get_meeting, MeetingCreate, Meeting
 
 # Set up logger
 logger = setup_logger(__name__)
-
-
-# Define input model (matching main.py's chat-stream endpoint)
-class ChatMessage(BaseModel):
-    group_id: str
-    strategy: str
-    topic: str
-    message: str  # User message to contextualize the discussion
-
 
 # LLM client initialization
 def get_llm_client():
@@ -45,43 +36,21 @@ def format_sse_event(event_type: str, data: dict) -> str:
 
 # Meeting discussion logic
 class MeetingDiscussion:
-    def __init__(self, group_id: str, strategy: str, topic: str, message: str):
-        self.group_id = group_id
-        self.strategy = strategy.lower()
-        self.topic = topic
-        self.message = message
-        self.meeting_id = None
-        self.participants = {}
-        self.questions = []
+    def __init__(self, meeting: Meeting):
+        self.group_id = meeting.group_ids[0]  # Using first group ID since it's a list
+        self.strategy = meeting.strategy
+        self.topic = meeting.topic
+        self.meeting_id = meeting.id
+        self.questions = meeting.questions
         self.discussion_log = []
-
-    async def initialize_meeting(self):
-        """Create a meeting and fetch participants."""
-        meeting_data = MeetingCreate(group_id=self.group_id, strategy=self.strategy, topic=self.topic)
-        result = await create_meeting(meeting_data)
-        self.meeting_id = result["meeting_id"]
-        logger.info("Meeting created with ID: %s", self.meeting_id)
-
-        # Fetch participant data
-        try:
-            conn = sqlite3.connect("roundtableai.db")
-            cursor = conn.cursor()
-            cursor.execute("SELECT participant_ids FROM groups WHERE id = ?", (self.group_id,))
-            result = cursor.fetchone()
-            if not result:
-                raise HTTPException(status_code=404, detail=f"Group '{self.group_id}' not found")
-            participant_ids = json.loads(result[0])
-
-            for pid in participant_ids:
-                cursor.execute("SELECT name, persona_description FROM participants WHERE id = ?", (pid,))
-                data = cursor.fetchone()
-                if not data:
-                    raise HTTPException(status_code=404, detail=f"Participant '{pid}' not found")
-                self.participants[pid] = {"name": data[0], "persona_description": data[1]}
-            conn.close()
-        except Exception as e:
-            logger.error("Error fetching participants: %s", str(e))
-            raise
+        self.participants = {}  # Initialize the participants dictionary
+        
+        for participant in meeting.participants:
+            self.participants[participant["participant_id"]] = {
+                "name": participant["name"],
+                "persona_description": participant.get("persona_description", "participant")  # Default if not provided
+            }
+        logger.info("Initialized meeting discussion for group '%s'", self.group_id)
 
     def generate_questions(self, llm_client):
         """Generate 3 relevant questions based on the topic."""
@@ -106,7 +75,7 @@ class MeetingDiscussion:
         )
         if context:
             prompt += f"\n\nContext from previous answers: {context}"
-        messages = [{"role": "system", "content": prompt}, {"role": "user", "content": self.message}]
+        messages = [{"role": "system", "content": prompt}, {"role": "user", "content": self.topic}]
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
 
@@ -130,7 +99,7 @@ class MeetingDiscussion:
     def synthesize_response(self, llm_client):
         """Synthesize a final response from the discussion log."""
         prompt = (
-            f"Based on this discussion log for the topic '{self.topic}' and user message '{self.message}', " f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
+            f"Based on this discussion log for the topic '{self.topic}', " f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
         )
         messages = [{"role": "system", "content": prompt}]
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
@@ -141,8 +110,6 @@ class MeetingDiscussion:
         if self.strategy not in ["round robin", "opinionated"]:
             raise HTTPException(status_code=400, detail="Invalid strategy")
 
-        # Generate questions
-        self.generate_questions(llm_client)
         yield format_sse_event("questions", {"questions": self.questions})
 
         # Handle discussion per strategy
@@ -179,14 +146,13 @@ class MeetingDiscussion:
         yield format_sse_event("complete", {})
 
 
-async def stream_meeting_discussion(group_id: str, strategy: str, message: str):
+async def stream_meeting_discussion(meeting_id: str):
     """Stream the meeting discussion using SSE (for main.py compatibility)."""
     try:
         # Use topic from message if not separately provided
-        topic = message  # Adjust if main.py changes to separate topic field
-        chat_message = ChatMessage(group_id=group_id, strategy=strategy, topic=topic, message=message)
-        discussion = MeetingDiscussion(chat_message.group_id, chat_message.strategy, chat_message.topic, chat_message.message)
-        await discussion.initialize_meeting()
+        
+        meeting = await get_meeting(meeting_id)
+        discussion = MeetingDiscussion(meeting)
         llm_client = get_llm_client()
         async for event in discussion.conduct_discussion(llm_client):
             yield event
