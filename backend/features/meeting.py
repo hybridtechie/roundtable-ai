@@ -168,10 +168,10 @@ async def get_meeting(meeting_id: str) -> Meeting:
 
         for participant_id in meeting.participant_ids:
             logger.debug("Fetching details for participant: %s in meeting: %s", participant_id, meeting.id)
-            cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
+            cursor.execute("SELECT id, name, role, persona_description FROM participants WHERE id = ?", (participant_id,))
             participant = cursor.fetchone()
             if participant:
-                meeting.participants.append({"participant_id": participant[0], "name": participant[1], "role": participant[2]})
+                meeting.participants.append({"participant_id": participant[0], "name": participant[1], "role": participant[2], "persona_description": participant[3]})
             else:
                 logger.warning("Participant %s not found for meeting %s", participant_id, meeting.id)
 

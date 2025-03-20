@@ -1,9 +1,9 @@
 {
     "project": {
-      "name": "agent-swarm",
+      "name": "roundtable-ai",
       "description": "A multi-agent system with a FastAPI backend and React frontend for orchestrating discussions among AI agents.",
-      "repository": "https://github.com/nitjames/agent-swarm",
-      "created_date": "2025-03-16"
+      "repository": "https://github.com/hybridtechie/roundtable-ai",
+      "created_date": "2025-03-21"
     },
     "backend": {
       "framework": "FastAPI",
@@ -20,23 +20,34 @@
       },
       "key_files": {
         "main": "main.py",
-        "chat_logic": "chat.py",
-        "db_setup": "db.py"
+        "db_setup": "db.py",
+        "chat_logic": "features/chat.py",
+        "participant": "features/participant.py",
+        "meeting": "features/meeting.py",
+        "group": "features/group.py",
+        "llm_utils": "utils_llm.py",
+        "prompts": "prompts.py"
       },
       "endpoints": [
-        "/create-agent",
-        "/list-agents",
-        "/create-chatroom",
-        "/list-chatrooms",
-        "/set-chatroom-topic",
-        "/chat"
+        "/participant",
+        "/participants",
+        "/participant/{participant_id}",
+        "/group",
+        "/groups",
+        "/group/{group_id}",
+        "/meeting",
+        "/meetings",
+        "/chat-stream",
+        "/get-questions"
       ],
       "guidelines": [
-        "Use SQLite for persistent storage of agents and chatrooms.",
-        "Store agent context in ChromaDB with persistent client (path: './chroma_data').",
+        "Use SQLite for persistent storage of participants, groups, and meetings.",
+        "Store chat context in ChromaDB with persistent client (path: './chroma_data').",
         "Follow RESTful conventions for API endpoints.",
         "Ensure error handling with HTTPException for 404s and 400s.",
-        "Keep chat orchestration logic in chat.py separate from main.py."
+        "Keep feature logic separated in the features/ directory.",
+        "Use logging for all API endpoints with proper error tracking.",
+        "Utilize Azure OpenAI for LLM integration via utils_llm.py."
       ]
     },
     "frontend": {
@@ -56,7 +67,13 @@
         "main": "src/App.tsx",
         "api_helper": "src/lib/api.ts",
         "utils": "src/lib/utils.ts",
-        "components": "src/components/ui/"
+        "components": "src/components/ui/",
+        "layout": "src/components/Layout/",
+        "features": {
+          "participants": "src/components/Participants/",
+          "meetings": "src/components/Meetings/",
+          "groups": "src/components/Groups/"
+        }
       },
       "guidelines": [
         "Use Tailwind v4 for styling with shadcn/ui components.",
@@ -86,8 +103,7 @@
       ]
     },
     "notes": [
-      "Backend uses an in-memory orchestrator for chat; consider persisting chat logs if needed.",
-      "Frontend is a single-page app; add routing (e.g., React Router) for multi-page features.",
-      "Current date assumed as 2025-03-16 based on context; adjust as needed."
+      "Backend is structured with separate features modules for better organization.",
+      "Frontend uses shadcn-ui components with a feature-based directory structure."
     ]
   }

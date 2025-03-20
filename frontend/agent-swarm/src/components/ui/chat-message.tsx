@@ -4,13 +4,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 interface ChatMessageProps {
 	type: "participant" | "final"
 	name?: string
+	role?: string
 	step?: string
 	content: string
 	timestamp: Date
 	className?: string
 }
 
-export function ChatMessage({ type, name, step, content, timestamp, className }: ChatMessageProps) {
+export function ChatMessage({ type, name, role, step, content, timestamp, className }: ChatMessageProps) {
 	const initials = name
 		? name
 				.split(" ")
@@ -25,11 +26,14 @@ export function ChatMessage({ type, name, step, content, timestamp, className }:
 				<AvatarFallback className="bg-primary/10">{initials}</AvatarFallback>
 			</Avatar>
 			<div className="flex-1 space-y-2">
-				<div className="flex items-center gap-2">
-					<span className="font-semibold">{type === "participant" ? name : "Final Response"}</span>
-					{step && <span className="text-sm text-muted-foreground">({step})</span>}
+				<div className="flex flex-col gap-1">
+					<div className="flex items-center gap-2">
+						<span className="font-semibold">{type === "participant" ? name : "Final Response"}</span>
+						{step && <span className="text-sm text-muted-foreground">({step})</span>}
+					</div>
+					{role && type === "participant" && <span className="text-sm text-muted-foreground">{role}</span>}
 				</div>
-				<div className="text-sm whitespace-pre-wrap">{content}</div>
+				<div className={cn("text-sm whitespace-pre-wrap", type === "final" && "text-green-500")}>{content}</div>
 				<div className="text-xs text-muted-foreground">{timestamp.toLocaleTimeString()}</div>
 			</div>
 		</div>
