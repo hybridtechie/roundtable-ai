@@ -33,7 +33,7 @@ export function ChatMessage({ type, name, role, step, content, timestamp, classN
 					</div>
 					{role && type === "participant" && <span className="text-sm text-muted-foreground">{role}</span>}
 				</div>
-				<div className="text-sm whitespace-pre-wrap">{content}</div>
+				<div className={cn("text-sm whitespace-pre-wrap", type === "final" && "text-green-500")}>{content}</div>
 				<div className="text-xs text-muted-foreground">{timestamp.toLocaleTimeString()}</div>
 			</div>
 		</div>

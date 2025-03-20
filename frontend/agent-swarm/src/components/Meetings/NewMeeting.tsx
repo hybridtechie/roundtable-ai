@@ -81,6 +81,7 @@ const NewMeeting: React.FC = () => {
 	const [groups, setGroups] = useState<Group[]>([])
 	interface ExtendedParticipant extends WeightedParticipant {
 		persona_description: string
+		role: string
 	}
 
 	const [participants, setParticipants] = useState<ExtendedParticipant[]>([])
@@ -135,6 +136,7 @@ const NewMeeting: React.FC = () => {
 			const groupParticipants = response.data.participants.map((p: Participant) => ({
 				id: p.id,
 				name: p.name,
+				role: p.role,
 				weight: 5, // Default weight
 				persona_description: p.persona_description || "Participant",
 			}))
@@ -235,7 +237,7 @@ const NewMeeting: React.FC = () => {
 									{
 										type: "participant",
 										name: data.participant,
-										role: participant?.persona_description,
+										role: participant?.role,
 										question: data.question,
 										content: data.answer,
 										strength: "strength" in data ? data.strength : undefined,
