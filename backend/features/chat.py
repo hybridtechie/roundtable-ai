@@ -14,6 +14,7 @@ from features.meeting import create_meeting, get_meeting, MeetingCreate, Meeting
 # Set up logger
 logger = setup_logger(__name__)
 
+
 # LLM client initialization
 def get_llm_client():
     try:
@@ -44,12 +45,9 @@ class MeetingDiscussion:
         self.questions = meeting.questions
         self.discussion_log = []
         self.participants = {}  # Initialize the participants dictionary
-        
+
         for participant in meeting.participants:
-            self.participants[participant["participant_id"]] = {
-                "name": participant["name"],
-                "persona_description": participant.get("persona_description", "participant")  # Default if not provided
-            }
+            self.participants[participant["participant_id"]] = {"name": participant["name"], "persona_description": participant.get("persona_description", "participant")}  # Default if not provided
         logger.info("Initialized meeting discussion for group '%s'", self.group_id)
 
     def generate_questions(self, llm_client):
@@ -98,9 +96,7 @@ class MeetingDiscussion:
 
     def synthesize_response(self, llm_client):
         """Synthesize a final response from the discussion log."""
-        prompt = (
-            f"Based on this discussion log for the topic '{self.topic}', " f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
-        )
+        prompt = f"Based on this discussion log for the topic '{self.topic}', " f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
         messages = [{"role": "system", "content": prompt}]
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
@@ -150,7 +146,7 @@ async def stream_meeting_discussion(meeting_id: str):
     """Stream the meeting discussion using SSE (for main.py compatibility)."""
     try:
         # Use topic from message if not separately provided
-        
+
         meeting = await get_meeting(meeting_id)
         discussion = MeetingDiscussion(meeting)
         llm_client = get_llm_client()

@@ -44,6 +44,7 @@ async def create_participant_endpoint(participant: ParticipantCreate):
         logger.error("Failed to create participant: %s - Error: %s", participant.name, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create participant: {str(e)}")
 
+
 # 02 List Participants
 @app.get("/participants")
 async def list_participants_endpoint():
@@ -55,6 +56,7 @@ async def list_participants_endpoint():
     except Exception as e:
         logger.error("Failed to fetch participants: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch participants: {str(e)}")
+
 
 # 03 Get Participant
 @app.get("/participant/{participant_id}")
@@ -68,6 +70,7 @@ async def get_participant_endpoint(participant_id: str):
         logger.error("Failed to fetch participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch participant: {str(e)}")
 
+
 # 04 Update Participant
 @app.put("/participant/{participant_id}")
 async def update_participant_endpoint(participant_id: str, participant: ParticipantUpdate):
@@ -79,6 +82,7 @@ async def update_participant_endpoint(participant_id: str, participant: Particip
     except Exception as e:
         logger.error("Failed to update participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update participant: {str(e)}")
+
 
 # 05 Delete Participant
 @app.delete("/participant/{participant_id}")
@@ -105,6 +109,7 @@ async def create_group_endpoint(group: GroupCreate):
         logger.error("Failed to create group: %s - Error: %s", group.name, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create group: {str(e)}")
 
+
 #  07 List Groups
 @app.get("/groups")
 async def list_groups_endpoint():
@@ -130,6 +135,7 @@ async def get_group_endpoint(group_id: str):
         logger.error("Failed to fetch group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch group: {str(e)}")
 
+
 #  09 Update Group
 @app.put("/group/{group_id}")
 async def update_group_endpoint(group_id: str, group: GroupUpdate):
@@ -141,6 +147,7 @@ async def update_group_endpoint(group_id: str, group: GroupUpdate):
     except Exception as e:
         logger.error("Failed to update group %s: %s", group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update group: {str(e)}")
+
 
 #  10 Delete Group
 @app.delete("/group/{group_id}")
@@ -167,6 +174,7 @@ async def create_meeting_endpoint(meeting: MeetingCreate):
         logger.error("Failed to create meeting: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
 
+
 # 12 List Meetings
 @app.get("/meetings")
 async def list_meetings_endpoint():
@@ -179,6 +187,7 @@ async def list_meetings_endpoint():
         logger.error("Failed to fetch meetings: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
+
 # 13 Start Meeting
 @app.get("/chat-stream")
 async def chat_stream_endpoint(meeting_id: str):
@@ -189,6 +198,7 @@ async def chat_stream_endpoint(meeting_id: str):
     except Exception as e:
         logger.error("Failed to stream chat for group %s: %s", meeting_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
+
 
 # 14 Generate Questions
 @app.get("/get-questions")

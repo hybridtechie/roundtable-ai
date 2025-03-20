@@ -4,7 +4,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { streamChat, listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
-import { Group, Participant, ParticipantResponse, ChatFinalResponse } from "@/types/types"
+import {
+	Group,
+	Participant,
+	ChatEventType,
+	ParticipantResponse,
+	ChatFinalResponse,
+	QuestionsResponse,
+	ChatErrorResponse,
+} from "@/types/types"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
 import {
@@ -20,8 +28,9 @@ import { Textarea } from "@/components/ui/textarea"
 interface ChatMessageType {
 	type: "participant" | "final"
 	name?: string
-	step?: string
+	question?: string
 	content: string
+	strength?: number
 	timestamp: Date
 }
 
@@ -169,10 +178,6 @@ const NewMeeting: React.FC = () => {
 		if (participants.length > 0) setStep("questions")
 	}
 
-	const handleNextFromQuestions = () => {
-		if (selectedQuestions.length > 0) setStep("chat")
-	}
-
 	const handleStartChat = async () => {
 		if (!selectedGroup || !topic.trim()) return
 
@@ -185,37 +190,67 @@ const NewMeeting: React.FC = () => {
 				group_id: selectedGroup,
 				strategy: discussionStrategy,
 				topic: topic,
-				questions: selectedQuestions
+				questions: selectedQuestions,
 			})
 			const meeting_id = response.data.meeting_id
 
+			// Cleanup any existing chat stream
 			cleanupRef.current?.()
 
 			// Start streaming chat with meeting_id
 			cleanupRef.current = streamChat(meeting_id, {
-				onParticipantResponse: (response: ParticipantResponse) => {
-					setMessages((prev) => [
-						...prev,
-						{
-							type: "participant",
-							name: response.name,
-							step: response.step,
-							content: response.response[0],
-							timestamp: new Date(),
-						},
-					])
-				},
-				onFinalResponse: (response: ChatFinalResponse) => {
-					setMessages((prev) => [...prev, { type: "final", content: response.response[0], timestamp: new Date() }])
-				},
-				onError: (error) => {
-					console.error("Chat error:", error)
-					setIsLoading(false)
-				},
-				onComplete: () => {
-					setIsLoading(false)
+				onEvent: (
+					eventType: ChatEventType,
+					data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse,
+				) => {
+					switch (eventType) {
+						case ChatEventType.Questions:
+							if ("questions" in data) {
+								setQuestions(data.questions)
+							}
+							break
+						case ChatEventType.ParticipantResponse:
+							if ("participant" in data && "question" in data && "answer" in data) {
+								setMessages((prev) => [
+									...prev,
+									{
+										type: "participant",
+										name: data.participant,
+										question: data.question,
+										content: data.answer,
+										strength: "strength" in data ? data.strength : undefined,
+										timestamp: new Date(),
+									},
+								])
+							}
+							break
+						case ChatEventType.FinalResponse:
+							if ("response" in data) {
+								setMessages((prev) => [
+									...prev,
+									{
+										type: "final",
+										content: data.response,
+										timestamp: new Date(),
+									},
+								])
+							}
+							break
+						case ChatEventType.Error:
+							if ("detail" in data) {
+								console.error("Chat error:", data.detail)
+								setIsLoading(false)
+							}
+							break
+						case ChatEventType.Complete:
+							setIsLoading(false)
+							break
+					}
 				},
 			})
+
+			// Automatically move to the chat view
+			setStep("chat")
 		} catch (error) {
 			console.error("Error starting chat:", error)
 			setIsLoading(false)
@@ -289,12 +324,8 @@ const NewMeeting: React.FC = () => {
 						</SortableContext>
 					</DndContext>
 					<div className="flex flex-row w-[70%] mt-4 justify-between">
-						<Button onClick={handleBackFromParticipants}>
-							Back
-						</Button>
-						<Button onClick={handleNextFromParticipants}>
-							Next
-						</Button>
+						<Button onClick={handleBackFromParticipants}>Back</Button>
+						<Button onClick={handleNextFromParticipants}>Next</Button>
 					</div>
 				</div>
 			)}
@@ -314,8 +345,8 @@ const NewMeeting: React.FC = () => {
 							</div>
 						))}
 					</div>
-					<Button onClick={handleNextFromQuestions} disabled={selectedQuestions.length === 0}>
-						Start Meeting
+					<Button onClick={handleStartChat} disabled={selectedQuestions.length === 0 || isLoading}>
+						{isLoading ? "Starting Meeting..." : "Start Meeting"}
 					</Button>
 				</div>
 			)}

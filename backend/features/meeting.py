@@ -15,7 +15,8 @@ class MeetingCreate(BaseModel):
     topic: str = "Default Topic"
     questions: list = []
     userId: str = "SuperAdmin"
-    
+
+
 class Meeting(BaseModel):
     id: str
     participant_ids: list
@@ -24,7 +25,7 @@ class Meeting(BaseModel):
     strategy: str
     topic: str = "Default Topic"
     questions: list = []
-    userId: str = "SuperAdmin"    
+    userId: str = "SuperAdmin"
 
 
 class MeetingTopic(BaseModel):
@@ -62,22 +63,16 @@ async def create_meeting(meeting: MeetingCreate):
             (meeting_id, participant_ids_json, group_ids_json, meeting.userId),
         )
         logger.debug("Inserting meeting with ID: %s", meeting_id)
-        
-        if(meeting.strategy):
-            cursor.execute(
-                "UPDATE meetings SET strategy = ? WHERE id = ?", (meeting.strategy, meeting_id)
-            )
 
-        if(meeting.questions):
-            cursor.execute(
-                "UPDATE meetings SET questions = ? WHERE id = ?", (json.dumps(meeting.questions), meeting_id)
-            )
-        
-        if(meeting.topic):
-            cursor.execute(
-                "UPDATE meetings SET topic = ? WHERE id = ?", (meeting.topic, meeting_id)
-            )    
-        
+        if meeting.strategy:
+            cursor.execute("UPDATE meetings SET strategy = ? WHERE id = ?", (meeting.strategy, meeting_id))
+
+        if meeting.questions:
+            cursor.execute("UPDATE meetings SET questions = ? WHERE id = ?", (json.dumps(meeting.questions), meeting_id))
+
+        if meeting.topic:
+            cursor.execute("UPDATE meetings SET topic = ? WHERE id = ?", (meeting.topic, meeting_id))
+
         conn.commit()
         logger.info("Successfully created meeting: %s", meeting_id)
         return {"meeting_id": meeting_id}
@@ -159,9 +154,18 @@ async def get_meeting(meeting_id: str) -> Meeting:
         if not meeting_raw:
             logger.error("Meeting not found: %s", meeting_id)
             raise HTTPException(status_code=404, detail=f"Meeting ID '{meeting_id}' not found")
-        
-        meeting = Meeting(id=meeting_id, group_ids=json.loads(meeting_raw[0]), participant_ids=json.loads(meeting_raw[1]), topic=meeting_raw[2], userId=meeting_raw[3], questions=json.loads(meeting_raw[4]),strategy = meeting_raw[5], participants=[])
-        
+
+        meeting = Meeting(
+            id=meeting_id,
+            group_ids=json.loads(meeting_raw[0]),
+            participant_ids=json.loads(meeting_raw[1]),
+            topic=meeting_raw[2],
+            userId=meeting_raw[3],
+            questions=json.loads(meeting_raw[4]),
+            strategy=meeting_raw[5],
+            participants=[],
+        )
+
         for participant_id in meeting.participant_ids:
             logger.debug("Fetching details for participant: %s in meeting: %s", participant_id, meeting.id)
             cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
@@ -170,10 +174,9 @@ async def get_meeting(meeting_id: str) -> Meeting:
                 meeting.participants.append({"participant_id": participant[0], "name": participant[1], "role": participant[2]})
             else:
                 logger.warning("Participant %s not found for meeting %s", participant_id, meeting.id)
-        
-        
+
         return meeting
-    
+
     except sqlite3.Error as e:
         logger.error("Database error while fetching meeting: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Failed retrieve meeting from database")
@@ -186,6 +189,7 @@ async def get_meeting(meeting_id: str) -> Meeting:
         if conn:
             conn.close()
             logger.debug("Database connection closed")
+
 
 async def set_meeting_topic(meeting_topic: MeetingTopic):
     """Set a topic for an existing meeting."""
