@@ -15,10 +15,10 @@ const Home: React.FC = () => {
 	return (
 		<div className="p-6">
 			<h1 className="mb-4 text-3xl font-bold">Participants</h1>
-			<div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+			<div className="grid grid-cols-2 gap-4 sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-4">
 				{participants.map((participant) => (
 					<Card key={participant.id}>
-						<div className="flex p-6">
+						<div className="flex p-1">
 							<Avatar className="h-14 w-14">
 								<AvatarFallback>{participant.name.charAt(0) + participant.name.charAt(1)}</AvatarFallback>
 							</Avatar>

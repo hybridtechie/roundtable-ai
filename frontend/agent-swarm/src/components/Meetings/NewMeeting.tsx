@@ -76,6 +76,26 @@ const SortableParticipant: React.FC<{
 const NewMeeting: React.FC = () => {
 	const [step, setStep] = useState<"group" | "participants" | "questions" | "chat">("group")
 	const [selectedGroup, setSelectedGroup] = useState<string>("")
+	
+	// Handle group selection
+	const handleGroupSelect = async (groupId: string) => {
+	  setSelectedGroup(groupId)
+	  setParticipants([]) // Clear participants before fetching new ones
+	  
+	  try {
+	    const response = await getGroup(groupId)
+	    const groupParticipants = response.data.participants.map((p: Participant) => ({
+	      id: p.id,
+	      name: p.name,
+	      role: p.role,
+	      weight: 5, // Default weight
+	      persona_description: p.persona_description || "Participant",
+	    }))
+	    setParticipants(groupParticipants)
+	  } catch (error) {
+	    console.error("Error fetching group participants:", error)
+	  }
+	}
 	const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
 	const [topic, setTopic] = useState<string>("")
 	const [groups, setGroups] = useState<Group[]>([])
@@ -108,17 +128,34 @@ const NewMeeting: React.FC = () => {
 		}
 	}, [messages])
 
-	// Fetch groups on mount
+	// Fetch groups on mount and set default group
 	useEffect(() => {
-		const fetchGroups = async () => {
-			try {
-				const response = await listGroups()
-				setGroups(response.data.groups)
-			} catch (error) {
-				console.error("Error fetching groups:", error)
-			}
-		}
-		fetchGroups()
+	  const fetchGroupsAndSetDefault = async () => {
+	    try {
+	      const response = await listGroups()
+	      setGroups(response.data.groups)
+	      
+	      // If we have groups, select the first one and load its participants
+	      if (response.data.groups.length > 0) {
+	        const defaultGroup = response.data.groups[0]
+	        setSelectedGroup(defaultGroup.id)
+	        
+	        // Fetch participants for default group
+	        const groupResponse = await getGroup(defaultGroup.id)
+	        const groupParticipants = groupResponse.data.participants.map((p: Participant) => ({
+	          id: p.id,
+	          name: p.name,
+	          role: p.role,
+	          weight: 5,
+	          persona_description: p.persona_description || "Participant",
+	        }))
+	        setParticipants(groupParticipants)
+	      }
+	    } catch (error) {
+	      console.error("Error fetching groups:", error)
+	    }
+	  }
+	  fetchGroupsAndSetDefault()
 	}, [])
 
 	// Cleanup on unmount
@@ -128,25 +165,16 @@ const NewMeeting: React.FC = () => {
 		}
 	}, [])
 
-	// Fetch participants when group is selected and moving to next step
+	// Fetch questions when moving to next step
 	const handleNextFromGroup = async () => {
-		if (!selectedGroup || !topic.trim()) return
-		try {
-			const response = await getGroup(selectedGroup)
-			const groupParticipants = response.data.participants.map((p: Participant) => ({
-				id: p.id,
-				name: p.name,
-				role: p.role,
-				weight: 5, // Default weight
-				persona_description: p.persona_description || "Participant",
-			}))
-			setParticipants(groupParticipants)
-			const questionsResponse = await getQuestions(topic, selectedGroup)
-			setQuestions(questionsResponse.data.questions)
-			setStep("participants")
-		} catch (error) {
-			console.error("Error fetching group participants:", error)
-		}
+	  if (!selectedGroup || !topic.trim()) return
+	  try {
+	    getQuestions(topic, selectedGroup).then((response) => setQuestions(response.data.questions))
+	    
+	    setStep("participants")
+	  } catch (error) {
+	    console.error("Error fetching questions:", error)
+	  }
 	}
 
 	// Handle drag-and-drop reordering
@@ -287,7 +315,7 @@ const NewMeeting: React.FC = () => {
 					<h2 className="text-2xl font-bold">Step 1: Choose Participants</h2>
 					<div className="flex flex-col items-start w-[70%]">
 						<label className="mb-2 text-lg font-semibold">Participant Group</label>
-						<Select value={selectedGroup} onValueChange={setSelectedGroup}>
+						<Select value={selectedGroup} onValueChange={handleGroupSelect}>
 							<SelectTrigger className="w-full">
 								<SelectValue placeholder="Select a Participant Group" />
 							</SelectTrigger>
@@ -323,7 +351,11 @@ const NewMeeting: React.FC = () => {
 						/>
 					</div>
 					<div className="flex flex-row w-[70%] mt-4">
-						<Button onClick={handleNextFromGroup} disabled={!selectedGroup || !topic.trim()}>
+						<Button
+						  onClick={handleNextFromGroup}
+						  disabled={!selectedGroup || !topic.trim()}
+						  className="text-white bg-blue-500 hover:bg-blue-600"
+						>
 							Next
 						</Button>
 					</div>
@@ -347,8 +379,18 @@ const NewMeeting: React.FC = () => {
 						</SortableContext>
 					</DndContext>
 					<div className="flex flex-row w-[70%] mt-4 justify-between">
-						<Button onClick={handleBackFromParticipants}>Back</Button>
-						<Button onClick={handleNextFromParticipants}>Next</Button>
+					<Button
+					  onClick={handleBackFromParticipants}
+					  className="text-white bg-blue-500 hover:bg-blue-600"
+					>
+					  Back
+					</Button>
+					<Button
+					  onClick={handleNextFromParticipants}
+					  className="text-white bg-blue-500 hover:bg-blue-600"
+					>
+					  Next
+					</Button>
 					</div>
 				</div>
 			)}
@@ -368,8 +410,12 @@ const NewMeeting: React.FC = () => {
 							</div>
 						))}
 					</div>
-					<Button onClick={handleStartChat} disabled={selectedQuestions.length === 0 || isLoading}>
-						{isLoading ? "Starting Meeting..." : "Start Meeting"}
+					<Button
+					  onClick={handleStartChat}
+					  disabled={selectedQuestions.length === 0 || isLoading}
+					  className="text-white bg-blue-500 hover:bg-blue-600"
+					>
+					  {isLoading ? "Starting Meeting..." : "Start Meeting"}
 					</Button>
 				</div>
 			)}
@@ -398,8 +444,12 @@ const NewMeeting: React.FC = () => {
 						</CardContent>
 					</Card>
 					<div className="mt-4">
-						<Button onClick={handleStartChat} disabled={isLoading}>
-							Start Meeting
+						<Button
+						  onClick={handleStartChat}
+						  disabled={isLoading}
+						  className="text-white bg-blue-500 hover:bg-blue-600"
+						>
+						  Start Meeting
 						</Button>
 					</div>
 				</div>
