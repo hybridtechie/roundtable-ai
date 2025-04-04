@@ -23,19 +23,19 @@ class CosmosDBClient:
         """Initialize Cosmos DB client"""
         try:
             # Check if running in Azure App Service
-            is_app_service = os.getenv('WEBSITE_SITE_NAME') is not None
+            # is_app_service = os.getenv('WEBSITE_SITE_NAME') is not None
             
-            if is_app_service:
-                # Use managed identity in App Service
-                logger.info("Running in App Service, using managed identity")
-                credential = DefaultAzureCredential()
-                self.client = CosmosClient(endpoint, credential=credential)
-            else:
+            # if is_app_service:
+            #     # Use managed identity in App Service
+            #     logger.info("Running in App Service, using managed identity")
+            #     credential = DefaultAzureCredential()
+            #     self.client = CosmosClient(endpoint, credential=credential)
+            # else:
                 # Use cosmos key in local development
-                logger.info("Running locally, using cosmos key")
-                if not key:
-                    raise ValueError("COSMOS_DB_KEY environment variable is not set")
-                self.client = CosmosClient(endpoint, credential=key)
+            logger.info("Running locally, using cosmos key")
+            if not key:
+                raise ValueError("COSMOS_DB_KEY environment variable is not set")
+            self.client = CosmosClient(endpoint, credential=key)
             
             self.database = self.client.get_database_client(DATABASE_NAME)
             self.container = self.database.get_container_client(CONTAINER_NAME)
