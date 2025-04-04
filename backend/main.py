@@ -31,6 +31,15 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Health Check endpoint
+@app.get("/")
+async def health_check():
+    try:
+        logger.info("Health check request received")
+        return {"status": "Healthy"}
+    except Exception as e:
+        logger.error("Health check failed: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Service unhealthy")
 
 # 01 Create Participant
 @app.post("/participant")
