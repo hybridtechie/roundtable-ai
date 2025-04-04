@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Any
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
 from azure.identity import DefaultAzureCredential
+from fastapi import HTTPException
 from logger_config import setup_logger
 import os
 from dotenv import load_dotenv
