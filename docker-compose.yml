@@ -19,14 +19,14 @@ services:
 
   frontend:
     build:
-      context: ./frontend/agent-swarm
+      context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "80:80"
     depends_on:
       - backend
     volumes:
-      - ./frontend/agent-swarm:/app
+      - ./frontend:/app
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8000

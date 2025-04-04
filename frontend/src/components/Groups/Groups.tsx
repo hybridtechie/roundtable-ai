@@ -9,6 +9,7 @@ const Groups: React.FC = () => {
 	const [groups, setGroups] = useState<Group[]>([])
 	const [participants, setParticipants] = useState<Participant[]>([])
 	const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
+	const [groupName, setGroupName] = useState("")
 
 	useEffect(() => {
 		listGroups()
@@ -21,10 +22,11 @@ const Groups: React.FC = () => {
 
 	const handleCreateGroup = async () => {
 		try {
-			await createGroup({ participant_ids: selectedParticipantIds })
+			await createGroup({ name: groupName, participant_ids: selectedParticipantIds })
 			const res = await listGroups()
 			setGroups(res.data.groups)
 			setSelectedParticipantIds([])
+			setGroupName("")
 		} catch (error) {
 			console.error("Error creating group:", error)
 		}
@@ -42,7 +44,18 @@ const Groups: React.FC = () => {
 						<DialogTitle>Create Group</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col gap-4">
-						<div className="grid gap-2">
+					<div className="mb-4">
+					  <label htmlFor="groupName" className="block mb-2 text-sm font-medium">Group Name</label>
+					  <input
+					    type="text"
+					    id="groupName"
+					    value={groupName}
+					    onChange={(e) => setGroupName(e.target.value)}
+					    className="w-full p-2 border rounded-md"
+					    placeholder="Enter group name"
+					  />
+					</div>
+					<div className="grid gap-2">
 							{participants.map((participant) => (
 								<div key={participant.id} className="flex items-center gap-2">
 									<input
@@ -62,7 +75,7 @@ const Groups: React.FC = () => {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button onClick={handleCreateGroup} disabled={selectedParticipantIds.length === 0}>
+						<Button onClick={handleCreateGroup} disabled={selectedParticipantIds.length === 0 || !groupName.trim()}>
 							Create
 						</Button>
 					</DialogFooter>

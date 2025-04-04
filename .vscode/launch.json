@@ -23,7 +23,7 @@
             "name": "Frontend: Vite",
             "type": "node",
             "request": "launch",
-            "cwd": "${workspaceFolder}/frontend/agent-swarm",
+            "cwd": "${workspaceFolder}/frontend",
             "runtimeExecutable": "npm",
             "runtimeArgs": ["run", "dev"],
             "env": {
