@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Any
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
+from azure.identity import DefaultAzureCredential
 from logger_config import setup_logger
 import os
 from dotenv import load_dotenv
@@ -19,14 +20,26 @@ CONTAINER_NAME = "users"
 class CosmosDBClient:
     def __init__(self, endpoint: str = COSMOS_ENDPOINT, key: Optional[str] = COSMOS_KEY):
         """Initialize Cosmos DB client"""
-        if not key:
-            raise ValueError("COSMOS_DB_KEY environment variable is not set")
-            
         try:
-            self.client = CosmosClient(endpoint, credential=key)
+            # Check if running in Azure App Service
+            is_app_service = os.getenv('WEBSITE_SITE_NAME') is not None
+            
+            if is_app_service:
+                # Use managed identity in App Service
+                logger.info("Running in App Service, using managed identity")
+                credential = DefaultAzureCredential()
+                self.client = CosmosClient(endpoint, credential=credential)
+            else:
+                # Use cosmos key in local development
+                logger.info("Running locally, using cosmos key")
+                if not key:
+                    raise ValueError("COSMOS_DB_KEY environment variable is not set")
+                self.client = CosmosClient(endpoint, credential=key)
+            
             self.database = self.client.get_database_client(DATABASE_NAME)
             self.container = self.database.get_container_client(CONTAINER_NAME)
             logger.info(f"Successfully initialized Cosmos DB client for database: {DATABASE_NAME}")
+            
         except exceptions.CosmosHttpResponseError as e:
             if "blocked by your Cosmos DB account firewall settings" in str(e):
                 logger.error("Access blocked by firewall. Please add your IP to the allowed list in Azure Portal.")

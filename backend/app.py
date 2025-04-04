@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
-from features.meeting import create_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
+from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import stream_meeting_discussion
 from fastapi.responses import StreamingResponse
@@ -207,7 +207,6 @@ async def chat_stream_endpoint(meeting_id: str, user_id: str):
         return StreamingResponse(stream_meeting_discussion(meeting), media_type="text/event-stream")
     except Exception as e:
         logger.error("Failed to stream chat for meeting %s: %s", meeting_id, str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
 
 
