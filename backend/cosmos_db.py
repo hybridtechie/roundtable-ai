@@ -51,6 +51,69 @@ class CosmosDBClient:
             logger.error(f"Error retrieving user {user_id}: {str(e)}", exc_info=True)
             raise
 
+    async def list_participants(self, user_id: str) -> List[Dict]:
+        """List all participants for a user"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                return []
+            return user_data.get('participants', [])
+        except Exception as e:
+            logger.error(f"Error listing participants for user {user_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def get_participant(self, user_id: str, participant_id: str) -> Optional[Dict]:
+        """Get a specific participant by ID"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                return None
+            participants = user_data.get('participants', [])
+            return next((p for p in participants if p.get('id') == participant_id), None)
+        except Exception as e:
+            logger.error(f"Error getting participant {participant_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def update_participant(self, user_id: str, participant_id: str, participant_data: Dict) -> Dict:
+        """Update a participant's data"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            participants = user_data.get('participants', [])
+            participant_idx = next((i for i, p in enumerate(participants) if p.get('id') == participant_id), -1)
+            
+            if participant_idx == -1:
+                raise HTTPException(status_code=404, detail=f"Participant {participant_id} not found")
+            
+            participants[participant_idx] = {**participants[participant_idx], **participant_data}
+            user_data['participants'] = participants
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Updated participant {participant_id} for user {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error updating participant {participant_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def delete_participant(self, user_id: str, participant_id: str) -> Dict:
+        """Delete a participant from the user's data"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            participants = user_data.get('participants', [])
+            user_data['participants'] = [p for p in participants if p.get('id') != participant_id]
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Deleted participant {participant_id} from user {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error deleting participant {participant_id}: {str(e)}", exc_info=True)
+            raise
+
     async def create_user(self, user_id: str) -> Dict:
         """Create a new user with empty arrays for participants, groups, and meetings"""
         try:
@@ -104,6 +167,69 @@ class CosmosDBClient:
             logger.error(f"Error adding group for user {user_id}: {str(e)}", exc_info=True)
             raise
 
+    async def list_groups(self, user_id: str) -> List[Dict]:
+        """List all groups for a user"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                return []
+            return user_data.get('groups', [])
+        except Exception as e:
+            logger.error(f"Error listing groups for user {user_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def get_group(self, user_id: str, group_id: str) -> Optional[Dict]:
+        """Get a specific group by ID"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                return None
+            groups = user_data.get('groups', [])
+            return next((g for g in groups if g.get('id') == group_id), None)
+        except Exception as e:
+            logger.error(f"Error getting group {group_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def update_group(self, user_id: str, group_id: str, group_data: Dict) -> Dict:
+        """Update a group's data"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            groups = user_data.get('groups', [])
+            group_idx = next((i for i, g in enumerate(groups) if g.get('id') == group_id), -1)
+            
+            if group_idx == -1:
+                raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+            
+            groups[group_idx] = {**groups[group_idx], **group_data}
+            user_data['groups'] = groups
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Updated group {group_id} for user {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error updating group {group_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def delete_group(self, user_id: str, group_id: str) -> Dict:
+        """Delete a group from the user's data"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            groups = user_data.get('groups', [])
+            user_data['groups'] = [g for g in groups if g.get('id') != group_id]
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Deleted group {group_id} from user {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error deleting group {group_id}: {str(e)}", exc_info=True)
+            raise
+
     async def add_meeting(self, user_id: str, meeting_data: Dict) -> Dict:
         """Add a meeting to user's meetings array"""
         try:
@@ -120,6 +246,69 @@ class CosmosDBClient:
             return response
         except Exception as e:
             logger.error(f"Error adding meeting for user {user_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def list_meetings(self, user_id: str) -> List[Dict]:
+        """List all meetings for a user"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                return []
+            return user_data.get('meetings', [])
+        except Exception as e:
+            logger.error(f"Error listing meetings for user {user_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def get_meeting(self, user_id: str, meeting_id: str) -> Optional[Dict]:
+        """Get a specific meeting by ID"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                return None
+            meetings = user_data.get('meetings', [])
+            return next((m for m in meetings if m.get('id') == meeting_id), None)
+        except Exception as e:
+            logger.error(f"Error getting meeting {meeting_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def update_meeting(self, user_id: str, meeting_id: str, meeting_data: Dict) -> Dict:
+        """Update a meeting's data"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            meetings = user_data.get('meetings', [])
+            meeting_idx = next((i for i, m in enumerate(meetings) if m.get('id') == meeting_id), -1)
+            
+            if meeting_idx == -1:
+                raise HTTPException(status_code=404, detail=f"Meeting {meeting_id} not found")
+            
+            meetings[meeting_idx] = {**meetings[meeting_idx], **meeting_data}
+            user_data['meetings'] = meetings
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Updated meeting {meeting_id} for user {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error updating meeting {meeting_id}: {str(e)}", exc_info=True)
+            raise
+
+    async def delete_meeting(self, user_id: str, meeting_id: str) -> Dict:
+        """Delete a meeting from the user's data"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            meetings = user_data.get('meetings', [])
+            user_data['meetings'] = [m for m in meetings if m.get('id') != meeting_id]
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Deleted meeting {meeting_id} from user {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error deleting meeting {meeting_id}: {str(e)}", exc_info=True)
             raise
 
     async def store_vector(self, user_id: str, vector_id: str, vector_data: Dict) -> Dict:

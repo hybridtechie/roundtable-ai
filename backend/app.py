@@ -56,10 +56,10 @@ async def create_participant_endpoint(participant: ParticipantCreate):
 
 # 02 List Participants
 @app.get("/participants")
-async def list_participants_endpoint():
+async def list_participants_endpoint(user_id: str):
     try:
-        logger.info("Fetching all participants")
-        result = await list_participants()
+        logger.info("Fetching all participants for user: %s", user_id)
+        result = await list_participants(user_id)
         logger.info("Successfully retrieved participants")
         return result
     except Exception as e:
@@ -69,10 +69,10 @@ async def list_participants_endpoint():
 
 # 03 Get Participant
 @app.get("/participant/{participant_id}")
-async def get_participant_endpoint(participant_id: str):
+async def get_participant_endpoint(participant_id: str, user_id: str):
     try:
-        logger.info("Fetching participant: %s", participant_id)
-        result = await get_participant(participant_id)
+        logger.info("Fetching participant: %s for user: %s", participant_id, user_id)
+        result = await get_participant(participant_id, user_id)
         logger.info("Successfully retrieved participant: %s", participant_id)
         return result
     except Exception as e:
@@ -95,10 +95,10 @@ async def update_participant_endpoint(participant_id: str, participant: Particip
 
 # 05 Delete Participant
 @app.delete("/participant/{participant_id}")
-async def delete_participant_endpoint(participant_id: str):
+async def delete_participant_endpoint(participant_id: str, user_id: str):
     try:
-        logger.info("Deleting participant: %s", participant_id)
-        result = await delete_participant(participant_id)
+        logger.info("Deleting participant: %s for user: %s", participant_id, user_id)
+        result = await delete_participant(participant_id, user_id)
         logger.info("Successfully deleted participant: %s", participant_id)
         return result
     except Exception as e:
@@ -121,10 +121,10 @@ async def create_group_endpoint(group: GroupCreate):
 
 #  07 List Groups
 @app.get("/groups")
-async def list_groups_endpoint():
+async def list_groups_endpoint(user_id: str):
     try:
-        logger.info("Fetching all groups")
-        result = await list_groups()
+        logger.info("Fetching all groups for user: %s", user_id)
+        result = await list_groups(user_id)
         logger.info("Successfully retrieved groups")
         return result
     except Exception as e:
@@ -134,10 +134,10 @@ async def list_groups_endpoint():
 
 # 08 Get Group
 @app.get("/group/{group_id}")
-async def get_group_endpoint(group_id: str):
+async def get_group_endpoint(group_id: str, user_id: str):
     try:
-        logger.info("Fetching group: %s", group_id)
-        result = await get_group(group_id)
+        logger.info("Fetching group: %s for user: %s", group_id, user_id)
+        result = await get_group(group_id, user_id)
         logger.info("Successfully retrieved group: %s", group_id)
         return result
     except Exception as e:
@@ -160,10 +160,10 @@ async def update_group_endpoint(group_id: str, group: GroupUpdate):
 
 #  10 Delete Group
 @app.delete("/group/{group_id}")
-async def delete_group_endpoint(group_id: str):
+async def delete_group_endpoint(group_id: str, user_id: str):
     try:
-        logger.info("Deleting group: %s", group_id)
-        result = await delete_group(group_id)
+        logger.info("Deleting group: %s for user: %s", group_id, user_id)
+        result = await delete_group(group_id, user_id)
         logger.info("Successfully deleted group: %s", group_id)
         return result
     except Exception as e:
@@ -186,37 +186,39 @@ async def create_meeting_endpoint(meeting: MeetingCreate):
 
 # 12 List Meetings
 @app.get("/meetings")
-async def list_meetings_endpoint():
+async def list_meetings_endpoint(user_id: str):
     try:
-        logger.info("Fetching all meetings")
-        result = await list_meetings()
-        logger.info("Successfully retrieved %d meetings", len(result))
+        logger.info("Fetching all meetings for user: %s", user_id)
+        result = await list_meetings(user_id)
+        logger.info("Successfully retrieved %d meetings", len(result["meetings"]))
         return result
     except Exception as e:
         logger.error("Failed to fetch meetings: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
-
 # 13 Start Meeting
 @app.get("/chat-stream")
-async def chat_stream_endpoint(meeting_id: str):
+async def chat_stream_endpoint(meeting_id: str, user_id: str):
     try:
-        logger.info("Starting streaming chat discussion for Meeting: %s", meeting_id)
+        logger.info("Starting streaming chat discussion for Meeting: %s, User: %s", meeting_id, user_id)
+        # Get meeting with updated signature
+        meeting = await get_meeting(meeting_id, user_id)
         # Wrap the async generator in StreamingResponse
-        return StreamingResponse(stream_meeting_discussion(meeting_id), media_type="text/event-stream")
+        return StreamingResponse(stream_meeting_discussion(meeting), media_type="text/event-stream")
     except Exception as e:
-        logger.error("Failed to stream chat for group %s: %s", meeting_id, str(e), exc_info=True)
+        logger.error("Failed to stream chat for meeting %s: %s", meeting_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
 
 
 # 14 Generate Questions
 @app.get("/get-questions")
-async def generate_questions_endpoint(topic: str, group_id: str):
+async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
     try:
-        logger.info("Generating questions for topic: %s and group: %s", topic, group_id)
+        logger.info("Generating questions for topic: %s, group: %s, user: %s", topic, group_id, user_id)
 
-        # Fetch group details
-        group = await get_group(group_id)
+        # Fetch group details with user_id
+        group = await get_group(group_id, user_id)
         if not group:
             raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
 

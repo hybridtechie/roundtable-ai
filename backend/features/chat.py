@@ -2,14 +2,13 @@ from pydantic import BaseModel
 from utils_llm import LLMClient
 import os
 from dotenv import load_dotenv
-import sqlite3
 import json
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
-from db import collection
 import asyncio
 from logger_config import setup_logger
-from features.meeting import create_meeting, get_meeting, MeetingCreate, Meeting
+from features.meeting import MeetingCreate, Meeting, get_meeting
+from cosmos_db import cosmos_client
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -45,10 +44,14 @@ class MeetingDiscussion:
         self.questions = meeting.questions
         self.discussion_log = []
         self.participants = {}  # Initialize the participants dictionary
+        self.user_id = meeting.userId
 
         for participant in meeting.participants:
-            self.participants[participant["participant_id"]] = {"name": participant["name"], "persona_description": participant.get("persona_description", "participant")}  # Default if not provided
-        logger.info("Initialized meeting discussion for group '%s'", self.group_id)
+            self.participants[participant["participant_id"]] = {
+                "name": participant["name"],
+                "persona_description": participant.get("persona_description", "participant")
+            }
+        logger.info("Initialized meeting discussion for group '%s' and user '%s'", self.group_id, self.user_id)
 
     def generate_questions(self, llm_client):
         """Generate 3 relevant questions based on the topic."""
@@ -150,12 +153,9 @@ class MeetingDiscussion:
         yield format_sse_event("complete", {})
 
 
-async def stream_meeting_discussion(meeting_id: str):
-    """Stream the meeting discussion using SSE (for main.py compatibility)."""
+async def stream_meeting_discussion(meeting: Meeting):
+    """Stream the meeting discussion using SSE."""
     try:
-        # Use topic from message if not separately provided
-
-        meeting = await get_meeting(meeting_id)
         discussion = MeetingDiscussion(meeting)
         llm_client = get_llm_client()
         async for event in discussion.conduct_discussion(llm_client):
