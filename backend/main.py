@@ -195,6 +195,19 @@ async def list_meetings_endpoint(user_id: str):
         logger.error("Failed to fetch meetings: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
+
+# Get Meeting
+@app.get("/meeting/{meeting_id}")
+async def get_meeting_endpoint(meeting_id: str, user_id: str):
+    try:
+        logger.info("Fetching meeting: %s for user: %s", meeting_id, user_id)
+        result = await get_meeting(meeting_id, user_id)
+        logger.info("Successfully retrieved meeting: %s", meeting_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch meeting %s: %s", meeting_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch meeting: {str(e)}")
+
 # 13 Start Meeting
 @app.get("/chat-stream")
 async def chat_stream_endpoint(meeting_id: str, user_id: str):
