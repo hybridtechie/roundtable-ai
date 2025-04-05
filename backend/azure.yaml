@@ -1,6 +1,6 @@
 name: roundtable-ai
 metadata:
-  template: msdocs-python-flask-webapp-quickstart@0.0.1-beta
+  template: msdocs-python-fastapi-webapp-quickstart@0.0.1-beta
 services:
   web:
     project: .

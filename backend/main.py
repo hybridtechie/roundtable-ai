@@ -11,7 +11,6 @@ import os
 from logger_config import setup_logger
 from utils_llm import LLMClient
 from prompts import generate_questions_prompt
-from pydantic import BaseModel
 
 # Set up logger
 logger = setup_logger(__name__)

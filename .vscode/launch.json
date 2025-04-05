@@ -12,7 +12,7 @@
             "name": "Backend: FastAPI",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/app.py",
+            "program": "${workspaceFolder}/backend/main.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
