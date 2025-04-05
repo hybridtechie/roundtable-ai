@@ -169,7 +169,9 @@ async def list_meetings(user_id: str):
         for meeting in meetings:
             meeting_data = {
                 "id": meeting.get('id'),
+                "strategy": meeting.get('strategy'),
                 "participant_ids": meeting.get('participant_ids', []),
+                "group_ids": meeting.get('group_ids', []),
                 "topic": meeting.get('topic'),
                 "name": meeting.get('name'),
                 "user_id": meeting.get('user_id'),

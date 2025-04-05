@@ -23,7 +23,7 @@ class ChatSessionCreate(BaseModel):
 async def get_llm_client(user_id: str):
     try:
         # Fetch only LLM account details from cosmos db
-        container = cosmos_client.get_container_client("roundtable")
+        container = cosmos_client.client.get_database_client("roundtable").get_container_client("users")
         query = f"SELECT c.llmAccounts FROM c WHERE c.id = '{user_id}'"
         user_data = list(container.query_items(query=query, enable_cross_partition_query=True))
         
@@ -223,6 +223,7 @@ class MeetingDiscussion:
                     "messages": [],
                     "participant_id": next(iter(self.participants.keys()))  # Get the only participant's ID
                 }
+                chat_container.upsert_item(body=chat_session)
             else:
                 # Get existing chat session
                 try:
