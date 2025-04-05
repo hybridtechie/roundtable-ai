@@ -136,7 +136,11 @@ class CosmosDBClient:
                 "participants": [],
                 "groups": [],
                 "meetings": [],
-                "vectors": {}  # For storing vector data
+                "vectors": {},  # For storing vector data
+                "llmAccounts": {
+                    "default": "",
+                    "providers": []
+                }
             }
             response = self.container.create_item(body=user_data)
             logger.info(f"Created new user: {user_id}")

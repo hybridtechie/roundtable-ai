@@ -60,8 +60,14 @@ export function AISettings() {
   const loadAccounts = async () => {
     try {
       const response = await listLLMAccounts()
-      setAccounts(response.data)
-    } catch {
+      if (response.data) {
+        setAccounts({
+          default: response.data.default || "",
+          providers: response.data.providers || []
+        })
+      }
+    } catch (error) {
+      console.error("Failed to load LLM accounts:", error)
       showToast("Failed to load LLM accounts", "error")
     }
   }
