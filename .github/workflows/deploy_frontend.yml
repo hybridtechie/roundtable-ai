@@ -73,5 +73,4 @@ jobs:
         with:
           app-name: 'wa-roundtableai-frontend'
           slot-name: 'Production'
-          package: ./dist
-          
+          package: frontend/dist
