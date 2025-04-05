@@ -7,7 +7,7 @@ name: Deploy Backend
 on:
   push:
     branches:
-      - main
+      - main_1
   workflow_dispatch:
 
 jobs:

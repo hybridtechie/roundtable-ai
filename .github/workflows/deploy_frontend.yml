@@ -32,10 +32,10 @@ jobs:
 
       - name: Build and Zip artifact for deployment
        run: |
-         cd frontend
-         npm run build
-         cd ../web
-         zip -r ../frontend/release.zip ./*
+          cd frontend
+          npm run build
+          cd ../web
+          zip -r ../frontend/release.zip ./*
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
