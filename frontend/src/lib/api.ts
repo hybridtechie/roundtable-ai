@@ -19,8 +19,18 @@ const api = axios.create({
 const USER_ID = "roundtable_ai_admin"
 
 // Participants
-export const createParticipant = (data: { name: string; persona_description: string; context: string }) =>
-  api.post("/participant", data)
+export const createParticipant = (data: {
+  name: string;
+  role: string;
+  professional_background: string;
+  industry_experience: string;
+  role_overview: string;
+  technical_stack: string;
+  soft_skills: string;
+  core_qualities: string;
+  style_preferences: string;
+  additional_info: string;
+}) => api.post("/participant", data)
 
 export const listParticipants = () => 
   api.get<{ participants: Participant[] }>(`/participants?user_id=${USER_ID}`)
@@ -28,8 +38,18 @@ export const listParticipants = () =>
 export const getParticipant = (participantId: string) =>
   api.get<Participant>(`/participant/${participantId}?user_id=${USER_ID}`)
 
-export const updateParticipant = (participantId: string, data: { name: string; persona_description: string; context: string }) =>
-  api.put(`/participant/${participantId}`, data)
+export const updateParticipant = (participantId: string, data: {
+  name: string;
+  role: string;
+  professional_background: string;
+  industry_experience: string;
+  role_overview: string;
+  technical_stack: string;
+  soft_skills: string;
+  core_qualities: string;
+  style_preferences: string;
+  additional_info: string;
+}) => api.put(`/participant/${participantId}`, data)
 
 export const deleteParticipant = (participantId: string) =>
   api.delete(`/participant/${participantId}?user_id=${USER_ID}`)

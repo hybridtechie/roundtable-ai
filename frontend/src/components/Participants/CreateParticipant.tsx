@@ -4,52 +4,195 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { createParticipant } from "@/lib/api"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { CheckCircle, XCircle } from "lucide-react"
 
 const CreateParticipant: React.FC = () => {
-	const [newParticipant, setNewParticipant] = useState({ id: "", name: "", persona_description: "", context: "" })
+  const initialState = {
+    name: "",
+    role: "",
+    professional_background: "",
+    industry_experience: "",
+    role_overview: "",
+    technical_stack: "",
+    soft_skills: "",
+    core_qualities: "",
+    style_preferences: "",
+    additional_info: ""
+  }
 
-	const handleCreateParticipant = async () => {
-		try {
-			await createParticipant(newParticipant)
-			setNewParticipant({ id: "", name: "", persona_description: "", context: "" })
-		} catch (error) {
-			console.error("Error creating participant:", error)
-		}
-	}
+  const [newParticipant, setNewParticipant] = useState(initialState)
+  const [isLoading, setIsLoading] = useState(false)
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
+    show: false,
+    message: "",
+    type: 'success'
+  })
 
-	return (
-		<div className="p-6">
-			<h1 className="mb-4 text-3xl font-bold">Create Participant</h1>
-			<Card>
-				<CardHeader>
-					<CardTitle>New Participant</CardTitle>
-				</CardHeader>
-				<CardContent className="flex flex-col gap-4">
-					<Input
-						placeholder="Participant ID"
-						value={newParticipant.id}
-						onChange={(e) => setNewParticipant({ ...newParticipant, id: e.target.value })}
-					/>
-					<Input
-						placeholder="Name"
-						value={newParticipant.name}
-						onChange={(e) => setNewParticipant({ ...newParticipant, name: e.target.value })}
-					/>
-					<Input
-						placeholder="Persona Description"
-						value={newParticipant.persona_description}
-						onChange={(e) => setNewParticipant({ ...newParticipant, persona_description: e.target.value })}
-					/>
-					<Textarea
-						placeholder="Context"
-						value={newParticipant.context}
-						onChange={(e) => setNewParticipant({ ...newParticipant, context: e.target.value })}
-					/>
-					<Button onClick={handleCreateParticipant}>Create Participant</Button>
-				</CardContent>
-			</Card>
-		</div>
-	)
+  const handleCreateParticipant = async () => {
+    setIsLoading(true)
+    try {
+      await createParticipant(newParticipant)
+      setNewParticipant(initialState)
+      setToast({
+        show: true,
+        message: "Participant created successfully!",
+        type: 'success'
+      })
+      setTimeout(() => {
+        setToast(prev => ({ ...prev, show: false }))
+      }, 3000)
+    } catch (error) {
+      console.error("Error creating participant:", error)
+      setToast({
+        show: true,
+        message: "Failed to create participant. Please try again.",
+        type: 'error'
+      })
+      setTimeout(() => {
+        setToast(prev => ({ ...prev, show: false }))
+      }, 3000)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-6">
+      {toast.show && (
+        <div className={`fixed top-4 right-4 p-4 rounded-md shadow-md flex items-center gap-2 z-50 ${
+          toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {toast.type === 'success' ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <XCircle className="w-5 h-5" />
+          )}
+          <p>{toast.message}</p>
+        </div>
+      )}
+      
+      <h1 className="mb-4 text-3xl font-bold">Create Participant</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>New Participant</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="name" className="block mb-2 text-sm font-medium">Full Name</label>
+              <Input
+                id="name"
+                placeholder="Full name"
+                value={newParticipant.name}
+                onChange={(e) => setNewParticipant({ ...newParticipant, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="role" className="block mb-2 text-sm font-medium">Current Role</label>
+              <Input
+                id="role"
+                placeholder="Current role (e.g., Senior Solutions Architect)"
+                value={newParticipant.role}
+                onChange={(e) => setNewParticipant({ ...newParticipant, role: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="background" className="block mb-2 text-sm font-medium">Professional Background</label>
+            <Textarea
+              id="background"
+              placeholder="Professional background (e.g., 10+ years of experience across architecture, software engineering, and solution design...)"
+              value={newParticipant.professional_background}
+              onChange={(e) => setNewParticipant({ ...newParticipant, professional_background: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="industry" className="block mb-2 text-sm font-medium">Industry Experience</label>
+            <Textarea
+              id="industry"
+              placeholder="Industry & domain experience (e.g., Government, Energy, Banking, Systems integration...)"
+              value={newParticipant.industry_experience}
+              onChange={(e) => setNewParticipant({ ...newParticipant, industry_experience: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="overview" className="block mb-2 text-sm font-medium">Role Overview</label>
+            <Textarea
+              id="overview"
+              placeholder="Role overview (e.g., Leads high-level architecture and design across large delivery teams...)"
+              value={newParticipant.role_overview}
+              onChange={(e) => setNewParticipant({ ...newParticipant, role_overview: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="tech" className="block mb-2 text-sm font-medium">Technical Stack</label>
+            <Textarea
+              id="tech"
+              placeholder="Technical stack & tools (e.g., .NET, Azure, ServiceNow, Neo4j, Python...)"
+              value={newParticipant.technical_stack}
+              onChange={(e) => setNewParticipant({ ...newParticipant, technical_stack: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="soft" className="block mb-2 text-sm font-medium">Soft Skills</label>
+            <Textarea
+              id="soft"
+              placeholder="Soft skills (e.g., Highly collaborative, people-first mindset, comfortable leading discussions...)"
+              value={newParticipant.soft_skills}
+              onChange={(e) => setNewParticipant({ ...newParticipant, soft_skills: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="qualities" className="block mb-2 text-sm font-medium">Core Qualities</label>
+            <Textarea
+              id="qualities"
+              placeholder="Core qualities (e.g., Technically grounded, empathetic leader, detail-oriented...)"
+              value={newParticipant.core_qualities}
+              onChange={(e) => setNewParticipant({ ...newParticipant, core_qualities: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="style" className="block mb-2 text-sm font-medium">Communication Style</label>
+            <Textarea
+              id="style"
+              placeholder="Communication style & preferences (e.g., Clear and structured communication, visual thinker...)"
+              value={newParticipant.style_preferences}
+              onChange={(e) => setNewParticipant({ ...newParticipant, style_preferences: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="additional" className="block mb-2 text-sm font-medium">Additional Information</label>
+            <Textarea
+              id="additional"
+              placeholder="Additional information (Optional: Any other relevant details about the participant)"
+              value={newParticipant.additional_info}
+              onChange={(e) => setNewParticipant({ ...newParticipant, additional_info: e.target.value })}
+            />
+          </div>
+          
+          <Button onClick={handleCreateParticipant} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <LoadingSpinner className="mr-2" size={16} />
+                Creating...
+              </>
+            ) : (
+              "Create Participant"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
 export default CreateParticipant
