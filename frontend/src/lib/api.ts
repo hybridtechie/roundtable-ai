@@ -35,8 +35,8 @@ export const deleteParticipant = (participantId: string) =>
   api.delete(`/participant/${participantId}?user_id=${USER_ID}`)
 
 // Groups
-export const createGroup = (data: { name: string; participant_ids: string[] }) => 
-  api.post("/group", data)
+export const createGroup = (data: { name: string; description?: string; participant_ids: string[]; userId?: string }) =>
+  api.post("/group", { ...data, userId: data.userId || USER_ID })
 
 export const listGroups = () => 
   api.get<{ groups: Group[] }>(`/groups?user_id=${USER_ID}`)

@@ -12,6 +12,8 @@ const Groups: React.FC = () => {
 	const [participants, setParticipants] = useState<Participant[]>([])
 	const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
 	const [groupName, setGroupName] = useState("")
+	const [groupDescription, setGroupDescription] = useState("")
+	const [searchTerm, setSearchTerm] = useState("")
 
 	useEffect(() => {
 		listGroups()
@@ -24,15 +26,26 @@ const Groups: React.FC = () => {
 
 	const handleCreateGroup = async () => {
 		try {
-			await createGroup({ name: groupName, participant_ids: selectedParticipantIds })
+			await createGroup({
+				name: groupName,
+				description: groupDescription,
+				participant_ids: selectedParticipantIds
+			})
 			const res = await listGroups()
 			setGroups(res.data.groups)
 			setSelectedParticipantIds([])
 			setGroupName("")
+			setGroupDescription("")
+			setSearchTerm("")
 		} catch (error) {
 			console.error("Error creating group:", error)
 		}
 	}
+
+	// Filter participants based on search term
+	const filteredParticipants = participants.filter(participant =>
+		participant.name.toLowerCase().includes(searchTerm.toLowerCase())
+	)
 
 	return (
 		<div className="p-6">
@@ -46,19 +59,41 @@ const Groups: React.FC = () => {
 						<DialogTitle>Create Group</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col gap-4">
-					<div className="mb-4">
-					  <label htmlFor="groupName" className="block mb-2 text-sm font-medium">Group Name</label>
-					  <input
-					    type="text"
-					    id="groupName"
-					    value={groupName}
-					    onChange={(e) => setGroupName(e.target.value)}
-					    className="w-full p-2 border rounded-md"
-					    placeholder="Enter group name"
-					  />
-					</div>
-					<div className="grid gap-2">
-							{participants.map((participant) => (
+						<div className="mb-4">
+							<label htmlFor="groupName" className="block mb-2 text-sm font-medium">Group Name</label>
+							<input
+								type="text"
+								id="groupName"
+								value={groupName}
+								onChange={(e) => setGroupName(e.target.value)}
+								className="w-full p-2 border rounded-md"
+								placeholder="Enter group name"
+							/>
+						</div>
+						<div className="mb-4">
+							<label htmlFor="groupDescription" className="block mb-2 text-sm font-medium">Description</label>
+							<textarea
+								id="groupDescription"
+								value={groupDescription}
+								onChange={(e) => setGroupDescription(e.target.value)}
+								className="w-full p-2 border rounded-md"
+								placeholder="Enter group description"
+								rows={3}
+							/>
+						</div>
+						<div className="mb-4">
+							<label htmlFor="participantSearch" className="block mb-2 text-sm font-medium">Search Participants</label>
+							<input
+								type="text"
+								id="participantSearch"
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+								className="w-full p-2 border rounded-md"
+								placeholder="Search participants..."
+							/>
+						</div>
+						<div className="grid gap-2 overflow-y-auto max-h-60">
+							{filteredParticipants.map((participant) => (
 								<div key={participant.id} className="flex items-center gap-2">
 									<input
 										type="checkbox"
@@ -77,7 +112,10 @@ const Groups: React.FC = () => {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button onClick={handleCreateGroup} disabled={selectedParticipantIds.length === 0 || !groupName.trim()}>
+						<Button
+							onClick={handleCreateGroup}
+							disabled={selectedParticipantIds.length === 0 || !groupName.trim()}
+						>
 							Create
 						</Button>
 					</DialogFooter>
