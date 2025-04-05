@@ -103,34 +103,8 @@ async def create_participant(participant: ParticipantCreate):
         logger.debug("Generated new UUID for participant: %s", participant.id)
 
     try:
-        # Generate persona description
-        persona_parts = [f"You are {participant.name} with role {participant.role}. Your details are below:\n"]
-        
-        if participant.professional_background:
-            persona_parts.append(f"\n## Professional Background\n{participant.professional_background}")
-        
-        if participant.industry_experience:
-            persona_parts.append(f"\n## Industry Experience\n{participant.industry_experience}")
-        
-        if participant.role_overview:
-            persona_parts.append(f"\n## Role Overview\n{participant.role_overview}")
-        
-        if participant.technical_stack:
-            persona_parts.append(f"\n## Technical Stack\n{participant.technical_stack}")
-        
-        if participant.soft_skills:
-            persona_parts.append(f"\n## Soft Skills\n{participant.soft_skills}")
-        
-        if participant.core_qualities:
-            persona_parts.append(f"\n## Core Qualities\n{participant.core_qualities}")
-        
-        if participant.style_preferences:
-            persona_parts.append(f"\n## Style Preferences\n{participant.style_preferences}")
-        
-        if participant.additional_info:
-            persona_parts.append(f"\n## Additional Information\n{participant.additional_info}")
-            
-        persona_description = "\n".join(persona_parts)
+        # Generate persona description using helper function
+        persona_description = generate_persona_description(participant)
         
         # Store the participant data in Cosmos DB
         participant_data = {
@@ -170,34 +144,8 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             logger.error("Participant not found with ID: %s", participant_id)
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
 
-        # Generate persona description for update
-        persona_parts = [f"You are {participant.name} with role {participant.role}. Your details are below:\n"]
-        
-        if participant.professional_background:
-            persona_parts.append(f"\n## Professional Background\n{participant.professional_background}")
-        
-        if participant.industry_experience:
-            persona_parts.append(f"\n## Industry Experience\n{participant.industry_experience}")
-        
-        if participant.role_overview:
-            persona_parts.append(f"\n## Role Overview\n{participant.role_overview}")
-        
-        if participant.technical_stack:
-            persona_parts.append(f"\n## Technical Stack\n{participant.technical_stack}")
-        
-        if participant.soft_skills:
-            persona_parts.append(f"\n## Soft Skills\n{participant.soft_skills}")
-        
-        if participant.core_qualities:
-            persona_parts.append(f"\n## Core Qualities\n{participant.core_qualities}")
-        
-        if participant.style_preferences:
-            persona_parts.append(f"\n## Style Preferences\n{participant.style_preferences}")
-        
-        if participant.additional_info:
-            persona_parts.append(f"\n## Additional Information\n{participant.additional_info}")
-            
-        persona_description = "\n".join(persona_parts)
+        # Generate persona description using helper function
+        persona_description = generate_persona_description(participant)
         
         # Update participant data
         participant_data = {
