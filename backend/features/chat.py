@@ -220,6 +220,7 @@ class MeetingDiscussion:
                 chat_session = {
                     "id": session_id,
                     "meeting_id": chat_request.meeting_id,
+                    "user_id": self.user_id,  # Added user_id for partition key
                     "messages": [],
                     "participant_id": next(iter(self.participants.keys()))  # Get the only participant's ID
                 }
@@ -229,7 +230,7 @@ class MeetingDiscussion:
                 try:
                     chat_session = chat_container.read_item(
                         item=chat_request.session_id,
-                        partition_key=chat_request.meeting_id
+                        partition_key=self.user_id
                     )
                     session_id = chat_request.session_id
                 except Exception as e:
@@ -304,3 +305,23 @@ async def stream_meeting_discussion(meeting: Meeting):
     except Exception as e:
         logger.error("Unexpected error: %s", str(e))
         yield format_sse_event("error", {"detail": "Internal server error"})
+
+async def get_user_chat_sessions(user_id: str) -> list:
+    """Fetch all chat sessions for a user."""
+    try:
+        # Get chat sessions container
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        
+        # Query all chat sessions for the user using the partition key
+        query = f"SELECT * FROM c WHERE c.user_id = '{user_id}'"
+        chat_sessions = list(chat_container.query_items(
+            query=query,
+            partition_key=user_id
+        ))
+            
+        logger.info(f"Retrieved {len(chat_sessions)} chat sessions for user {user_id}")
+        return chat_sessions
+        
+    except Exception as e:
+        logger.error(f"Error fetching chat sessions for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch chat sessions")
