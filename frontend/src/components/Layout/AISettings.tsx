@@ -111,7 +111,7 @@ export function AISettings() {
   }
 
   return (
-    <DialogContent className="sm:max-w-[550px]">
+    <DialogContent className="sm:max-w-[550px] p-4">
       <DialogHeader>
         <DialogTitle>AI Provider Settings</DialogTitle>
       </DialogHeader>
@@ -130,8 +130,8 @@ export function AISettings() {
         </div>
       )}
 
-      <div className="grid gap-4 py-4">
-        <div className="space-y-4">
+      <div className="grid gap-2">
+        <div className="space-y-2">
           <h3 className="font-medium">Add New Provider</h3>
           <div className="grid grid-cols-2 gap-2">
             <Select
@@ -213,31 +213,20 @@ export function AISettings() {
           </Button>
         </div>
 
-        <div className="space-y-4">
-          <h3 className="font-medium">Existing Providers</h3>
+        <div className="mt-2 space-y-2">
+          <h3 className="mb-1 font-medium">Existing Providers</h3>
           {accounts.providers.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">
+            <div className="p-2 text-center text-muted-foreground">
               No LLM providers configured. Add a provider to get started.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-0.5">
               {accounts.providers.map((provider, index) => (
-                <Card key={index} className={accounts.default === provider.provider ? "border-2 border-primary" : ""}>
-                  <CardContent className="flex items-center justify-between pt-6">
+                <Card key={index} className={`${accounts.default === provider.provider ? "border-2 border-primary" : ""} p-0`}>
+                  <CardContent className="flex items-center justify-between p-2">
                     <div>
                       <p className="font-medium">{provider.provider}</p>
-                      <p className="text-sm text-muted-foreground">Model: {provider.model}</p>
-                      {provider.provider === "AzureOpenAI" && (
-                        <>
-                          <p className="text-xs text-muted-foreground">Deployment: {provider.deployment_name}</p>
-                          <p className="text-xs text-muted-foreground">Endpoint: {provider.endpoint}</p>
-                        </>
-                      )}
-                      {accounts.default === provider.provider && (
-                        <span className="inline-flex items-center px-2 py-1 mt-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
-                          Default
-                        </span>
-                      )}
+                      <p className="text-sm text-muted-foreground">{provider.model}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button
