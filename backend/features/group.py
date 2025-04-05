@@ -1,11 +1,10 @@
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
-import sqlite3
 from uuid import uuid4
 from typing import Optional, List
 import json
-from db import collection  # Import ChromaDB collection
 from logger_config import setup_logger
+from cosmos_db import cosmos_client
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -55,7 +54,7 @@ class GroupUpdate(GroupBase):
 
 
 async def create_group(group: GroupCreate):
-    """Create a new Group in SQLite and optionally store its context in ChromaDB."""
+    """Create a new Group."""
     logger.info("Creating new group with name: %s", group.name)
 
     # Validate all required fields
@@ -66,238 +65,163 @@ async def create_group(group: GroupCreate):
         group.id = str(uuid4())
         logger.debug("Generated new UUID for group: %s", group.id)
 
-    conn = None
     try:
-        conn = sqlite3.connect("roundtableai.db")
-        cursor = conn.cursor()
-
         # Validate all participant IDs exist
         for participant_id in group.participant_ids:
-            cursor.execute("SELECT id FROM participants WHERE id = ?", (participant_id,))
-            if not cursor.fetchone():
+            participant = await cosmos_client.get_participant(group.userId, participant_id)
+            if not participant:
                 logger.error("Participant not found: %s", participant_id)
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
 
-        participant_ids_json = json.dumps(group.participant_ids)
+        # Store the group data in Cosmos DB
+        group_data = {
+            "id": group.id,
+            "name": group.name,
+            "description": group.description,
+            "participant_ids": group.participant_ids,
+            "userId": group.userId
+        }
 
-        cursor.execute(
-            "INSERT INTO groups (id, name, description, participant_ids, userId) VALUES (?, ?, ?, ?, ?)",
-            (group.id, group.name, group.description, participant_ids_json, group.userId),
-        )
-
-        # Store context in ChromaDB if provided
         if group.context:
-            try:
-                collection.add(documents=[group.context], ids=[group.id])
-                logger.info("Successfully added group context to ChromaDB: %s", group.id)
-            except Exception as e:
-                logger.error("Failed to add group context to ChromaDB: %s - Error: %s", group.id, str(e), exc_info=True)
-                cursor.execute("DELETE FROM groups WHERE id = ?", (group.id,))
-                conn.commit()
-                raise HTTPException(status_code=500, detail="Failed to store group context in vector database")
+            group_data["context"] = group.context
 
-        conn.commit()
+        await cosmos_client.add_group(group.userId, group_data)
         logger.info("Successfully created group: %s", group.id)
         return {"message": f"Group '{group.name}' with ID '{group.id}' created successfully"}
 
-    except sqlite3.IntegrityError as e:
-        logger.error("SQLite integrity error while creating group: %s - Error: %s", group.id, str(e), exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Group ID '{group.id}' already exists")
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        logger.error("Unexpected error while creating group: %s - Error: %s", group.id, str(e), exc_info=True)
+        logger.error("Error creating group: %s - Error: %s", group.id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while creating group")
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed")
 
 
 async def update_group(group_id: str, group: GroupUpdate):
-    """Update a Group in SQLite."""
-    conn = None
+    """Update a Group."""
     try:
         logger.info("Updating group with ID: %s", group_id)
-        conn = sqlite3.connect("roundtableai.db")
-        cursor = conn.cursor()
 
         # Check if group exists
-        cursor.execute("SELECT 1 FROM groups WHERE id = ?", (group_id,))
-        if not cursor.fetchone():
+        existing_group = await cosmos_client.get_group(group.userId, group_id)
+        if not existing_group:
             logger.error("Group not found with ID: %s", group_id)
             raise HTTPException(status_code=404, detail=f"Group with ID '{group_id}' not found")
 
         # Validate all participant IDs exist
         for participant_id in group.participant_ids:
-            cursor.execute("SELECT id FROM participants WHERE id = ?", (participant_id,))
-            if not cursor.fetchone():
+            participant = await cosmos_client.get_participant(group.userId, participant_id)
+            if not participant:
                 logger.error("Participant not found: %s", participant_id)
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
 
-        participant_ids_json = json.dumps(group.participant_ids)
+        # Update group data
+        group_data = {
+            "id": group_id,
+            "name": group.name,
+            "description": group.description,
+            "participant_ids": group.participant_ids,
+            "userId": group.userId
+        }
 
-        cursor.execute(
-            "UPDATE groups SET name = ?, description = ?, participant_ids = ?, userId = ? WHERE id = ?",
-            (group.name, group.description, participant_ids_json, group.userId, group_id),
-        )
-
-        conn.commit()
+        await cosmos_client.update_group(group.userId, group_id, group_data)
         logger.info("Successfully updated group: %s", group_id)
         return {"message": f"Group with ID '{group_id}' updated successfully"}
 
-    except sqlite3.Error as e:
-        logger.error("Database error while updating group %s: %s", group_id, str(e))
-        raise HTTPException(status_code=500, detail="Failed to update group in database")
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        logger.error("Unexpected error while updating group %s: %s", group_id, str(e))
+        logger.error("Error updating group %s: %s", group_id, str(e))
         raise HTTPException(status_code=500, detail="Internal server error while updating group")
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed")
 
 
-async def delete_group(group_id: str):
-    """Delete a Group from SQLite and ChromaDB."""
-    conn = None
+async def delete_group(group_id: str, user_id: str):
+    """Delete a Group."""
     try:
         logger.info("Deleting group with ID: %s", group_id)
-        conn = sqlite3.connect("roundtableai.db")
-        cursor = conn.cursor()
 
         # Check if group exists
-        cursor.execute("SELECT 1 FROM groups WHERE id = ?", (group_id,))
-        if not cursor.fetchone():
+        existing_group = await cosmos_client.get_group(user_id, group_id)
+        if not existing_group:
             logger.error("Group not found with ID: %s", group_id)
             raise HTTPException(status_code=404, detail=f"Group with ID '{group_id}' not found")
 
-        # Delete from SQLite
-        cursor.execute("DELETE FROM groups WHERE id = ?", (group_id,))
-
-        # Delete from ChromaDB
-        try:
-            collection.delete(ids=[group_id])
-            logger.info("Successfully deleted group context from ChromaDB: %s", group_id)
-        except Exception as e:
-            logger.error("Failed to delete group context from ChromaDB: %s - Error: %s", group_id, str(e))
-            # Continue with deletion even if ChromaDB fails
-
-        conn.commit()
+        await cosmos_client.delete_group(user_id, group_id)
         logger.info("Successfully deleted group: %s", group_id)
         return {"message": f"Group with ID '{group_id}' deleted successfully"}
 
-    except sqlite3.Error as e:
-        logger.error("Database error while deleting group %s: %s", group_id, str(e))
-        raise HTTPException(status_code=500, detail="Failed to delete group from database")
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        logger.error("Unexpected error while deleting group %s: %s", group_id, str(e))
+        logger.error("Error deleting group %s: %s", group_id, str(e))
         raise HTTPException(status_code=500, detail="Internal server error while deleting group")
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed")
 
 
-async def get_group(group_id: str):
-    """Get a specific Group from SQLite with expanded participant details."""
-    conn = None
+async def get_group(group_id: str, user_id: str):
+    """Get a specific Group with expanded participant details."""
     try:
         logger.info("Fetching group with ID: %s", group_id)
-        conn = sqlite3.connect("roundtableai.db")
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT id, name, description, participant_ids, userId FROM groups WHERE id = ?", (group_id,))
-        row = cursor.fetchone()
-
-        if not row:
+        
+        group = await cosmos_client.get_group(user_id, group_id)
+        if not group:
             logger.error("Group not found with ID: %s", group_id)
             raise HTTPException(status_code=404, detail=f"Group with ID '{group_id}' not found")
 
-        participant_ids = json.loads(row[3])
-        participants = []
-
         # Fetch participant details
-        for participant_id in participant_ids:
-            cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
-            participant = cursor.fetchone()
+        participants = []
+        for participant_id in group.get('participant_ids', []):
+            participant = await cosmos_client.get_participant(user_id, participant_id)
             if participant:
-                participants.append({"id": participant[0], "name": participant[1], "role": participant[2]})
+                participants.append({
+                    "id": participant.get('id'),
+                    "name": participant.get('name'),
+                    "role": participant.get('role')
+                })
 
-        # Get context from ChromaDB if available
-        try:
-            context_result = collection.get(ids=[group_id])
-            context = context_result["documents"][0] if context_result["documents"] else ""
-        except Exception as e:
-            logger.error("Failed to fetch context from ChromaDB for group %s: %s", group_id, str(e))
-            context = ""
-
-        group = {"id": row[0], "name": row[1], "description": row[2], "userId": row[4], "participant_ids": participant_ids, "participants": participants, "context": context}
-
+        group['participants'] = participants
         logger.info("Successfully retrieved group: %s", group_id)
         return group
 
-    except sqlite3.Error as e:
-        logger.error("Database error while fetching group %s: %s", group_id, str(e))
-        raise HTTPException(status_code=500, detail="Failed to retrieve group from database")
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
-        logger.error("Unexpected error while fetching group %s: %s", group_id, str(e))
+        logger.error("Error fetching group %s: %s", group_id, str(e))
         raise HTTPException(status_code=500, detail="Internal server error while retrieving group")
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed")
 
 
-async def list_groups():
-    """List all Groups from SQLite with expanded participant details."""
-    conn = None
+async def list_groups(user_id: str):
+    """List all Groups with expanded participant details."""
     try:
         logger.info("Fetching all groups with participant details")
-        conn = sqlite3.connect("roundtableai.db")
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT id, name, description, participant_ids, userId FROM groups")
-        groups_raw = cursor.fetchall()
-        logger.debug("Retrieved %d groups from database", len(groups_raw))
-
+        
+        groups = await cosmos_client.list_groups(user_id)
         groups_data = []
-        for row in groups_raw:
-            try:
-                participant_ids = json.loads(row[3])
-                group = {"id": row[0], "name": row[1], "description": row[2], "userId": row[4], "participant_ids": participant_ids, "participants": []}
 
-                # Fetch participant details for each participant_id
-                for participant_id in participant_ids:
-                    cursor.execute("SELECT id, name, role FROM participants WHERE id = ?", (participant_id,))
-                    participant = cursor.fetchone()
-                    if participant:
-                        group["participants"].append({"participant_id": participant[0], "name": participant[1], "role": participant[2]})
-                    else:
-                        logger.warning("Participant %s not found for group %s", participant_id, group["id"])
+        for group in groups:
+            participants = []
+            for participant_id in group.get('participant_ids', []):
+                participant = await cosmos_client.get_participant(user_id, participant_id)
+                if participant:
+                    participants.append({
+                        "participant_id": participant.get('id'),
+                        "name": participant.get('name'),
+                        "role": participant.get('role')
+                    })
+                else:
+                    logger.warning("Participant %s not found for group %s", participant_id, group.get('id'))
 
-                groups_data.append(group)
-
-            except json.JSONDecodeError as e:
-                logger.error("Failed to parse participant_ids JSON for group %s: %s", row[0], str(e), exc_info=True)
-                continue
+            group_data = {
+                "id": group.get('id'),
+                "name": group.get('name'),
+                "description": group.get('description'),
+                "userId": group.get('userId'),
+                "participant_ids": group.get('participant_ids', []),
+                "participants": participants
+            }
+            groups_data.append(group_data)
 
         logger.info("Successfully retrieved %d groups with participant details", len(groups_data))
         return {"groups": groups_data}
 
-    except sqlite3.Error as e:
-        logger.error("Database error while fetching groups: %s", str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve groups from database")
     except Exception as e:
-        logger.error("Unexpected error while fetching groups: %s", str(e), exc_info=True)
+        logger.error("Error listing groups: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while retrieving groups")
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed")

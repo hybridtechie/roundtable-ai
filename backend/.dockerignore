@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+.env
+.git
+.gitignore
+.pytest_cache
+roundtableai.db
+chroma_data/
+dist/
+build/
+*.egg-info/
