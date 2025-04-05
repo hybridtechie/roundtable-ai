@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
-from features.chat import stream_meeting_discussion
+from features.chat import stream_meeting_discussion, MeetingDiscussion, ChatSessionCreate
 from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
@@ -220,6 +220,29 @@ async def chat_stream_endpoint(meeting_id: str, user_id: str):
     except Exception as e:
         logger.error("Failed to stream chat for meeting %s: %s", meeting_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
+# Chat Session endpoint
+@app.post("/chat-session")
+async def chat_session_endpoint(chat_request: ChatSessionCreate, user_id: str):
+    try:
+        logger.info("Processing chat request for Meeting: %s, User: %s", chat_request.meeting_id, user_id)
+        
+        # Get meeting details
+        meeting = await get_meeting(chat_request.meeting_id, user_id)
+        if not meeting:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+            
+        # Initialize MeetingDiscussion
+        discussion = MeetingDiscussion(meeting)
+        
+        # Handle the chat request
+        result = await discussion.handle_chat_request(chat_request)
+        
+        logger.info("Successfully processed chat request")
+        return result
+    except Exception as e:
+        logger.error("Failed to process chat request: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process chat request: {str(e)}")
+
 
 
 # 14 Generate Questions

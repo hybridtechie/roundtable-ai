@@ -43,7 +43,7 @@ class ParticipantBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     persona_description: str = Field(..., min_length=1, max_length=1000)
     role: str = Field(default="Team Member", min_length=1, max_length=50)
-    userId: str = Field(default="roundtable_ai_admin", min_length=1)
+    user_id: str = Field(default="roundtable_ai_admin", min_length=1)
 
 
 class ParticipantCreate(ParticipantBase):
@@ -75,10 +75,10 @@ async def create_participant(participant: ParticipantCreate):
             "persona_description": participant.persona_description,
             "role": participant.role,
             "context": participant.context,
-            "userId": participant.userId
+            "user_id": participant.user_id
         }
         
-        await cosmos_client.add_participant(participant.userId, participant_data)
+        await cosmos_client.add_participant(participant.user_id, participant_data)
         logger.info("Successfully created participant: %s", participant.id)
         
         return {"message": f"Participant '{participant.name}' with ID '{participant.id}' created successfully"}
@@ -94,7 +94,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
         logger.info("Updating participant with ID: %s", participant_id)
         
         # Get current participant to check existence
-        current_participant = await cosmos_client.get_participant(participant.userId, participant_id)
+        current_participant = await cosmos_client.get_participant(participant.user_id, participant_id)
         if not current_participant:
             logger.error("Participant not found with ID: %s", participant_id)
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
@@ -105,13 +105,13 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "name": participant.name,
             "persona_description": participant.persona_description,
             "role": participant.role,
-            "userId": participant.userId
+            "user_id": participant.user_id
         }
         
         if participant.context:
             participant_data["context"] = participant.context
 
-        await cosmos_client.update_participant(participant.userId, participant_id, participant_data)
+        await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
         logger.info("Successfully updated participant: %s", participant_id)
         return {"message": f"Participant with ID '{participant_id}' updated successfully"}
 
