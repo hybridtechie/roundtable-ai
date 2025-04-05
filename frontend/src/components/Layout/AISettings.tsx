@@ -15,58 +15,93 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { useState } from "react"
 
-interface LLMProvider {
-  provider: string
-  deployment_name?: string
-  model: string
-  endpoint?: string
-  api_version?: string
-  api_key: string
-}
-
-interface LLMAccounts {
-  default: string
-  providers: LLMProvider[]
-}
+import { LLMAccountCreate, LLMAccountsResponse, createLLMAccount, deleteLLMAccount, listLLMAccounts, setDefaultProvider } from "@/lib/api"
+import { useEffect } from "react"
+import { CheckCircle, XCircle } from "lucide-react"
 
 export function AISettings() {
-  const [accounts, setAccounts] = useState<LLMAccounts>({
-    default: "AzureOpenAI",
-    providers: [
-      {
-        provider: "AzureOpenAI",
-        deployment_name: "gpt-4o",
-        model: "gpt-4o",
-        endpoint: "https://nithin-test.openai.azure.com",
-        api_version: "2024-10-21",
-        api_key: "3952377f72bd49b88f86cc984178b2d4",
-      },
-    ],
+  const [accounts, setAccounts] = useState<LLMAccountsResponse>({
+    default: "",
+    providers: []
   })
 
-  const [newProvider, setNewProvider] = useState<LLMProvider>({
+  const [newProvider, setNewProvider] = useState<LLMAccountCreate>({
     provider: "AzureOpenAI",
     model: "",
     api_key: "",
+    deployment_name: "",
+    endpoint: "",
+    api_version: ""
+  })
+  
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
+    show: false,
+    message: "",
+    type: 'success'
   })
 
-  const handleAddProvider = () => {
-    setAccounts(prev => ({
-      ...prev,
-      providers: [...prev.providers, newProvider],
-    }))
-    setNewProvider({
-      provider: "AzureOpenAI",
-      model: "",
-      api_key: "",
+  useEffect(() => {
+    loadAccounts()
+  }, [])
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({
+      show: true,
+      message,
+      type
     })
+    
+    // Auto-hide toast after 3 seconds
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }))
+    }, 3000)
   }
 
-  const handleSetDefault = (provider: string) => {
-    setAccounts(prev => ({
-      ...prev,
-      default: provider,
-    }))
+  const loadAccounts = async () => {
+    try {
+      const response = await listLLMAccounts()
+      setAccounts(response.data)
+    } catch {
+      showToast("Failed to load LLM accounts", "error")
+    }
+  }
+
+  const handleAddProvider = async () => {
+    try {
+      await createLLMAccount(newProvider)
+      await loadAccounts()
+      setNewProvider({
+        provider: "AzureOpenAI",
+        model: "",
+        api_key: "",
+        deployment_name: "",
+        endpoint: "",
+        api_version: ""
+      })
+      showToast("Provider added successfully", "success")
+    } catch {
+      showToast("Failed to add provider", "error")
+    }
+  }
+
+  const handleSetDefault = async (provider: string) => {
+    try {
+      await setDefaultProvider(provider)
+      await loadAccounts()
+      showToast("Default provider updated", "success")
+    } catch {
+      showToast("Failed to set default provider", "error")
+    }
+  }
+
+  const handleDeleteProvider = async (provider: string) => {
+    try {
+      await deleteLLMAccount(provider)
+      await loadAccounts()
+      showToast("Provider deleted successfully", "success")
+    } catch {
+      showToast("Failed to delete provider", "error")
+    }
   }
 
   return (
@@ -74,6 +109,20 @@ export function AISettings() {
       <DialogHeader>
         <DialogTitle>AI Provider Settings</DialogTitle>
       </DialogHeader>
+      
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed top-4 right-4 p-4 rounded-md shadow-md flex items-center gap-2 z-50 ${
+          toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {toast.type === 'success' ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <XCircle className="w-5 h-5" />
+          )}
+          <p>{toast.message}</p>
+        </div>
+      )}
 
       <div className="grid gap-4 py-4">
         <div className="space-y-4">
@@ -91,6 +140,10 @@ export function AISettings() {
               <SelectContent>
                 <SelectItem value="AzureOpenAI">Azure OpenAI</SelectItem>
                 <SelectItem value="Grok">Grok</SelectItem>
+                <SelectItem value="OpenAI">OpenAI</SelectItem>
+                <SelectItem value="Deepseek">Deepseek</SelectItem>
+                <SelectItem value="OpenRouter">Open Router</SelectItem>
+                <SelectItem value="Gemini">Gemini</SelectItem>
               </SelectContent>
             </Select>
 
@@ -102,28 +155,32 @@ export function AISettings() {
               }
             />
 
+            {/* Azure OpenAI requires all fields */}
             {newProvider.provider === "AzureOpenAI" && (
               <>
                 <Input
                   placeholder="Deployment name"
-                  value={newProvider.deployment_name}
+                  value={newProvider.deployment_name || ""}
                   onChange={(e) =>
                     setNewProvider(prev => ({ ...prev, deployment_name: e.target.value }))
                   }
+                  required
                 />
                 <Input
                   placeholder="Endpoint"
-                  value={newProvider.endpoint}
+                  value={newProvider.endpoint || ""}
                   onChange={(e) =>
                     setNewProvider(prev => ({ ...prev, endpoint: e.target.value }))
                   }
+                  required
                 />
                 <Input
                   placeholder="API Version"
-                  value={newProvider.api_version}
+                  value={newProvider.api_version || ""}
                   onChange={(e) =>
                     setNewProvider(prev => ({ ...prev, api_version: e.target.value }))
                   }
+                  required
                 />
               </>
             )}
@@ -137,29 +194,67 @@ export function AISettings() {
               }
             />
           </div>
-          <Button onClick={handleAddProvider}>Add Provider</Button>
+          <Button
+            onClick={handleAddProvider}
+            disabled={
+              !newProvider.model ||
+              !newProvider.api_key ||
+              (newProvider.provider === "AzureOpenAI" &&
+                (!newProvider.deployment_name || !newProvider.endpoint || !newProvider.api_version))
+            }
+          >
+            Add Provider
+          </Button>
         </div>
 
         <div className="space-y-4">
           <h3 className="font-medium">Existing Providers</h3>
-          <div className="space-y-2">
-            {accounts.providers.map((provider, index) => (
-              <Card key={index}>
-                <CardContent className="flex items-center justify-between pt-6">
-                  <div>
-                    <p className="font-medium">{provider.provider}</p>
-                    <p className="text-sm text-muted-foreground">Model: {provider.model}</p>
-                  </div>
-                  <Button
-                    variant={accounts.default === provider.provider ? "default" : "outline"}
-                    onClick={() => handleSetDefault(provider.provider)}
-                  >
-                    {accounts.default === provider.provider ? "Default" : "Set as Default"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {accounts.providers.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
+              No LLM providers configured. Add a provider to get started.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {accounts.providers.map((provider, index) => (
+                <Card key={index} className={accounts.default === provider.provider ? "border-2 border-primary" : ""}>
+                  <CardContent className="flex items-center justify-between pt-6">
+                    <div>
+                      <p className="font-medium">{provider.provider}</p>
+                      <p className="text-sm text-muted-foreground">Model: {provider.model}</p>
+                      {provider.provider === "AzureOpenAI" && (
+                        <>
+                          <p className="text-xs text-muted-foreground">Deployment: {provider.deployment_name}</p>
+                          <p className="text-xs text-muted-foreground">Endpoint: {provider.endpoint}</p>
+                        </>
+                      )}
+                      {accounts.default === provider.provider && (
+                        <span className="inline-flex items-center px-2 py-1 mt-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={accounts.default === provider.provider ? "default" : "outline"}
+                        onClick={() => handleSetDefault(provider.provider)}
+                        disabled={accounts.default === provider.provider}
+                      >
+                        {accounts.default === provider.provider ? "Default" : "Set as Default"}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleDeleteProvider(provider.provider)}
+                        disabled={accounts.providers.length === 1}
+                        title={accounts.providers.length === 1 ? "Cannot delete the only provider" : ""}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </DialogContent>

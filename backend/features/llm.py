@@ -45,7 +45,7 @@ async def create_llm_account(llm: LLMAccountCreate):
         logger.info("Creating new LLM account for provider: %s", llm.provider)
         
         # Get existing LLM accounts
-        user_data = await cosmos_client.get_user(llm.user_id)
+        user_data = await cosmos_client.get_user_data(llm.user_id)
         if not user_data:
             logger.error("User not found: %s", llm.user_id)
             raise HTTPException(status_code=404, detail="User not found")
@@ -97,7 +97,7 @@ async def update_llm_account(provider: str, llm: LLMAccountUpdate):
         logger.info("Updating LLM account for provider: %s", provider)
         
         # Get existing LLM accounts
-        user_data = await cosmos_client.get_user(llm.user_id)
+        user_data = await cosmos_client.get_user_data(llm.user_id)
         if not user_data:
             raise HTTPException(status_code=404, detail="User not found")
             
@@ -139,7 +139,7 @@ async def delete_llm_account(provider: str, user_id: str):
         logger.info("Deleting LLM account for provider: %s", provider)
         
         # Get existing LLM accounts
-        user_data = await cosmos_client.get_user(user_id)
+        user_data = await cosmos_client.get_user_data(user_id)
         if not user_data:
             raise HTTPException(status_code=404, detail="User not found")
             
@@ -172,7 +172,7 @@ async def get_llm_accounts(user_id: str):
     try:
         logger.info("Fetching LLM accounts for user: %s", user_id)
         
-        user_data = await cosmos_client.get_user(user_id)
+        user_data = await cosmos_client.get_user_data(user_id)
         if not user_data:
             raise HTTPException(status_code=404, detail="User not found")
             
@@ -193,7 +193,7 @@ async def set_default_provider(provider: str, user_id: str):
         logger.info("Setting default LLM provider to: %s", provider)
         
         # Get existing LLM accounts
-        user_data = await cosmos_client.get_user(user_id)
+        user_data = await cosmos_client.get_user_data(user_id)
         if not user_data:
             raise HTTPException(status_code=404, detail="User not found")
             

@@ -87,6 +87,44 @@ interface StreamCallbacks {
   ) => void
 }
 
+// LLM Account Management
+export interface LLMAccountCreate {
+  provider: string
+  deployment_name?: string
+  model: string
+  endpoint?: string
+  api_version?: string
+  api_key: string
+}
+
+export interface LLMAccountUpdate {
+  model?: string
+  deployment_name?: string
+  endpoint?: string
+  api_version?: string
+  api_key?: string
+}
+
+export interface LLMAccountsResponse {
+  default: string
+  providers: LLMAccountCreate[]
+}
+
+export const createLLMAccount = (data: LLMAccountCreate) =>
+  api.post("/llm-account", data)
+
+export const listLLMAccounts = () =>
+  api.get<LLMAccountsResponse>(`/llm-accounts?user_id=${USER_ID}`)
+
+export const updateLLMAccount = (provider: string, data: LLMAccountUpdate) =>
+  api.put(`/llm-account/${provider}`, data)
+
+export const deleteLLMAccount = (provider: string) =>
+  api.delete(`/llm-account/${provider}?user_id=${USER_ID}`)
+
+export const setDefaultProvider = (provider: string) =>
+  api.put(`/llm-account/${provider}/set-default?user_id=${USER_ID}`)
+
 export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() => void) => {
   const eventSource = new EventSource(`${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`)
 
