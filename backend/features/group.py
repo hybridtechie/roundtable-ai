@@ -41,7 +41,7 @@ class GroupBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: str = Field(..., min_length=1, max_length=1000)
     participant_ids: List[str]
-    userId: str = Field(default="SuperAdmin", min_length=1)
+    userId: str = Field(default="roundtable_ai_admin", min_length=1)
 
 
 class GroupCreate(GroupBase):

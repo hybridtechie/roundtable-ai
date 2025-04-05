@@ -43,7 +43,7 @@ class ParticipantBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     persona_description: str = Field(..., min_length=1, max_length=1000)
     role: str = Field(default="Team Member", min_length=1, max_length=50)
-    userId: str = Field(default="SuperAdmin", min_length=1)
+    userId: str = Field(default="roundtable_ai_admin", min_length=1)
 
 
 class ParticipantCreate(ParticipantBase):
