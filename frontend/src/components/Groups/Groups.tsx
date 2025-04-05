@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { ChevronsUpDown } from "lucide-react"
 import { listParticipants, listGroups, createGroup } from "@/lib/api"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Participant, Group } from "@/types/types"
@@ -83,26 +85,41 @@ const Groups: React.FC = () => {
 			</Dialog>
 			<div className="grid gap-4 mt-4">
 				{groups.map((group) => (
-					<Card key={group.id}>
-						<CardHeader>
-							<CardTitle>{group.name || group.id}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="space-y-2">
-								<div>
-									<p className="mb-2 font-medium">Participants:</p>
-									<ul className="pl-6 space-y-1 list-disc">
-										{group.participants.map((participant) => (
-											<li key={participant.id}>
-												<span className="font-medium">{participant.name}</span>
-												<span className="text-gray-600"> - {participant.role}</span>
-											</li>
-										))}
-									</ul>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
+					<Collapsible key={group.id} className="w-full">
+					  <Card>
+					    <CardHeader className="flex flex-row items-center justify-between">
+					      <div>
+					        <CardTitle>{group.name || group.id}</CardTitle>
+					        {group.description && (
+					          <p className="mt-1 text-sm text-gray-500">{group.description}</p>
+					        )}
+					      </div>
+					      <CollapsibleTrigger asChild>
+					        <Button variant="ghost" size="sm" className="p-0 w-9">
+					          <ChevronsUpDown className="w-4 h-4" />
+					          <span className="sr-only">Toggle</span>
+					        </Button>
+					      </CollapsibleTrigger>
+					    </CardHeader>
+					    <CollapsibleContent>
+					      <CardContent>
+					        <div className="space-y-2">
+					          <div>
+					            <p className="mb-2 font-medium">Participants:</p>
+					            <ul className="pl-6 space-y-1 list-disc">
+					              {group.participants.map((participant) => (
+					                <li key={participant.id}>
+					                  <span className="font-medium">{participant.name}</span>
+					                  <span className="text-gray-600"> - {participant.role}</span>
+					                </li>
+					              ))}
+					            </ul>
+					          </div>
+					        </div>
+					      </CardContent>
+					    </CollapsibleContent>
+					  </Card>
+					</Collapsible>
 				))}
 			</div>
 		</div>

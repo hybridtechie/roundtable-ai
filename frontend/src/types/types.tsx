@@ -8,7 +8,7 @@ export interface Participant {
 export interface Group {
 	id: string
 	name: string
-	descriptions: string
+	description: string
 	participants: Participant[]
 }
 
