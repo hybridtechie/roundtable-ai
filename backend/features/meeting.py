@@ -1,5 +1,6 @@
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+from typing import Optional
 import json
 import uuid
 from logger_config import setup_logger
@@ -10,11 +11,22 @@ logger = setup_logger(__name__)
 
 
 class MeetingCreate(BaseModel):
-    group_id: str
+    group_id: Optional[str] = None
+    participant_id: Optional[str] = None
     strategy: str
     topic: str = "Default Topic"
+    name: Optional[str] = None
     questions: list = []
     userId: str = "SuperAdmin"
+
+    @validator('group_id', 'participant_id')
+    def validate_ids(cls, v, values):
+        if 'group_id' in values and 'participant_id' in values:
+            if values['group_id'] and values['participant_id']:
+                raise ValueError("Cannot specify both group_id and participant_id")
+            if not values['group_id'] and not values['participant_id']:
+                raise ValueError("Must specify either group_id or participant_id")
+        return v
 
 
 class Meeting(BaseModel):
@@ -24,6 +36,7 @@ class Meeting(BaseModel):
     group_ids: list = []
     strategy: str
     topic: str = "Default Topic"
+    name: Optional[str] = None
     questions: list = []
     userId: str = "SuperAdmin"
 
@@ -35,27 +48,52 @@ class MeetingTopic(BaseModel):
 
 
 async def create_meeting(meeting: MeetingCreate):
-    """Create a meeting for a group with specified strategy and topic."""
-    logger.info("Creating new meeting for group: %s", meeting.group_id)
+    """Create a meeting for a group or single participant with specified strategy and topic."""
+    logger.info("Creating new meeting")
 
     try:
-        # Fetch group data to get participant_ids
-        group = await cosmos_client.get_group(meeting.userId, meeting.group_id)
-        if not group:
-            logger.error("Group not found: %s", meeting.group_id)
-            raise HTTPException(status_code=404, detail=f"Group ID '{meeting.group_id}' not found")
+        participant_ids = []
+        group_ids = []
+        meeting_name = meeting.name
 
-        participant_ids = group.get('participant_ids', [])
+        if meeting.group_id:
+            # Fetch group data to get participant_ids
+            group = await cosmos_client.get_group(meeting.userId, meeting.group_id)
+            if not group:
+                logger.error("Group not found: %s", meeting.group_id)
+                raise HTTPException(status_code=404, detail=f"Group ID '{meeting.group_id}' not found")
+
+            participant_ids = group.get('participant_ids', [])
+            group_ids = [meeting.group_id]
+            
+            # Generate default name if not provided
+            if not meeting_name:
+                meeting_name = f"Meeting with {group.get('name', 'group')}"
+
+        else:
+            # Fetch participant data
+            participant = await cosmos_client.get_participant(meeting.userId, meeting.participant_id)
+            if not participant:
+                logger.error("Participant not found: %s", meeting.participant_id)
+                raise HTTPException(status_code=404, detail=f"Participant ID '{meeting.participant_id}' not found")
+
+            participant_ids = [meeting.participant_id]
+            
+            # Generate default name if not provided
+            if not meeting_name:
+                meeting_name = f"Meeting with {participant.get('name', 'participant')}"
+
         meeting_id = str(uuid.uuid4())
 
         # Create meeting data
         meeting_data = {
             "id": meeting_id,
             "participant_ids": participant_ids,
-            "group_ids": [meeting.group_id],
+            "group_ids": group_ids,
             "userId": meeting.userId,
             "strategy": meeting.strategy,
             "topic": meeting.topic,
+            "name": meeting_name,
             "questions": meeting.questions
         }
 
@@ -83,6 +121,7 @@ async def list_meetings(user_id: str):
                 "id": meeting.get('id'),
                 "participant_ids": meeting.get('participant_ids', []),
                 "topic": meeting.get('topic'),
+                "name": meeting.get('name'),
                 "userId": meeting.get('userId'),
                 "participants": []
             }
@@ -138,6 +177,7 @@ async def get_meeting(meeting_id: str, user_id: str) -> Meeting:
             group_ids=meeting_data.get('group_ids', []),
             participant_ids=meeting_data.get('participant_ids', []),
             topic=meeting_data.get('topic', "Default Topic"),
+            name=meeting_data.get('name'),
             userId=meeting_data.get('userId'),
             questions=meeting_data.get('questions', []),
             strategy=meeting_data.get('strategy', ""),
