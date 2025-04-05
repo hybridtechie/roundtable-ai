@@ -1,8 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Deploy Backend
+name: Deploy Frontend
 
 on:
   push:
@@ -19,35 +18,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python version
-        uses: actions/setup-python@v5
+      - name: Set up Node.js version
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.12'
+          node-version: '20.x'
 
-      - name: Create and start virtual environment
+      - name: npm install, build, and test
         run: |
-          cd backend
-          python -m venv venv
-          source venv/bin/activate
-      
-      - name: Install dependencies
-        run: | 
-          cd backend
-          pip install -r requirements.txt
-        
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
+          cd frontend
+          npm install
+          npm run build --if-present
+          npm run test --if-present
 
       - name: Zip artifact for deployment
         run: |
-          cd backend
-          zip release.zip ./* -r -x "venv/*" "__pycache__/*" "*.pyc"
+          cd frontend
+          zip release.zip ./* -r -x "node_modules/*"
 
-      - name: Upload artifact for deployment jobs
+      - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: python-app
-          path: |
-            backend/release.zip
+          name: node-app
+          path: frontend/release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -63,23 +55,23 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: python-app
+          name: node-app
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
-
       
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_7EF5E022845246D0841AC86E71B0C6BE }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6E6856229A994F34A6E4EDB1294BD9D1 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1F46702F374245EAA172AB84DE997493 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A16D6E5CBD7846C8ACBA213C33A28AB5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C3BB41F32866485D8C2A3133AAC9650A }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E08ABBC93AB4488795B977B647ED4052 }}
 
       - name: 'Deploy to Azure Web App'
-        uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
         with:
-          app-name: 'wa-roundtableai'
+          app-name: 'wa-roundtableai-frontend'
           slot-name: 'Production'
+          package: ./dist
           
