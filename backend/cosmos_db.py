@@ -248,6 +248,23 @@ class CosmosDBClient:
             logger.error(f"Error deleting group {group_id}: {str(e)}", exc_info=True)
             raise
 
+    async def update_user(self, user_id: str, update_data: Dict) -> Dict:
+        """Update user data with provided fields"""
+        try:
+            user_data = await self.get_user_data(user_id)
+            if not user_data:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+            
+            # Update only the specified fields
+            user_data.update(update_data)
+            
+            response = self.container.upsert_item(body=user_data)
+            logger.info(f"Updated user data for user: {user_id}")
+            return response
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {str(e)}", exc_info=True)
+            raise
+
     async def add_meeting(self, user_id: str, meeting_data: Dict) -> Dict:
         """Add a meeting to user's meetings array"""
         try:
