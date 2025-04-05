@@ -65,7 +65,7 @@ const Participants: React.FC = () => {
 	      
 	      <div className="flex items-center justify-between mb-4">
 	        <h1 className="text-3xl font-bold">Participants</h1>
-	        <Button onClick={() => navigate('/create-participant')} className="flex items-center gap-2">
+	        <Button onClick={() => navigate('create')} className="flex items-center gap-2">
 	          <Plus className="w-4 h-4" />
 	          Create New
 	        </Button>
@@ -179,11 +179,21 @@ const Participants: React.FC = () => {
 	            <div className="grid gap-4">
 	              <div>
 	                <label className="text-sm font-medium">Name</label>
-	                <Input defaultValue={selectedParticipant.name} />
+	                <Input
+	                  value={editedParticipant?.name || ''}
+	                  onChange={(e) => setEditedParticipant(prev =>
+	                    prev ? { ...prev, name: e.target.value } : null
+	                  )}
+	                />
 	              </div>
 	              <div>
 	                <label className="text-sm font-medium">Role</label>
-	                <Input defaultValue={selectedParticipant.role} />
+	                <Input
+	                  value={editedParticipant?.role || ''}
+	                  onChange={(e) => setEditedParticipant(prev =>
+	                    prev ? { ...prev, role: e.target.value } : null
+	                  )}
+	                />
 	              </div>
 	              <div>
 	                <label className="text-sm font-medium">Professional Background</label>
@@ -263,7 +273,11 @@ const Participants: React.FC = () => {
 	                  if (!editedParticipant || !selectedParticipant) return
 	                  setIsLoading(true)
 	                  try {
-	                    await updateParticipant(selectedParticipant.id, editedParticipant)
+	                    const updatedData = {
+	                      ...editedParticipant,
+	                      user_id: "roundtable_ai_admin"
+	                    }
+	                    await updateParticipant(selectedParticipant.id, updatedData)
 	                    showToast('Participant updated successfully', 'success')
 	                    setIsEditDialogOpen(false)
 	                    // Refresh the participants list

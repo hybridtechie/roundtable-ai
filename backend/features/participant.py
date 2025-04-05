@@ -163,9 +163,6 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "user_id": participant.user_id,
             "persona_description": persona_description
         }
-        
-        if participant.context:
-            participant_data["context"] = participant.context
 
         await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
         logger.info("Successfully updated participant: %s", participant_id)
