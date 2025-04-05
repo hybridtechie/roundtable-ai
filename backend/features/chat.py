@@ -15,11 +15,46 @@ logger = setup_logger(__name__)
 
 
 # LLM client initialization
-def get_llm_client():
+async def get_llm_client(user_id: str):
     try:
-        client = LLMClient(provider="azure")  # Adjust provider as needed
-        logger.debug("Initialized LLM client")
+        # Fetch only LLM account details from cosmos db
+        container = cosmos_client.get_container_client("roundtable")
+        query = f"SELECT c.llmAccounts FROM c WHERE c.id = '{user_id}'"
+        user_data = list(container.query_items(query=query, enable_cross_partition_query=True))
+        
+        if not user_data:
+            logger.error(f"User {user_id} not found in cosmos db")
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        if not user_data or "llmAccounts" not in user_data[0]:
+            logger.error(f"No LLM accounts configured for user {user_id}")
+            raise HTTPException(status_code=400, detail="No LLM accounts configured")
+            
+        # Get default provider details
+        llm_accounts = user_data[0]["llmAccounts"]
+        default_provider = llm_accounts.get("default")
+        if not default_provider:
+            logger.error(f"No default LLM provider set for user {user_id}")
+            raise HTTPException(status_code=400, detail="No default LLM provider set")
+            
+        # Find provider details matching default provider
+        provider_details = None
+        for provider in llm_accounts.get("providers", []):
+            if provider["provider"] == default_provider:
+                provider_details = provider
+                break
+                
+        if not provider_details:
+            logger.error(f"Details for default provider {default_provider} not found")
+            raise HTTPException(status_code=400, detail="Default provider details not found")
+            
+        # Initialize LLM client with provider details
+        client = LLMClient(provider_details)
+        logger.debug(f"Initialized LLM client with provider: {default_provider}")
         return client
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to initialize LLM client: %s", str(e))
         raise HTTPException(status_code=500, detail="Failed to initialize LLM client")
@@ -157,7 +192,7 @@ async def stream_meeting_discussion(meeting: Meeting):
     """Stream the meeting discussion using SSE."""
     try:
         discussion = MeetingDiscussion(meeting)
-        llm_client = get_llm_client()
+        llm_client = await get_llm_client(meeting.userId)
         async for event in discussion.conduct_discussion(llm_client):
             yield event
     except HTTPException as e:
