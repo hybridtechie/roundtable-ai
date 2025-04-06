@@ -1,90 +1,99 @@
 export interface Participant {
-    id: string
-    name: string
-    role: string
-    professional_background: string
-    industry_experience: string
-    role_overview: string
-    technical_stack: string
-    soft_skills: string
-    core_qualities: string
-    style_preferences: string
-    additional_info: string
+	id: string
+	name: string
+	role: string
+	professional_background: string
+	industry_experience: string
+	role_overview: string
+	technical_stack: string
+	soft_skills: string
+	core_qualities: string
+	style_preferences: string
+	additional_info: string
 }
 
 export interface Group {
-    id: string
-    name: string
-    description: string
-    participants: Participant[]
+	id: string
+	name: string
+	description: string
+	participants: Participant[]
+}
+
+export interface ParticipantOrder {
+	participant_id: string
+	weight: number
+	order: number
 }
 
 export interface MeetingRequest {
-    group_id: string
-    strategy: string
-    topic: string
-    questions: string[]
+	group_id?: string
+	participant_id?: string
+	name?: string
+	strategy: string
+	topic: string
+	questions: string[]
+	participant_order?: ParticipantOrder[]
 }
 
 export interface ParticipantResponse {
-    participant: string
-    question: string
-    answer: string
-    strength?: number
+	participant: string
+	question: string
+	answer: string
+	strength?: number
 }
 
 export interface ChatFinalResponse {
-    response: string
+	response: string
 }
 
 export interface QuestionsResponse {
-    questions: string[]
+	questions: string[]
 }
 
 export type ChatErrorResponse = {
-    detail: string
+	detail: string
 }
 
 export interface NextParticipantResponse {
-    participant_id: string
-    participant_name: string
+	participant_id: string
+	participant_name: string
 }
 
 export enum ChatEventType {
-    Questions = "questions",
-    ParticipantResponse = "participant_response",
-    FinalResponse = "final_response",
-    Error = "error",
-    Complete = "complete",
-    NextParticipant = "next_participant",
+	Questions = "questions",
+	ParticipantResponse = "participant_response",
+	FinalResponse = "final_response",
+	Error = "error",
+	Complete = "complete",
+	NextParticipant = "next_participant",
 }
 
 export interface Meeting {
-    id: string
-    name: string
-    participant_ids: string[]
-    group_ids: string[]
-    topic?: string
-    participants: Participant[]
+	id: string
+	name: string
+	participant_ids: string[]
+	group_ids: string[]
+	topic?: string
+	participants: Participant[]
 }
 
 export interface ChatSession {
-    id: string
-    title: string
-    created_at: string
-    user_id: string
-    participant_id: string
-    messages: ChatMessage[]
-    display_messages: ChatMessage[]
-    meeting_id?: string
-    meeting_name?: string
-    meeting_topic?: string
+	id: string
+	title: string
+	created_at: string
+	user_id: string
+	participant_id: string
+	messages: ChatMessage[]
+	display_messages: ChatMessage[]
+	meeting_id?: string
+	meeting_name?: string
+	meeting_topic?: string
 }
 
 export interface ChatMessage {
-    role: string
-    content: string
-    type?: string
-    name?: string
-    step?: string
+	role: string
+	content: string
+	type?: string
+	name?: string
+	step?: string
 }

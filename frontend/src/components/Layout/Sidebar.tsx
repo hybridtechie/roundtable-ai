@@ -72,23 +72,23 @@ const Sidebar: React.FC = () => {
 					<FaMessage className="w-4 h-4 mr-2" />
 					New Meeting
 				</Button>
-				</NavLink>
-				<NavLink
-				  to="/chat/new"
-				  className={({ isActive }: { isActive: boolean }) =>
-				    `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
-				  }>
-				  <Button variant="ghost" className="justify-start w-full font-normal">
-				    <TiMessages className="w-4 h-4 mr-2" />
-				    New Chat
-				  </Button>
-				</NavLink>
-				<hr className="my-2 border-gray-200" />
-		      <div>
-		        <ChatSessions />
-		      </div>
-		    </div>
-		  )
-		}
+			</NavLink>
+			<NavLink
+				to="/chat/new"
+				className={({ isActive }: { isActive: boolean }) =>
+					`w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
+				}>
+				<Button variant="ghost" className="justify-start w-full font-normal">
+					<TiMessages className="w-4 h-4 mr-2" />
+					New Chat
+				</Button>
+			</NavLink>
+			<hr className="my-2 border-gray-200" />
+			<div>
+				<ChatSessions />
+			</div>
+		</div>
+	)
+}
 
 export default Sidebar

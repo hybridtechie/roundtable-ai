@@ -2,29 +2,29 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface ChatMessageProps {
-type?: string
-name?: string
-role?: string
-step?: string
-content?: string
-timestamp?: Date
-className?: string
+	type?: string
+	name?: string
+	role?: string
+	step?: string
+	content?: string
+	timestamp?: Date
+	className?: string
 }
 
 const defaultProps: Partial<ChatMessageProps> = {
-  type: "participant",
-  content: "",
-  timestamp: new Date()
+	type: "participant",
+	content: "",
+	timestamp: new Date(),
 }
 
 export function ChatMessage({
-  type = defaultProps.type,
-  name,
-  role,
-  step,
-  content = defaultProps.content,
-  timestamp = defaultProps.timestamp,
-  className
+	type = defaultProps.type,
+	name,
+	role,
+	step,
+	content = defaultProps.content,
+	timestamp = defaultProps.timestamp,
+	className,
 }: ChatMessageProps) {
 	const initials = name
 		? name
@@ -42,7 +42,9 @@ export function ChatMessage({
 			<div className="flex-1 space-y-2">
 				<div className="flex flex-col gap-1">
 					<div className="flex items-center gap-2">
-						<span className="font-semibold">{type === "participant" || type ===  "user" ? name : "Final Response"}</span>
+						<span className="font-semibold">
+							{type === "participant" || type === "user" ? name : "Final Response"}
+						</span>
 						{step && <span className="text-sm text-muted-foreground">({step})</span>}
 					</div>
 					{role && type === "participant" && <span className="text-sm text-muted-foreground">{role}</span>}

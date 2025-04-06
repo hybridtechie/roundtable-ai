@@ -77,26 +77,26 @@ const SortableParticipant: React.FC<{
 const NewMeeting: React.FC = () => {
 	const [step, setStep] = useState<"group" | "participants" | "questions" | "chat">("group")
 	const [selectedGroup, setSelectedGroup] = useState<string>("")
-	
+
 	// Handle group selection
 	const handleGroupSelect = async (groupId: string) => {
-	  setSelectedGroup(groupId)
-	  setParticipants([]) // Clear participants before fetching new ones
-	  
-	  try {
-	    const response = await getGroup(groupId)
-	    const groupParticipants = response.data.participants.map((p: Participant) => ({
-	      id: p.id,
-	      name: p.name,
-	      role: p.role,
-	      weight: 5, // Default weight
-	      persona_description: p.role_overview || "Participant",
-	    }))
-	    setParticipants(groupParticipants)
-	  } catch (error) {
-	    console.error("Error fetching group participants:", error)
-	    toast.error("Failed to fetch group participants")
-	  }
+		setSelectedGroup(groupId)
+		setParticipants([]) // Clear participants before fetching new ones
+
+		try {
+			const response = await getGroup(groupId)
+			const groupParticipants = response.data.participants.map((p: Participant) => ({
+				id: p.id,
+				name: p.name,
+				role: p.role,
+				weight: 5, // Default weight
+				persona_description: p.role_overview || "Participant",
+			}))
+			setParticipants(groupParticipants)
+		} catch (error) {
+			console.error("Error fetching group participants:", error)
+			toast.error("Failed to fetch group participants")
+		}
 	}
 	const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
 	const [topic, setTopic] = useState<string>("")
@@ -132,33 +132,33 @@ const NewMeeting: React.FC = () => {
 
 	// Fetch groups on mount and set default group
 	useEffect(() => {
-	  const fetchGroupsAndSetDefault = async () => {
-	    try {
-	      const response = await listGroups()
-	      setGroups(response.data.groups)
-	      
-	      // If we have groups, select the first one and load its participants
-	      if (response.data.groups.length > 0) {
-	        const defaultGroup = response.data.groups[0]
-	        setSelectedGroup(defaultGroup.id)
-	        
-	        // Fetch participants for default group
-	        const groupResponse = await getGroup(defaultGroup.id)
-	        const groupParticipants = groupResponse.data.participants.map((p: Participant) => ({
-	          id: p.id,
-	          name: p.name,
-	          role: p.role,
-	          weight: 5,
-	          persona_description: p.role_overview || "Participant",
-	        }))
-	        setParticipants(groupParticipants)
-	      }
-	    } catch (error) {
-	      console.error("Error fetching groups:", error)
-	      toast.error("Failed to fetch groups")
-	    }
-	  }
-	  fetchGroupsAndSetDefault()
+		const fetchGroupsAndSetDefault = async () => {
+			try {
+				const response = await listGroups()
+				setGroups(response.data.groups)
+
+				// If we have groups, select the first one and load its participants
+				if (response.data.groups.length > 0) {
+					const defaultGroup = response.data.groups[0]
+					setSelectedGroup(defaultGroup.id)
+
+					// Fetch participants for default group
+					const groupResponse = await getGroup(defaultGroup.id)
+					const groupParticipants = groupResponse.data.participants.map((p: Participant) => ({
+						id: p.id,
+						name: p.name,
+						role: p.role,
+						weight: 5,
+						persona_description: p.role_overview || "Participant",
+					}))
+					setParticipants(groupParticipants)
+				}
+			} catch (error) {
+				console.error("Error fetching groups:", error)
+				toast.error("Failed to fetch groups")
+			}
+		}
+		fetchGroupsAndSetDefault()
 	}, [])
 
 	// Cleanup on unmount
@@ -170,15 +170,15 @@ const NewMeeting: React.FC = () => {
 
 	// Fetch questions when moving to next step
 	const handleNextFromGroup = async () => {
-	  if (!selectedGroup || !topic.trim()) return
-	  try {
-	    getQuestions(topic, selectedGroup).then((response) => setQuestions(response.data.questions))
-	    
-	    setStep("participants")
-	  } catch (error) {
-	    console.error("Error fetching questions:", error)
-	    toast.error("Failed to fetch questions")
-	  }
+		if (!selectedGroup || !topic.trim()) return
+		try {
+			getQuestions(topic, selectedGroup).then((response) => setQuestions(response.data.questions))
+
+			setStep("participants")
+		} catch (error) {
+			console.error("Error fetching questions:", error)
+			toast.error("Failed to fetch questions")
+		}
 	}
 
 	// Handle drag-and-drop reordering
@@ -292,16 +292,16 @@ const NewMeeting: React.FC = () => {
 							}
 							break
 						case ChatEventType.Error:
-						if ("detail" in data) {
-						  console.error("Chat error:", data.detail)
-						  toast.error(data.detail)
-						  setIsLoading(false)
-						}
+							if ("detail" in data) {
+								console.error("Chat error:", data.detail)
+								toast.error(data.detail)
+								setIsLoading(false)
+							}
 							break
 						case ChatEventType.Complete:
-						setIsLoading(false)
-						toast.success("Meeting completed successfully")
-						break
+							setIsLoading(false)
+							toast.success("Meeting completed successfully")
+							break
 					}
 				},
 			})
@@ -309,9 +309,9 @@ const NewMeeting: React.FC = () => {
 			// Automatically move to the chat view
 			setStep("chat")
 		} catch (error) {
-		console.error("Error starting chat:", error)
-		toast.error("Failed to start meeting")
-		setIsLoading(false)
+			console.error("Error starting chat:", error)
+			toast.error("Failed to start meeting")
+			setIsLoading(false)
 		}
 	}
 
@@ -359,10 +359,9 @@ const NewMeeting: React.FC = () => {
 					</div>
 					<div className="flex flex-row w-[70%] mt-4">
 						<Button
-						  onClick={handleNextFromGroup}
-						  disabled={!selectedGroup || !topic.trim()}
-						  className="text-white bg-blue-500 hover:bg-blue-600"
-						>
+							onClick={handleNextFromGroup}
+							disabled={!selectedGroup || !topic.trim()}
+							className="text-white bg-blue-500 hover:bg-blue-600">
 							Next
 						</Button>
 					</div>
@@ -386,18 +385,12 @@ const NewMeeting: React.FC = () => {
 						</SortableContext>
 					</DndContext>
 					<div className="flex flex-row w-[70%] mt-4 justify-between">
-					<Button
-					  onClick={handleBackFromParticipants}
-					  className="text-white bg-blue-500 hover:bg-blue-600"
-					>
-					  Back
-					</Button>
-					<Button
-					  onClick={handleNextFromParticipants}
-					  className="text-white bg-blue-500 hover:bg-blue-600"
-					>
-					  Next
-					</Button>
+						<Button onClick={handleBackFromParticipants} className="text-white bg-blue-500 hover:bg-blue-600">
+							Back
+						</Button>
+						<Button onClick={handleNextFromParticipants} className="text-white bg-blue-500 hover:bg-blue-600">
+							Next
+						</Button>
 					</div>
 				</div>
 			)}
@@ -418,11 +411,10 @@ const NewMeeting: React.FC = () => {
 						))}
 					</div>
 					<Button
-					  onClick={handleStartChat}
-					  disabled={selectedQuestions.length === 0 || isLoading}
-					  className="text-white bg-blue-500 hover:bg-blue-600"
-					>
-					  {isLoading ? "Starting Meeting..." : "Start Meeting"}
+						onClick={handleStartChat}
+						disabled={selectedQuestions.length === 0 || isLoading}
+						className="text-white bg-blue-500 hover:bg-blue-600">
+						{isLoading ? "Starting Meeting..." : "Start Meeting"}
 					</Button>
 				</div>
 			)}
@@ -452,11 +444,10 @@ const NewMeeting: React.FC = () => {
 					</Card>
 					<div className="mt-4">
 						<Button
-						  onClick={handleStartChat}
-						  disabled={isLoading}
-						  className="text-white bg-blue-500 hover:bg-blue-600"
-						>
-						  Start Meeting
+							onClick={handleStartChat}
+							disabled={isLoading}
+							className="text-white bg-blue-500 hover:bg-blue-600">
+							Start Meeting
 						</Button>
 					</div>
 				</div>

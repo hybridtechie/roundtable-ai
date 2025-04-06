@@ -34,7 +34,7 @@ const Groups: React.FC = () => {
 			await createGroup({
 				name: groupName,
 				description: groupDescription,
-				participant_ids: selectedParticipantIds
+				participant_ids: selectedParticipantIds,
 			})
 			const res = await listGroups()
 			setGroups(res.data.groups)
@@ -44,7 +44,7 @@ const Groups: React.FC = () => {
 			setSearchTerm("")
 			setIsDialogOpen(false)
 			toast.success("Group created successfully!")
-			} catch (error) {
+		} catch (error) {
 			console.error("Error creating group:", error)
 			toast.error("Failed to create group. Please try again.")
 		} finally {
@@ -53,14 +53,14 @@ const Groups: React.FC = () => {
 	}
 
 	// Filter participants based on search term
-	const filteredParticipants = participants.filter(participant =>
-		participant.name.toLowerCase().includes(searchTerm.toLowerCase())
+	const filteredParticipants = participants.filter((participant) =>
+		participant.name.toLowerCase().includes(searchTerm.toLowerCase()),
 	)
 
 	return (
 		<div className="p-6">
-		<h1 className="mb-4 text-3xl font-bold">Groups</h1>
-		
+			<h1 className="mb-4 text-3xl font-bold">Groups</h1>
+
 			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 				<DialogTrigger asChild>
 					<Button onClick={() => setIsDialogOpen(true)}>Create New Group</Button>
@@ -71,7 +71,9 @@ const Groups: React.FC = () => {
 					</DialogHeader>
 					<div className="flex flex-col gap-4">
 						<div className="mb-4">
-							<label htmlFor="groupName" className="block mb-2 text-sm font-medium">Group Name</label>
+							<label htmlFor="groupName" className="block mb-2 text-sm font-medium">
+								Group Name
+							</label>
 							<input
 								type="text"
 								id="groupName"
@@ -82,7 +84,9 @@ const Groups: React.FC = () => {
 							/>
 						</div>
 						<div className="mb-4">
-							<label htmlFor="groupDescription" className="block mb-2 text-sm font-medium">Description</label>
+							<label htmlFor="groupDescription" className="block mb-2 text-sm font-medium">
+								Description
+							</label>
 							<textarea
 								id="groupDescription"
 								value={groupDescription}
@@ -93,7 +97,9 @@ const Groups: React.FC = () => {
 							/>
 						</div>
 						<div className="mb-4">
-							<label htmlFor="participantSearch" className="block mb-2 text-sm font-medium">Search Participants</label>
+							<label htmlFor="participantSearch" className="block mb-2 text-sm font-medium">
+								Search Participants
+							</label>
 							<input
 								type="text"
 								id="participantSearch"
@@ -125,8 +131,7 @@ const Groups: React.FC = () => {
 					<DialogFooter>
 						<Button
 							onClick={handleCreateGroup}
-							disabled={selectedParticipantIds.length === 0 || !groupName.trim() || isLoading}
-						>
+							disabled={selectedParticipantIds.length === 0 || !groupName.trim() || isLoading}>
 							{isLoading ? (
 								<>
 									<LoadingSpinner className="mr-2" size={16} />
@@ -142,39 +147,37 @@ const Groups: React.FC = () => {
 			<div className="grid gap-4 mt-4">
 				{groups.map((group) => (
 					<Collapsible key={group.id} className="w-full">
-					  <Card>
-					    <CardHeader className="flex flex-row items-center justify-between">
-					      <div>
-					        <CardTitle>{group.name || group.id}</CardTitle>
-					        {group.description && (
-					          <p className="mt-1 text-sm text-gray-500">{group.description}</p>
-					        )}
-					      </div>
-					      <CollapsibleTrigger asChild>
-					        <Button variant="ghost" size="sm" className="p-0 w-9">
-					          <ChevronsUpDown className="w-4 h-4" />
-					          <span className="sr-only">Toggle</span>
-					        </Button>
-					      </CollapsibleTrigger>
-					    </CardHeader>
-					    <CollapsibleContent>
-					      <CardContent>
-					        <div className="space-y-2">
-					          <div>
-					            <p className="mb-2 font-medium">Participants:</p>
-					            <ul className="pl-6 space-y-1 list-disc">
-					              {group.participants.map((participant) => (
-					                <li key={participant.id}>
-					                  <span className="font-medium">{participant.name}</span>
-					                  <span className="text-gray-600"> - {participant.role}</span>
-					                </li>
-					              ))}
-					            </ul>
-					          </div>
-					        </div>
-					      </CardContent>
-					    </CollapsibleContent>
-					  </Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between">
+								<div>
+									<CardTitle>{group.name || group.id}</CardTitle>
+									{group.description && <p className="mt-1 text-sm text-gray-500">{group.description}</p>}
+								</div>
+								<CollapsibleTrigger asChild>
+									<Button variant="ghost" size="sm" className="p-0 w-9">
+										<ChevronsUpDown className="w-4 h-4" />
+										<span className="sr-only">Toggle</span>
+									</Button>
+								</CollapsibleTrigger>
+							</CardHeader>
+							<CollapsibleContent>
+								<CardContent>
+									<div className="space-y-2">
+										<div>
+											<p className="mb-2 font-medium">Participants:</p>
+											<ul className="pl-6 space-y-1 list-disc">
+												{group.participants.map((participant) => (
+													<li key={participant.id}>
+														<span className="font-medium">{participant.name}</span>
+														<span className="text-gray-600"> - {participant.role}</span>
+													</li>
+												))}
+											</ul>
+										</div>
+									</div>
+								</CardContent>
+							</CollapsibleContent>
+						</Card>
 					</Collapsible>
 				))}
 			</div>
