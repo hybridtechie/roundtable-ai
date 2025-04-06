@@ -11,10 +11,27 @@ import {
   ChatErrorResponse,
   NextParticipantResponse,
   ChatSession,
+  UserInfo,
+  UserDetailInfo,
 } from "@/types/types"
 
+// Determine the base URL based on environment
+const getBaseUrl = () => {
+  // If VITE_API_URL is set, use it (highest priority)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // Check if we're in development or production
+  const isDevelopment = import.meta.env.MODE === 'development'
+  
+  return isDevelopment
+    ? "http://localhost:8000" // Local development
+    : "https://wa-roundtableai-azd3a2hxenb9a4gr.australiaeast-01.azurewebsites.net" // Production
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000", // Fallback to default if env not set
+  baseURL: getBaseUrl(),
 })
 
 const USER_ID = "roundtable_ai_admin"
@@ -130,6 +147,11 @@ export const updateLLMAccount = (provider: string, data: LLMAccountUpdate) => ap
 export const deleteLLMAccount = (provider: string) => api.delete(`/llm-account/${provider}?user_id=${USER_ID}`)
 
 export const setDefaultProvider = (provider: string) => api.put(`/llm-account/${provider}/set-default?user_id=${USER_ID}`)
+
+// User Information
+export const getUserInfo = () => api.get<UserInfo>(`/user/me?user_id=${USER_ID}`)
+
+export const getUserDetailInfo = () => api.get<UserDetailInfo>(`/user/me/detail?user_id=${USER_ID}`)
 
 export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() => void) => {
   const eventSource = new EventSource(`${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`)

@@ -5,6 +5,7 @@ from features.meeting import create_meeting, get_meeting, list_meetings, set_mee
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import stream_meeting_discussion, MeetingDiscussion, ChatSessionCreate, get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
 from features.llm import create_llm_account, update_llm_account, delete_llm_account, get_llm_accounts, set_default_provider, LLMAccountCreate, LLMAccountUpdate
+from features.user import get_me, get_me_detail
 from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
@@ -376,6 +377,34 @@ async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
     except Exception as e:
         logger.error("Failed to generate questions: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
+
+
+# User Endpoints
+
+# Get Basic User Information
+@app.get("/user/me")
+async def get_user_info_endpoint(user_id: str):
+    try:
+        logger.info("Fetching basic user information for user: %s", user_id)
+        result = await get_me(user_id)
+        logger.info("Successfully retrieved basic user information")
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch user information: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch user information: {str(e)}")
+
+
+# Get Detailed User Information with Counts
+@app.get("/user/me/detail")
+async def get_user_detail_endpoint(user_id: str):
+    try:
+        logger.info("Fetching detailed user information for user: %s", user_id)
+        result = await get_me_detail(user_id)
+        logger.info("Successfully retrieved detailed user information")
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch detailed user information: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch detailed user information: {str(e)}")
 
 
 # Run the app

@@ -97,3 +97,17 @@ export interface ChatMessage {
   name?: string
   step?: string
 }
+
+export interface UserInfo {
+  user_id: string;
+  display_name: string;
+  email: string;
+}
+
+export interface UserDetailInfo extends UserInfo {
+  llm_providers_count: number;
+  participants_count: number;
+  meetings_count: number;
+  groups_count: number;
+  chat_sessions_count: number;
+}
