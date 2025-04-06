@@ -250,9 +250,10 @@ class MeetingDiscussion:
 
             # Create system prompt from participant details
             system_prompt = (
-                f"You are {participant_info['name']}, {participant_info['persona_description']}. "
+                f"You are {participant_info['persona_description']}. "
                 f"Your role is {participant_info['role']}. "
-                f"Context for your responses: {participant['context']}"
+                f"Respond to this question in a brief, conversational way, as you would in a meeting. "
+                f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
             )
 
             # If this is a new chat session, add the system prompt as first message
@@ -310,7 +311,7 @@ class MeetingDiscussion:
                 "role": participant_info['role'],
                 "content": chat_request.user_message,
                 "type": "participant",
-                "name": "You",
+                "name": participant_info['name'],
                 "step": "",
                 "timestamp": last_display_message["timestamp"]
             }

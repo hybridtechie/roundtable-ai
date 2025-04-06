@@ -89,6 +89,16 @@ const Chat: React.FC = () => {
 
     setIsSending(true)
     try {
+      const user_message: DisplayMessage[] = [
+        {
+          type: "user",
+          name: "You",
+          content: inputValue,
+          timestamp: new Date(),
+        },
+      ]
+      setMessages((prev) => [...prev, ...user_message])
+
       const response = await sendChatMessage(meetingId, inputValue, currentSessionId)
 
       // If this is first message in a new chat, store the session ID
@@ -97,13 +107,7 @@ const Chat: React.FC = () => {
       }
 
       // Add the user's message and the response to the messages
-      const newMessages: DisplayMessage[] = [
-        {
-          type: "user",
-          name: "You",
-          content: inputValue,
-          timestamp: new Date(),
-        },
+      const response_message: DisplayMessage[] = [
         {
           type: response.data.type,
           name: response.data.name,
@@ -112,7 +116,8 @@ const Chat: React.FC = () => {
         },
       ]
 
-      setMessages((prev) => [...prev, ...newMessages])
+      setMessages((prev) => [...prev, ...response_message])
+
       setInputValue("")
     } catch (error) {
       console.error("Error sending message:", error)

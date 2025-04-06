@@ -1,34 +1,11 @@
-import React, { useEffect, useState } from "react"
+import React from "react"
 import { NavLink } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { listChatSessions } from "@/lib/api"
-import { ChatSession } from "@/types/types"
+import { useChatSessions } from "@/context/ChatSessionsContext"
 
 const ChatSessions: React.FC = () => {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchChatSessions = async () => {
-      try {
-        const response = await listChatSessions()
-        // Take only the last 10 sessions, sorted by most recent
-        const sortedSessions = response.data.chat_sessions
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 10)
-        setChatSessions(sortedSessions)
-      } catch (err) {
-        setError("Failed to load chat sessions")
-        console.error("Error fetching chat sessions:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchChatSessions()
-  }, [])
+  const { chatSessions, loading, error } = useChatSessions()
 
   if (loading) {
     return (
