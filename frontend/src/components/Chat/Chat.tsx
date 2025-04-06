@@ -7,7 +7,7 @@ import { getChatSession } from "@/lib/api";
 import { ChatMessage as ChatMessageType } from "@/types/types";
 
 interface DisplayMessage {
-  type: "participant" | "final";
+  type?: string;
   name?: string;
   role?: string;
   content: string;
@@ -19,6 +19,7 @@ interface ChatSessionDetails {
   meeting_id: string;
   user_id: string;
   messages: ChatMessageType[];
+  display_messages: ChatMessageType[];
   participant_id: string;
   meeting_name?: string;
   meeting_topic?: string;
@@ -47,13 +48,11 @@ const Chat: React.FC = () => {
         }
         
         // Format messages for display
-        const formattedMessages = sessionData.messages.map((msg): DisplayMessage => {
-          const isUser = msg.role === "user";
-          const isAssistant = msg.role === "assistant";
+        const formattedMessages = sessionData.display_messages.map((msg): DisplayMessage => {
           
           return {
-            type: isAssistant ? "participant" : "final",
-            name: isAssistant ? sessionData.participant_id : (isUser ? "User" : "System"),
+            type: msg.type,
+            name: msg.name,
             role: msg.role,
             content: msg.content,
             timestamp: new Date()

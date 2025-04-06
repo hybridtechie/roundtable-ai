@@ -222,6 +222,7 @@ class MeetingDiscussion:
                     "meeting_id": chat_request.meeting_id,
                     "user_id": self.user_id,  # Added user_id for partition key
                     "messages": [],
+                    "display_messages": [],
                     "participant_id": next(iter(self.participants.keys()))  # Get the only participant's ID
                 }
                 chat_container.upsert_item(body=chat_session)
@@ -265,6 +266,14 @@ class MeetingDiscussion:
                 "role": "user",
                 "content": chat_request.user_message
             })
+            # Add user message to display_messages
+            chat_session["display_messages"].append({
+                "role": "user",
+                "content": chat_request.user_message,
+                "type": "user",
+                "name": "You",
+                "step": ""
+            })
 
             # Get LLM client
             llm_client = await get_llm_client(self.user_id)
@@ -277,6 +286,14 @@ class MeetingDiscussion:
             chat_session["messages"].append({
                 "role": "assistant",
                 "content": response
+            })
+            # Add assistant's response to display_messages
+            chat_session["display_messages"].append({
+                "role": participant_info['role'],
+                "content": response,
+                "type": "participant",
+                "name": participant_info['name'],
+                "step": ""
             })
 
             # Save updated chat session

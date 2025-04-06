@@ -75,6 +75,7 @@ export interface ChatSession {
     user_id: string
     participant_id: string
     messages: ChatMessage[]
+    display_messages: ChatMessage[]
     meeting_id?: string
     meeting_name?: string
     meeting_topic?: string
@@ -83,4 +84,7 @@ export interface ChatSession {
 export interface ChatMessage {
     role: string
     content: string
+    type?: string
+    name?: string
+    step?: string
 }
