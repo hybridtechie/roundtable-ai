@@ -4,15 +4,14 @@ import { Meeting } from "@/types/types"
 import { DataTable } from "@/components/ui/data-table"
 import { columns } from "./columns"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { toast } from "@/components/ui/sonner"
 
 const Meetings: React.FC = () => {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsLoading(true)
-    setError(null)
     listMeetings()
       .then((res) => {
         setMeetings(res.data.meetings)
@@ -20,7 +19,7 @@ const Meetings: React.FC = () => {
       })
       .catch((error: Error) => {
         console.error("Failed to fetch Meetings:", error)
-        setError("Failed to fetch meetings. Please try again later.")
+        toast.error("Failed to fetch meetings. Please try again later.")
         setIsLoading(false)
       })
   }, [])
@@ -33,8 +32,6 @@ const Meetings: React.FC = () => {
 	          <div className="flex items-center justify-center h-32">
 	            <LoadingSpinner size={32} />
 	          </div>
-	        ) : error ? (
-	          <div className="text-center text-red-500">{error}</div>
 	        ) : (
 	          <DataTable columns={columns} data={meetings} />
 	        )}

@@ -21,10 +21,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useState } from "react"
+import { toast } from "@/components/ui/sonner"
 
 import { LLMAccountCreate, LLMAccountsResponse, createLLMAccount, deleteLLMAccount, listLLMAccounts, setDefaultProvider } from "@/lib/api"
 import { useEffect } from "react"
-import { CheckCircle, XCircle, Star, StarOff, Trash2 } from "lucide-react"
+import { Star, StarOff, Trash2 } from "lucide-react"
 
 export function AISettings() {
   const [accounts, setAccounts] = useState<LLMAccountsResponse>({
@@ -41,29 +42,10 @@ export function AISettings() {
     endpoint: "",
     api_version: ""
   })
-  
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
-    show: false,
-    message: "",
-    type: 'success'
-  })
 
   useEffect(() => {
     loadAccounts()
   }, [])
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({
-      show: true,
-      message,
-      type
-    })
-    
-    // Auto-hide toast after 3 seconds
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }))
-    }, 3000)
-  }
 
   const loadAccounts = async () => {
     setIsLoading(true)
@@ -77,7 +59,7 @@ export function AISettings() {
       }
     } catch (error) {
       console.error("Failed to load LLM accounts:", error)
-      showToast("Failed to load LLM accounts", "error")
+      toast.error("Failed to load LLM accounts")
     }
     setIsLoading(false)
   }
@@ -94,9 +76,9 @@ export function AISettings() {
         endpoint: "",
         api_version: ""
       })
-      showToast("Provider added successfully", "success")
+      toast.success("Provider added successfully")
     } catch {
-      showToast("Failed to add provider", "error")
+      toast.error("Failed to add provider")
     }
   }
 
@@ -104,9 +86,9 @@ export function AISettings() {
     try {
       await setDefaultProvider(provider)
       await loadAccounts()
-      showToast("Default provider updated", "success")
+      toast.success("Default provider updated")
     } catch {
-      showToast("Failed to set default provider", "error")
+      toast.error("Failed to set default provider")
     }
   }
 
@@ -114,9 +96,9 @@ export function AISettings() {
     try {
       await deleteLLMAccount(provider)
       await loadAccounts()
-      showToast("Provider deleted successfully", "success")
+      toast.success("Provider deleted successfully")
     } catch {
-      showToast("Failed to delete provider", "error")
+      toast.error("Failed to delete provider")
     }
   }
 
@@ -125,20 +107,6 @@ export function AISettings() {
       <DialogHeader>
         <DialogTitle>AI Provider Settings</DialogTitle>
       </DialogHeader>
-      
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className={`fixed top-4 right-4 p-4 rounded-md shadow-md flex items-center gap-2 z-50 ${
-          toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {toast.type === 'success' ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <XCircle className="w-5 h-5" />
-          )}
-          <p>{toast.message}</p>
-        </div>
-      )}
 
       <div className="grid gap-4">
         <div className="space-y-4">

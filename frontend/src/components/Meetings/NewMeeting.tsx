@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { streamChat, listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
+import { toast } from "@/components/ui/sonner"
 import {
 	Group,
 	Participant,
@@ -89,11 +90,12 @@ const NewMeeting: React.FC = () => {
 	      name: p.name,
 	      role: p.role,
 	      weight: 5, // Default weight
-	      persona_description: p.persona_description || "Participant",
+	      persona_description: p.role_overview || "Participant",
 	    }))
 	    setParticipants(groupParticipants)
 	  } catch (error) {
 	    console.error("Error fetching group participants:", error)
+	    toast.error("Failed to fetch group participants")
 	  }
 	}
 	const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
@@ -147,12 +149,13 @@ const NewMeeting: React.FC = () => {
 	          name: p.name,
 	          role: p.role,
 	          weight: 5,
-	          persona_description: p.persona_description || "Participant",
+	          persona_description: p.role_overview || "Participant",
 	        }))
 	        setParticipants(groupParticipants)
 	      }
 	    } catch (error) {
 	      console.error("Error fetching groups:", error)
+	      toast.error("Failed to fetch groups")
 	    }
 	  }
 	  fetchGroupsAndSetDefault()
@@ -174,6 +177,7 @@ const NewMeeting: React.FC = () => {
 	    setStep("participants")
 	  } catch (error) {
 	    console.error("Error fetching questions:", error)
+	    toast.error("Failed to fetch questions")
 	  }
 	}
 
@@ -288,14 +292,16 @@ const NewMeeting: React.FC = () => {
 							}
 							break
 						case ChatEventType.Error:
-							if ("detail" in data) {
-								console.error("Chat error:", data.detail)
-								setIsLoading(false)
-							}
+						if ("detail" in data) {
+						  console.error("Chat error:", data.detail)
+						  toast.error(data.detail)
+						  setIsLoading(false)
+						}
 							break
 						case ChatEventType.Complete:
-							setIsLoading(false)
-							break
+						setIsLoading(false)
+						toast.success("Meeting completed successfully")
+						break
 					}
 				},
 			})
@@ -303,8 +309,9 @@ const NewMeeting: React.FC = () => {
 			// Automatically move to the chat view
 			setStep("chat")
 		} catch (error) {
-			console.error("Error starting chat:", error)
-			setIsLoading(false)
+		console.error("Error starting chat:", error)
+		toast.error("Failed to start meeting")
+		setIsLoading(false)
 		}
 	}
 

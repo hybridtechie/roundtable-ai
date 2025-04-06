@@ -10,6 +10,7 @@ import { listParticipants, updateParticipant } from "@/lib/api"
 import { Participant } from "@/types/types"
 import { useNavigate } from "react-router-dom"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { toast } from "@/components/ui/sonner"
 
 const Participants: React.FC = () => {
   const navigate = useNavigate()
@@ -19,22 +20,6 @@ const Participants: React.FC = () => {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
-    show: false,
-    message: "",
-    type: 'success'
-  })
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({
-      show: true,
-      message,
-      type
-    })
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }))
-    }, 3000)
-  }
 
   useEffect(() => {
     listParticipants()
@@ -46,7 +31,7 @@ const Participants: React.FC = () => {
 
   const handleDelete = (participant: Participant) => {
     console.log(`Delete requested for participant: ${participant.name} (${participant.id})`)
-    showToast(`Delete functionality not implemented yet for ${participant.name}`, 'error')
+    toast.error(`Delete functionality not implemented yet for ${participant.name}`)
   }
 
   const handleEdit = (participant: Participant) => {
@@ -57,11 +42,6 @@ const Participants: React.FC = () => {
 
 	  return (
 	    <div className="p-6">
-	      {toast.show && (
-	        <div className="fixed z-50 p-4 text-white bg-gray-800 rounded-md shadow-md top-4 right-4">
-	          {toast.message}
-	        </div>
-	      )}
 	      
 	      <div className="flex items-center justify-between mb-4">
 	        <h1 className="text-3xl font-bold">Participants</h1>
@@ -278,14 +258,14 @@ const Participants: React.FC = () => {
 	                      user_id: "roundtable_ai_admin"
 	                    }
 	                    await updateParticipant(selectedParticipant.id, updatedData)
-	                    showToast('Participant updated successfully', 'success')
+	                    toast.success('Participant updated successfully')
 	                    setIsEditDialogOpen(false)
 	                    // Refresh the participants list
 	                    const res = await listParticipants()
 	                    setParticipants(res.data.participants)
 	                  } catch (error) {
 	                    console.error('Error updating participant:', error)
-	                    showToast('Failed to update participant', 'error')
+	                    toast.error('Failed to update participant')
 	                  } finally {
 	                    setIsLoading(false)
 	                  }

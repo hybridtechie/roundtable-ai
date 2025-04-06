@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { ChevronsUpDown, CheckCircle, XCircle } from "lucide-react"
+import { ChevronsUpDown } from "lucide-react"
 import { listParticipants, listGroups, createGroup } from "@/lib/api"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Participant, Group } from "@/types/types"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { toast } from "@/components/ui/sonner"
 
 const Groups: React.FC = () => {
 	const [groups, setGroups] = useState<Group[]>([])
@@ -17,11 +18,6 @@ const Groups: React.FC = () => {
 	const [searchTerm, setSearchTerm] = useState("")
 	const [isLoading, setIsLoading] = useState(false)
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
-	const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
-		show: false,
-		message: "",
-		type: 'success'
-	})
 
 	useEffect(() => {
 		listGroups()
@@ -47,26 +43,10 @@ const Groups: React.FC = () => {
 			setGroupDescription("")
 			setSearchTerm("")
 			setIsDialogOpen(false)
-			setToast({
-				show: true,
-				message: "Group created successfully!",
-				type: 'success'
-			})
-			// Auto-hide toast after 3 seconds
-			setTimeout(() => {
-				setToast(prev => ({ ...prev, show: false }))
-			}, 3000)
-		} catch (error) {
+			toast.success("Group created successfully!")
+			} catch (error) {
 			console.error("Error creating group:", error)
-			setToast({
-				show: true,
-				message: "Failed to create group. Please try again.",
-				type: 'error'
-			})
-			// Auto-hide toast after 3 seconds
-			setTimeout(() => {
-				setToast(prev => ({ ...prev, show: false }))
-			}, 3000)
+			toast.error("Failed to create group. Please try again.")
 		} finally {
 			setIsLoading(false)
 		}
@@ -79,22 +59,8 @@ const Groups: React.FC = () => {
 
 	return (
 		<div className="p-6">
-			<h1 className="mb-4 text-3xl font-bold">Groups</h1>
-			
-			{/* Toast Notification */}
-			{toast.show && (
-				<div className={`fixed top-4 right-4 p-4 rounded-md shadow-md flex items-center gap-2 z-50 ${
-					toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-				}`}>
-					{toast.type === 'success' ? (
-						<CheckCircle className="w-5 h-5" />
-					) : (
-						<XCircle className="w-5 h-5" />
-					)}
-					<p>{toast.message}</p>
-				</div>
-			)}
-			
+		<h1 className="mb-4 text-3xl font-bold">Groups</h1>
+		
 			<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
 				<DialogTrigger asChild>
 					<Button onClick={() => setIsDialogOpen(true)}>Create New Group</Button>

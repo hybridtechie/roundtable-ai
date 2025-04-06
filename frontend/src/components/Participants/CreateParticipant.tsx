@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { createParticipant } from "@/lib/api"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { CheckCircle, XCircle } from "lucide-react"
+import { toast } from "@/components/ui/sonner"
 
 const CreateParticipant: React.FC = () => {
   const initialState = {
@@ -23,35 +23,16 @@ const CreateParticipant: React.FC = () => {
 
   const [newParticipant, setNewParticipant] = useState(initialState)
   const [isLoading, setIsLoading] = useState(false)
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
-    show: false,
-    message: "",
-    type: 'success'
-  })
 
   const handleCreateParticipant = async () => {
     setIsLoading(true)
     try {
       await createParticipant(newParticipant)
       setNewParticipant(initialState)
-      setToast({
-        show: true,
-        message: "Participant created successfully!",
-        type: 'success'
-      })
-      setTimeout(() => {
-        setToast(prev => ({ ...prev, show: false }))
-      }, 3000)
+      toast.success("Participant created successfully!")
     } catch (error) {
       console.error("Error creating participant:", error)
-      setToast({
-        show: true,
-        message: "Failed to create participant. Please try again.",
-        type: 'error'
-      })
-      setTimeout(() => {
-        setToast(prev => ({ ...prev, show: false }))
-      }, 3000)
+      toast.error("Failed to create participant. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -59,19 +40,6 @@ const CreateParticipant: React.FC = () => {
 
   return (
     <div className="p-6">
-      {toast.show && (
-        <div className={`fixed top-4 right-4 p-4 rounded-md shadow-md flex items-center gap-2 z-50 ${
-          toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {toast.type === 'success' ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <XCircle className="w-5 h-5" />
-          )}
-          <p>{toast.message}</p>
-        </div>
-      )}
-      
       <h1 className="mb-4 text-3xl font-bold">Create Participant</h1>
       <Card>
         <CardHeader>
