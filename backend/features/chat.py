@@ -10,6 +10,7 @@ from logger_config import setup_logger
 from features.meeting import MeetingCreate, Meeting, get_meeting
 from cosmos_db import cosmos_client
 import uuid
+from datetime import datetime, timezone
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -260,6 +261,14 @@ class MeetingDiscussion:
                     "role": "system",
                     "content": system_prompt
                 })
+                chat_session["display_messages"].append({
+                    "role": "system",
+                    "content": system_prompt,
+                    "type": "participant",
+                    "name": participant_info['name'],
+                    "step": "",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
 
             # Add user message to history
             chat_session["messages"].append({
@@ -272,7 +281,8 @@ class MeetingDiscussion:
                 "content": chat_request.user_message,
                 "type": "user",
                 "name": "You",
-                "step": ""
+                "step": "",
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
 
             # Get LLM client
@@ -293,7 +303,8 @@ class MeetingDiscussion:
                 "content": response,
                 "type": "participant",
                 "name": participant_info['name'],
-                "step": ""
+                "step": "",
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
 
             # Save updated chat session
