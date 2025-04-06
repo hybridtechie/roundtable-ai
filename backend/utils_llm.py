@@ -247,31 +247,72 @@ class OpenAIClient(LLMBase):
 
 # Unified LLM Client
 class LLMClient:
-    def __init__(self, provider="azure", **kwargs):
+    def __init__(self, provider_details):
+        """
+        Initialize LLM client with provider-specific details.
+        
+        Args:
+            provider_details (dict): Dictionary containing provider configuration
+                Required fields for Azure:
+                    - provider: "AzureOpenAI"
+                    - deployment_name: Deployment name for the model
+                    - model: Model name
+                    - endpoint: Azure endpoint URL
+                    - api_version: API version
+                    - api_key: API key
+                Required fields for OpenAI:
+                    - provider: "OpenAI"
+                    - model: Model name
+                    - api_key: API key
+        """
         load_dotenv()
-        self.provider = provider
-        logger.info("Initializing LLM client with provider: %s", provider)
+        
+        if not isinstance(provider_details, dict):
+            error_msg = "Provider details must be a dictionary"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        self.provider = provider_details.get("provider")
+        if not self.provider:
+            error_msg = "Provider field is required in provider_details"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info("Initializing LLM client with provider: %s", self.provider)
 
         try:
-            # Initialize the appropriate LLM client
-            if provider == "azure":
+            if self.provider.lower() == "azureopenai":
+                required_fields = ["deployment_name", "model", "endpoint", "api_version", "api_key"]
+                self._validate_required_fields(provider_details, required_fields)
+                
                 self.client = AzureOpenAIClient(
-                    api_key=kwargs.get("api_key") or os.getenv("AZURE_OPENAI_API_KEY"),
-                    azure_endpoint=kwargs.get("azure_endpoint") or os.getenv("AZURE_ENDPOINT"),
-                    model=kwargs.get("model", "gpt-4o"),
+                    api_key=provider_details["api_key"],
+                    azure_endpoint=provider_details["endpoint"],
+                    model=provider_details["model"],
                 )
-            elif provider == "openai":
+            elif self.provider.lower() == "openai":
+                required_fields = ["model", "api_key"]
+                self._validate_required_fields(provider_details, required_fields)
+                
                 self.client = OpenAIClient(
-                    api_key=kwargs.get("api_key") or os.getenv("OPENAI_API_KEY"),
-                    model=kwargs.get("model", "gpt-4o"),
+                    api_key=provider_details["api_key"],
+                    model=provider_details["model"],
                 )
             else:
-                error_msg = f"Unsupported provider: {provider}"
+                error_msg = f"Unsupported provider: {self.provider}"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
         except Exception as e:
             logger.error("Failed to initialize LLM client: %s", str(e), exc_info=True)
             raise
+    
+    def _validate_required_fields(self, provider_details, required_fields):
+        """Validate that all required fields are present in provider_details."""
+        missing_fields = [field for field in required_fields if field not in provider_details]
+        if missing_fields:
+            error_msg = f"Missing required fields for {self.provider}: {', '.join(missing_fields)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
     def send_request(self, prompt_or_messages, **kwargs):
         return self.client.send_request(prompt_or_messages, **kwargs)
@@ -283,9 +324,20 @@ class LLMClient:
 if __name__ == "__main__":
     try:
         load_dotenv()
-        provider = os.getenv("LLM_PROVIDER", "azure")
-        client = LLMClient(provider=provider)
-        logger.info("Testing LLM client with provider: %s", provider)
+
+        # Example Azure OpenAI provider details
+        azure_provider_details = {
+            "provider": "AzureOpenAI",
+            "deployment_name": "gpt-4",
+            "model": "gpt-4",
+            "endpoint": os.getenv("AZURE_ENDPOINT"),
+            "api_version": "2024-10-21",
+            "api_key": os.getenv("AZURE_OPENAI_API_KEY")
+        }
+
+        # Initialize client with Azure OpenAI provider
+        client = LLMClient(azure_provider_details)
+        logger.info("Testing LLM client with provider: %s", azure_provider_details["provider"])
 
         # Test single message
         prompt = "What is the capital of France?"
@@ -302,6 +354,13 @@ if __name__ == "__main__":
         ]
         response = client.send_request(prompt)
         logger.info("Chat message test successful")
+
+        # Example OpenAI provider details (commented out for reference)
+        # openai_provider_details = {
+        #     "provider": "OpenAI",
+        #     "model": "gpt-4",
+        #     "api_key": os.getenv("OPENAI_API_KEY")
+        # }
 
     except Exception as e:
         logger.error("Test failed: %s", str(e), exc_info=True)

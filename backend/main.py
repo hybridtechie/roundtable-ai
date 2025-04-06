@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
-from features.chat import stream_meeting_discussion
+from features.chat import stream_meeting_discussion, MeetingDiscussion, ChatSessionCreate, get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
+from features.llm import create_llm_account, update_llm_account, delete_llm_account, get_llm_accounts, set_default_provider, LLMAccountCreate, LLMAccountUpdate
 from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
@@ -195,6 +196,19 @@ async def list_meetings_endpoint(user_id: str):
         logger.error("Failed to fetch meetings: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
+
+# Get Meeting
+@app.get("/meeting/{meeting_id}")
+async def get_meeting_endpoint(meeting_id: str, user_id: str):
+    try:
+        logger.info("Fetching meeting: %s for user: %s", meeting_id, user_id)
+        result = await get_meeting(meeting_id, user_id)
+        logger.info("Successfully retrieved meeting: %s", meeting_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch meeting %s: %s", meeting_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch meeting: {str(e)}")
+
 # 13 Start Meeting
 @app.get("/chat-stream")
 async def chat_stream_endpoint(meeting_id: str, user_id: str):
@@ -207,6 +221,129 @@ async def chat_stream_endpoint(meeting_id: str, user_id: str):
     except Exception as e:
         logger.error("Failed to stream chat for meeting %s: %s", meeting_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
+# Chat Session endpoint
+@app.post("/chat-session")
+async def chat_session_endpoint(chat_request: ChatSessionCreate, user_id: str):
+    try:
+        logger.info("Processing chat request for Meeting: %s, User: %s", chat_request.meeting_id, user_id)
+        
+        # Get meeting details
+        meeting = await get_meeting(chat_request.meeting_id, user_id)
+        if not meeting:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+            
+        # Initialize MeetingDiscussion
+        discussion = MeetingDiscussion(meeting)
+        
+        # Handle the chat request
+        result = await discussion.handle_chat_request(chat_request)
+        
+        logger.info("Successfully processed chat request")
+        return result
+    except Exception as e:
+        logger.error("Failed to process chat request: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process chat request: {str(e)}")
+    
+    
+# Chat Sessions endpoint
+@app.get("/chat-sessions")
+async def list_chat_sessions_endpoint(user_id: str):
+    try:
+        logger.info("Fetching chat sessions for user: %s", user_id)
+        result = await get_user_chat_sessions(user_id)
+        logger.info("Successfully retrieved chat sessions for user: %s", user_id)
+        return {"chat_sessions": result}
+    except Exception as e:
+        logger.error("Failed to fetch chat sessions: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch chat sessions: {str(e)}")
+
+# Get Chat Session by ID endpoint
+@app.get("/chat-session/{session_id}")
+async def get_chat_session_endpoint(session_id: str, user_id: str):
+    try:
+        logger.info("Fetching chat session: %s for user: %s", session_id, user_id)
+        result = await get_chat_session_by_id(session_id, user_id)
+        logger.info("Successfully retrieved chat session: %s", session_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch chat session %s: %s", session_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch chat session: {str(e)}")
+
+# Delete Chat Session endpoint
+@app.delete("/chat-session/{session_id}")
+async def delete_chat_session_endpoint(session_id: str, user_id: str):
+    try:
+        logger.info("Deleting chat session: %s for user: %s", session_id, user_id)
+        result = await delete_chat_session(session_id, user_id)
+        logger.info("Successfully deleted chat session: %s", session_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to delete chat session %s: %s", session_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete chat session: {str(e)}")
+
+# LLM Account Management Endpoints
+
+# Create LLM Account
+@app.post("/llm-account")
+async def create_llm_account_endpoint(llm: LLMAccountCreate):
+    try:
+        logger.info("Creating LLM account for provider: %s", llm.provider)
+        result = await create_llm_account(llm)
+        logger.info("Successfully created LLM account")
+        return result
+    except Exception as e:
+        logger.error("Failed to create LLM account: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create LLM account: {str(e)}")
+
+# List LLM Accounts
+@app.get("/llm-accounts")
+async def list_llm_accounts_endpoint(user_id: str):
+    try:
+        logger.info("Fetching LLM accounts for user: %s", user_id)
+        result = await get_llm_accounts(user_id)
+        logger.info("Successfully retrieved LLM accounts")
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch LLM accounts: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch LLM accounts: {str(e)}")
+
+# Update LLM Account
+@app.put("/llm-account/{provider}")
+async def update_llm_account_endpoint(provider: str, llm: LLMAccountUpdate):
+    try:
+        logger.info("Updating LLM account for provider: %s", provider)
+        result = await update_llm_account(provider, llm)
+        logger.info("Successfully updated LLM account")
+        return result
+    except Exception as e:
+        logger.error("Failed to update LLM account: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update LLM account: {str(e)}")
+
+# Delete LLM Account
+@app.delete("/llm-account/{provider}")
+async def delete_llm_account_endpoint(provider: str, user_id: str):
+    try:
+        logger.info("Deleting LLM account for provider: %s", provider)
+        result = await delete_llm_account(provider, user_id)
+        logger.info("Successfully deleted LLM account")
+        return result
+    except Exception as e:
+        logger.error("Failed to delete LLM account: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete LLM account: {str(e)}")
+
+# Set Default Provider
+@app.put("/llm-account/{provider}/set-default")
+async def set_default_provider_endpoint(provider: str, user_id: str):
+    try:
+        logger.info("Setting default provider to: %s", provider)
+        result = await set_default_provider(provider, user_id)
+        logger.info("Successfully set default provider")
+        return result
+    except Exception as e:
+        logger.error("Failed to set default provider: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to set default provider: {str(e)}")
+
+
 
 
 # 14 Generate Questions

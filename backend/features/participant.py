@@ -8,28 +8,54 @@ from cosmos_db import cosmos_client
 # Set up logger
 logger = setup_logger(__name__)
 
+def generate_persona_description(participant: 'ParticipantBase') -> str:
+    """Generate a markdown formatted persona description from participant fields."""
+    persona_parts = [f"You are {participant.name} with role {participant.role}. Your details are below:\n"]
+    
+    field_sections = [
+        ("Professional Background", participant.professional_background),
+        ("Industry Experience", participant.industry_experience),
+        ("Role Overview", participant.role_overview),
+        ("Technical Stack", participant.technical_stack),
+        ("Soft Skills", participant.soft_skills),
+        ("Core Qualities", participant.core_qualities),
+        ("Style Preferences", participant.style_preferences),
+        ("Additional Information", participant.additional_info)
+    ]
+    
+    for section_title, content in field_sections:
+        if content:
+            persona_parts.append(f"\n## {section_title}\n{content}")
+            
+    return "\n".join(persona_parts)
 
-def validate_participant_data(name: str, persona_description: str, context: str) -> None:
+
+def validate_participant_data(data: dict) -> None:
     """Validate Participant data before creation."""
     try:
-        if not name or not name.strip():
-            logger.error("Validation failed: Name is empty or whitespace")
-            raise HTTPException(status_code=400, detail="Name is required")
-        if not persona_description or not persona_description.strip():
-            logger.error("Validation failed: Persona description is empty or whitespace")
-            raise HTTPException(status_code=400, detail="Persona description is required")
-        if not context or not context.strip():
-            logger.error("Validation failed: Context is empty or whitespace")
-            raise HTTPException(status_code=400, detail="Context is required")
-        if len(name) > 100:
-            logger.error("Validation failed: Name length exceeds 100 characters")
-            raise HTTPException(status_code=400, detail="Name must be less than 100 characters")
-        if len(persona_description) > 1000:
-            logger.error("Validation failed: Persona description length exceeds 1000 characters")
-            raise HTTPException(status_code=400, detail="Persona description must be less than 1000 characters")
-        if len(context) > 10000:
-            logger.error("Validation failed: Context length exceeds 10000 characters")
-            raise HTTPException(status_code=400, detail="Context must be less than 10000 characters")
+        required_fields = [
+            ("name", 100),
+            ("role", 100),
+            ("professional_background", 2000),
+            ("industry_experience", 1000),
+            ("role_overview", 1000),
+            ("technical_stack", 1000),
+            ("soft_skills", 1000),
+            ("core_qualities", 1000),
+            ("style_preferences", 1000)
+        ]
+
+        for field, max_length in required_fields:
+            if not data.get(field) or not str(data[field]).strip():
+                logger.error(f"Validation failed: {field} is empty or whitespace")
+                raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} is required")
+            
+            if len(str(data[field])) > max_length:
+                logger.error(f"Validation failed: {field} length exceeds {max_length} characters")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters"
+                )
 
         logger.debug("Participant data validation successful")
     except HTTPException:
@@ -41,18 +67,25 @@ def validate_participant_data(name: str, persona_description: str, context: str)
 
 class ParticipantBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    persona_description: str = Field(..., min_length=1, max_length=1000)
-    role: str = Field(default="Team Member", min_length=1, max_length=50)
-    userId: str = Field(default="SuperAdmin", min_length=1)
+    role: str = Field(..., min_length=1, max_length=100)
+    professional_background: str = Field(..., min_length=1, max_length=2000)
+    industry_experience: str = Field(..., min_length=1, max_length=1000)
+    role_overview: str = Field(..., min_length=1, max_length=1000)
+    technical_stack: Optional[str] = Field(..., min_length=1, max_length=1000)
+    soft_skills: Optional[str] = Field(..., min_length=1, max_length=1000)
+    core_qualities: Optional[str] = Field(..., min_length=1, max_length=1000)
+    style_preferences: Optional[str] = Field(..., min_length=1, max_length=1000)
+    additional_info: Optional[str] = Field(default="", max_length=1000)
+    user_id: str = Field(default="roundtable_ai_admin", min_length=1)
+    persona_description: Optional[str] = Field(default="", max_length=5000)
 
 
 class ParticipantCreate(ParticipantBase):
     id: Optional[str] = None
-    context: str = Field(..., min_length=1, max_length=10000)
 
 
 class ParticipantUpdate(ParticipantBase):
-    context: Optional[str] = Field(None, min_length=1, max_length=10000)
+    pass
 
 
 async def create_participant(participant: ParticipantCreate):
@@ -60,7 +93,9 @@ async def create_participant(participant: ParticipantCreate):
     logger.info("Creating new participant with name: %s", participant.name)
 
     # Validate all required fields
-    validate_participant_data(participant.name, participant.persona_description, participant.context)
+    # Convert model to dict for validation
+    participant_dict = participant.dict()
+    validate_participant_data(participant_dict)
 
     # Generate UUID if id not provided
     if participant.id is None:
@@ -68,17 +103,27 @@ async def create_participant(participant: ParticipantCreate):
         logger.debug("Generated new UUID for participant: %s", participant.id)
 
     try:
+        # Generate persona description using helper function
+        persona_description = generate_persona_description(participant)
+        
         # Store the participant data in Cosmos DB
         participant_data = {
             "id": participant.id,
             "name": participant.name,
-            "persona_description": participant.persona_description,
             "role": participant.role,
-            "context": participant.context,
-            "userId": participant.userId
+            "professional_background": participant.professional_background,
+            "industry_experience": participant.industry_experience,
+            "role_overview": participant.role_overview,
+            "technical_stack": participant.technical_stack,
+            "soft_skills": participant.soft_skills,
+            "core_qualities": participant.core_qualities,
+            "style_preferences": participant.style_preferences,
+            "additional_info": participant.additional_info,
+            "user_id": participant.user_id,
+            "persona_description": persona_description
         }
         
-        await cosmos_client.add_participant(participant.userId, participant_data)
+        await cosmos_client.add_participant(participant.user_id, participant_data)
         logger.info("Successfully created participant: %s", participant.id)
         
         return {"message": f"Participant '{participant.name}' with ID '{participant.id}' created successfully"}
@@ -94,24 +139,32 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
         logger.info("Updating participant with ID: %s", participant_id)
         
         # Get current participant to check existence
-        current_participant = await cosmos_client.get_participant(participant.userId, participant_id)
+        current_participant = await cosmos_client.get_participant(participant.user_id, participant_id)
         if not current_participant:
             logger.error("Participant not found with ID: %s", participant_id)
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
 
+        # Generate persona description using helper function
+        persona_description = generate_persona_description(participant)
+        
         # Update participant data
         participant_data = {
             "id": participant_id,
             "name": participant.name,
-            "persona_description": participant.persona_description,
             "role": participant.role,
-            "userId": participant.userId
+            "professional_background": participant.professional_background,
+            "industry_experience": participant.industry_experience,
+            "role_overview": participant.role_overview,
+            "technical_stack": participant.technical_stack,
+            "soft_skills": participant.soft_skills,
+            "core_qualities": participant.core_qualities,
+            "style_preferences": participant.style_preferences,
+            "additional_info": participant.additional_info,
+            "user_id": participant.user_id,
+            "persona_description": persona_description
         }
-        
-        if participant.context:
-            participant_data["context"] = participant.context
 
-        await cosmos_client.update_participant(participant.userId, participant_id, participant_data)
+        await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
         logger.info("Successfully updated participant: %s", participant_id)
         return {"message": f"Participant with ID '{participant_id}' updated successfully"}
 

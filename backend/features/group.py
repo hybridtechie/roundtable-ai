@@ -41,7 +41,7 @@ class GroupBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: str = Field(..., min_length=1, max_length=1000)
     participant_ids: List[str]
-    userId: str = Field(default="SuperAdmin", min_length=1)
+    user_id: str = Field(default="roundtable_ai_admin", min_length=1)
 
 
 class GroupCreate(GroupBase):
@@ -68,7 +68,7 @@ async def create_group(group: GroupCreate):
     try:
         # Validate all participant IDs exist
         for participant_id in group.participant_ids:
-            participant = await cosmos_client.get_participant(group.userId, participant_id)
+            participant = await cosmos_client.get_participant(group.user_id, participant_id)
             if not participant:
                 logger.error("Participant not found: %s", participant_id)
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
@@ -79,13 +79,13 @@ async def create_group(group: GroupCreate):
             "name": group.name,
             "description": group.description,
             "participant_ids": group.participant_ids,
-            "userId": group.userId
+            "user_id": group.user_id
         }
 
         if group.context:
             group_data["context"] = group.context
 
-        await cosmos_client.add_group(group.userId, group_data)
+        await cosmos_client.add_group(group.user_id, group_data)
         logger.info("Successfully created group: %s", group.id)
         return {"message": f"Group '{group.name}' with ID '{group.id}' created successfully"}
 
@@ -102,14 +102,14 @@ async def update_group(group_id: str, group: GroupUpdate):
         logger.info("Updating group with ID: %s", group_id)
 
         # Check if group exists
-        existing_group = await cosmos_client.get_group(group.userId, group_id)
+        existing_group = await cosmos_client.get_group(group.user_id, group_id)
         if not existing_group:
             logger.error("Group not found with ID: %s", group_id)
             raise HTTPException(status_code=404, detail=f"Group with ID '{group_id}' not found")
 
         # Validate all participant IDs exist
         for participant_id in group.participant_ids:
-            participant = await cosmos_client.get_participant(group.userId, participant_id)
+            participant = await cosmos_client.get_participant(group.user_id, participant_id)
             if not participant:
                 logger.error("Participant not found: %s", participant_id)
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
@@ -120,10 +120,10 @@ async def update_group(group_id: str, group: GroupUpdate):
             "name": group.name,
             "description": group.description,
             "participant_ids": group.participant_ids,
-            "userId": group.userId
+            "user_id": group.user_id
         }
 
-        await cosmos_client.update_group(group.userId, group_id, group_data)
+        await cosmos_client.update_group(group.user_id, group_id, group_data)
         logger.info("Successfully updated group: %s", group_id)
         return {"message": f"Group with ID '{group_id}' updated successfully"}
 
@@ -213,7 +213,7 @@ async def list_groups(user_id: str):
                 "id": group.get('id'),
                 "name": group.get('name'),
                 "description": group.get('description'),
-                "userId": group.get('userId'),
+                "user_id": group.get('user_id'),
                 "participant_ids": group.get('participant_ids', []),
                 "participants": participants
             }
