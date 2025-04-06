@@ -80,11 +80,14 @@ export const getQuestions = (topic: string, groupId: string) =>
 export const listChatSessions = () => api.get<{ chat_sessions: ChatSession[] }>(`/chat-sessions?user_id=${USER_ID}`)
 
 export const sendChatMessage = (meetingId: string, message: string, sessionId?: string) =>
-  api.post<{ session_id: string; response: string }>(`/chat-session?user_id=${USER_ID}`, {
-    meeting_id: meetingId,
-    user_message: message,
-    session_id: sessionId,
-  })
+  api.post<{ session_id: string; response: string; name: string; type: string; timestap: string }>(
+    `/chat-session?user_id=${USER_ID}`,
+    {
+      meeting_id: meetingId,
+      user_message: message,
+      session_id: sessionId,
+    },
+  )
 
 export const getChatSession = (sessionId: string) => api.get(`/chat-session/${sessionId}?user_id=${USER_ID}`)
 

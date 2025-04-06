@@ -105,8 +105,8 @@ const Chat: React.FC = () => {
           timestamp: new Date(),
         },
         {
-          type: "assistant",
-          name: "Assistant",
+          type: response.data.type,
+          name: response.data.name,
           content: response.data.response,
           timestamp: new Date(),
         },

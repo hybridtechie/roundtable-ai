@@ -261,14 +261,6 @@ class MeetingDiscussion:
                     "role": "system",
                     "content": system_prompt
                 })
-                chat_session["display_messages"].append({
-                    "role": "system",
-                    "content": system_prompt,
-                    "type": "participant",
-                    "name": participant_info['name'],
-                    "step": "",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                })
 
             # Add user message to history
             chat_session["messages"].append({
@@ -306,13 +298,21 @@ class MeetingDiscussion:
                 "step": "",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             })
+            # Get timestamp from last display message
+            last_display_message = chat_session["display_messages"][-1]
 
             # Save updated chat session
             chat_container.upsert_item(body=chat_session)
 
             return {
                 "session_id": session_id,
-                "response": response
+                "response": response,
+                "role": participant_info['role'],
+                "content": chat_request.user_message,
+                "type": "participant",
+                "name": "You",
+                "step": "",
+                "timestamp": last_display_message["timestamp"]
             }
 
         except HTTPException:
