@@ -67,3 +67,20 @@ export interface Meeting {
     topic?: string
     participants: Participant[]
 }
+
+export interface ChatSession {
+    id: string
+    title: string
+    created_at: string
+    user_id: string
+    participant_id: string
+    messages: ChatMessage[]
+    meeting_id?: string
+    meeting_name?: string
+    meeting_topic?: string
+}
+
+export interface ChatMessage {
+    role: string
+    content: string
+}

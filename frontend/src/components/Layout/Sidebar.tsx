@@ -5,6 +5,7 @@ import { AiFillHome } from "react-icons/ai"
 import { TiMessages } from "react-icons/ti"
 import { FaMessage } from "react-icons/fa6"
 import { FaUser, FaUsers, FaUserPlus } from "react-icons/fa"
+import ChatSessions from "@/components/ChatSessions/ChatSessions"
 
 const Sidebar: React.FC = () => {
 	return (
@@ -72,8 +73,12 @@ const Sidebar: React.FC = () => {
 					New Meeting
 				</Button>
 			</NavLink>
-		</div>
-	)
-}
+		      <hr className="my-2 border-gray-200" />
+		      <div>
+		        <ChatSessions />
+		      </div>
+		    </div>
+		  )
+		}
 
 export default Sidebar

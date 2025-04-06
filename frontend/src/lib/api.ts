@@ -10,6 +10,7 @@ import {
   QuestionsResponse,
   ChatErrorResponse,
   NextParticipantResponse,
+  ChatSession,
 } from "@/types/types"
 
 const api = axios.create({
@@ -79,6 +80,13 @@ export const listMeetings = () =>
 
 export const getQuestions = (topic: string, groupId: string) =>
   api.get<{ questions: string[] }>(`/get-questions?topic=${encodeURIComponent(topic)}&group_id=${groupId}&user_id=${USER_ID}`)
+
+// Chat Sessions
+export const listChatSessions = () =>
+  api.get<{ chat_sessions: ChatSession[] }>(`/chat-sessions?user_id=${USER_ID}`)
+
+export const getChatSession = (sessionId: string) =>
+  api.get(`/chat-session/${sessionId}?user_id=${USER_ID}`)
 
 interface StreamCallbacks {
   onEvent: (

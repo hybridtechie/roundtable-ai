@@ -2,16 +2,30 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface ChatMessageProps {
-	type: "participant" | "final"
-	name?: string
-	role?: string
-	step?: string
-	content: string
-	timestamp: Date
-	className?: string
+type?: "participant" | "final"
+name?: string
+role?: string
+step?: string
+content?: string
+timestamp?: Date
+className?: string
 }
 
-export function ChatMessage({ type, name, role, step, content, timestamp, className }: ChatMessageProps) {
+const defaultProps: Partial<ChatMessageProps> = {
+  type: "participant",
+  content: "",
+  timestamp: new Date()
+}
+
+export function ChatMessage({
+  type = defaultProps.type,
+  name,
+  role,
+  step,
+  content = defaultProps.content,
+  timestamp = defaultProps.timestamp,
+  className
+}: ChatMessageProps) {
 	const initials = name
 		? name
 				.split(" ")
@@ -34,7 +48,7 @@ export function ChatMessage({ type, name, role, step, content, timestamp, classN
 					{role && type === "participant" && <span className="text-sm text-muted-foreground">{role}</span>}
 				</div>
 				<div className={cn("text-sm whitespace-pre-wrap", type === "final" && "text-green-500")}>{content}</div>
-				<div className="text-xs text-muted-foreground">{timestamp.toLocaleTimeString()}</div>
+				<div className="text-xs text-muted-foreground">{timestamp?.toLocaleTimeString()}</div>
 			</div>
 		</div>
 	)

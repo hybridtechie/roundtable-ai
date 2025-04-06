@@ -307,7 +307,7 @@ async def stream_meeting_discussion(meeting: Meeting):
         yield format_sse_event("error", {"detail": "Internal server error"})
 
 async def get_user_chat_sessions(user_id: str) -> list:
-    """Fetch all chat sessions for a user."""
+    """Fetch all chat sessions for a user with meeting details."""
     try:
         # Get chat sessions container
         chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
@@ -318,10 +318,101 @@ async def get_user_chat_sessions(user_id: str) -> list:
             query=query,
             partition_key=user_id
         ))
+        
+        # Enhance each chat session with meeting details
+        enhanced_sessions = []
+        for session in chat_sessions:
+            # Get meeting details
+            meeting_id = session.get("meeting_id")
+            if meeting_id:
+                try:
+                    meeting = await get_meeting(meeting_id, user_id)
+                    
+                    # Add meeting details to the session
+                    session["meeting_topic"] = meeting.topic
+                    session["meeting_name"] = meeting.name
+                    session["participants"] = meeting.participants
+                    
+                except Exception as e:
+                    logger.warning(f"Could not fetch meeting details for chat session {session.get('id')}: {str(e)}")
+                    # Continue even if meeting details can't be fetched
             
-        logger.info(f"Retrieved {len(chat_sessions)} chat sessions for user {user_id}")
-        return chat_sessions
+            enhanced_sessions.append(session)
+            
+        logger.info(f"Retrieved and enhanced {len(enhanced_sessions)} chat sessions for user {user_id}")
+        return enhanced_sessions
         
     except Exception as e:
         logger.error(f"Error fetching chat sessions for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch chat sessions")
+
+async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
+    """Fetch a specific chat session by ID with meeting details."""
+    try:
+        # Get chat sessions container
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        
+        # Get the chat session
+        try:
+            chat_session = chat_container.read_item(
+                item=session_id,
+                partition_key=user_id
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving chat session {session_id}: {str(e)}")
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        
+        # Get meeting details
+        meeting_id = chat_session.get("meeting_id")
+        if meeting_id:
+            try:
+                meeting = await get_meeting(meeting_id, user_id)
+                
+                # Add meeting details to the response
+                chat_session["meeting_topic"] = meeting.topic
+                chat_session["meeting_name"] = meeting.name
+                chat_session["participants"] = meeting.participants
+                
+            except Exception as e:
+                logger.warning(f"Could not fetch meeting details for chat session {session_id}: {str(e)}")
+                # Continue even if meeting details can't be fetched
+        
+        logger.info(f"Retrieved chat session {session_id} for user {user_id}")
+        return chat_session
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching chat session {session_id} for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch chat session")
+
+async def delete_chat_session(session_id: str, user_id: str) -> dict:
+    """Delete a chat session by ID."""
+    try:
+        # Get chat sessions container
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        
+        # Check if the chat session exists
+        try:
+            chat_session = chat_container.read_item(
+                item=session_id,
+                partition_key=user_id
+            )
+        except Exception as e:
+            logger.error(f"Error retrieving chat session {session_id} for deletion: {str(e)}")
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        
+        # Delete the chat session
+        chat_container.delete_item(
+            item=session_id,
+            partition_key=user_id
+        )
+        
+        logger.info(f"Deleted chat session {session_id} for user {user_id}")
+        return {"message": f"Chat session {session_id} deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting chat session {session_id} for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete chat session")
