@@ -25,6 +25,7 @@ class MeetingCreate(BaseModel):
     questions: List = []
     user_id: str = "roundtable_ai_admin"
     participant_order: Optional[List[ParticipantOrder]] = None
+    _ts: Optional[float] = None
 
     @field_validator('group_id', 'participant_id')
     def validate_ids(cls, v, info):
@@ -68,6 +69,7 @@ class Meeting(BaseModel):
     questions: List = []
     user_id: str = "roundtable_ai_admin"
     participant_order: List[ParticipantOrder] = []
+    _ts: Optional[float] = None
 
 
 class MeetingTopic(BaseModel):
@@ -135,6 +137,10 @@ async def create_meeting(meeting: MeetingCreate):
         meeting_id = str(uuid.uuid4())
 
         # Create meeting data
+        # Add timestamp for meeting creation
+        from time import time
+        creation_ts = time()
+        
         meeting_data = {
             "id": meeting_id,
             "participant_ids": participant_ids,
@@ -144,7 +150,8 @@ async def create_meeting(meeting: MeetingCreate):
             "topic": meeting.topic,
             "name": meeting_name,
             "questions": meeting.questions,
-            "participant_order": participant_order
+            "participant_order": participant_order,
+            "_ts": creation_ts
         }
 
         await cosmos_client.add_meeting(meeting.user_id, meeting_data)
@@ -165,8 +172,11 @@ async def list_meetings(user_id: str):
     try:
         meetings = await cosmos_client.list_meetings(user_id)
         meetings_data = []
+        
+        # Sort meetings by _ts in descending order
+        sorted_meetings = sorted(meetings, key=lambda x: x.get('_ts', 0), reverse=True)
 
-        for meeting in meetings:
+        for meeting in sorted_meetings:
             meeting_data = {
                 "id": meeting.get('id'),
                 "strategy": meeting.get('strategy'),
@@ -176,6 +186,7 @@ async def list_meetings(user_id: str):
                 "name": meeting.get('name'),
                 "user_id": meeting.get('user_id'),
                 "participant_order": meeting.get('participant_order', []),
+                "_ts": meeting.get('_ts'),
                 "participants": []
             }
 
@@ -241,7 +252,8 @@ async def get_meeting(meeting_id: str, user_id: str) -> Meeting:
             questions=meeting_data.get('questions', []),
             strategy=meeting_data.get('strategy', ""),
             participants=participant_details,
-            participant_order=participant_order
+            participant_order=participant_order,
+            _ts=meeting_data.get('_ts')
         )
 
         return meeting

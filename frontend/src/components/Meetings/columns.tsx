@@ -6,8 +6,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export const columns: ColumnDef<Meeting>[] = [
   {
-    accessorKey: "id",
-    header: "Meeting ID",
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => {
+      const name = row.getValue("name") as string
+      return name || "Unnamed Meeting"
+    },
   },
   {
     accessorKey: "topic",
@@ -16,6 +20,10 @@ export const columns: ColumnDef<Meeting>[] = [
       const topic = row.getValue("topic") as string
       return topic || "No topic set"
     },
+  },
+  {
+    accessorKey: "strategy",
+    header: "Strategy",
   },
   {
     accessorKey: "participants",
