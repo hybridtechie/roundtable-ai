@@ -21,10 +21,10 @@ const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL
   }
-  
+
   // Check if we're in development or production
-  const isDevelopment = import.meta.env.MODE === 'development'
-  
+  const isDevelopment = import.meta.env.MODE === "development"
+
   return isDevelopment
     ? "http://localhost:8000" // Local development
     : "https://wa-roundtableai-azd3a2hxenb9a4gr.australiaeast-01.azurewebsites.net" // Production
@@ -81,7 +81,7 @@ export const listGroups = () => api.get<{ groups: Group[] }>(`/groups?user_id=${
 export const getGroup = (groupId: string) => api.get<Group>(`/group/${groupId}?user_id=${USER_ID}`)
 
 export const updateGroup = (groupId: string, data: { name: string; participant_ids: string[] }) =>
-  api.put(`/group/${groupId}`, data)
+  api.put(`/group/${groupId}`, { ...data, user_id: USER_ID })
 
 export const deleteGroup = (groupId: string) => api.delete(`/group/${groupId}?user_id=${USER_ID}`)
 
@@ -89,6 +89,10 @@ export const deleteGroup = (groupId: string) => api.delete(`/group/${groupId}?us
 export const createMeeting = (data: MeetingRequest) => api.post("/meeting", data)
 
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>(`/meetings?user_id=${USER_ID}`)
+
+export const getMeeting = (meetingId: string) => api.get<{ meeting: Meeting }>(`/meeting/${meetingId}?user_id=${USER_ID}`)
+
+export const deleteMeeting = (meetingId: string) => api.delete(`/meeting/${meetingId}?user_id=${USER_ID}`)
 
 export const getQuestions = (topic: string, groupId: string) =>
   api.get<{ questions: string[] }>(`/get-questions?topic=${encodeURIComponent(topic)}&group_id=${groupId}&user_id=${USER_ID}`)
@@ -107,6 +111,8 @@ export const sendChatMessage = (meetingId: string, message: string, sessionId?: 
   )
 
 export const getChatSession = (sessionId: string) => api.get(`/chat-session/${sessionId}?user_id=${USER_ID}`)
+
+export const deleteChatSession = (sessionId: string) => api.delete(`/chat-session/${sessionId}?user_id=${USER_ID}`)
 
 interface StreamCallbacks {
   onEvent: (
@@ -154,42 +160,78 @@ export const getUserInfo = () => api.get<UserInfo>(`/user/me?user_id=${USER_ID}`
 export const getUserDetailInfo = () => api.get<UserDetailInfo>(`/user/me/detail?user_id=${USER_ID}`)
 
 export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() => void) => {
-  const eventSource = new EventSource(`${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`)
+  console.log(`Starting chat stream for meeting ID: ${meetingId}, user ID: ${USER_ID}`)
+  const url = `${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`
+  console.log(`EventSource URL: ${url}`)
+  
+  const eventSource = new EventSource(url)
+
+  // Handle connection open
+  eventSource.onopen = () => {
+    console.log("EventSource connection opened successfully")
+  }
 
   eventSource.addEventListener(ChatEventType.Questions, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as QuestionsResponse
-    callbacks.onEvent(ChatEventType.Questions, data)
+    console.log("Received questions event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as QuestionsResponse
+      callbacks.onEvent(ChatEventType.Questions, data)
+    } catch (error) {
+      console.error("Error parsing questions event:", error)
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.ParticipantResponse, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as ParticipantResponse
-    callbacks.onEvent(ChatEventType.ParticipantResponse, data)
+    console.log("Received participant response event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as ParticipantResponse
+      callbacks.onEvent(ChatEventType.ParticipantResponse, data)
+    } catch (error) {
+      console.error("Error parsing participant response event:", error)
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.FinalResponse, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as ChatFinalResponse
-    callbacks.onEvent(ChatEventType.FinalResponse, data)
+    console.log("Received final response event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as ChatFinalResponse
+      callbacks.onEvent(ChatEventType.FinalResponse, data)
+    } catch (error) {
+      console.error("Error parsing final response event:", error)
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.Error, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as ChatErrorResponse
-    callbacks.onEvent(ChatEventType.Error, data)
+    console.log("Received error event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as ChatErrorResponse
+      callbacks.onEvent(ChatEventType.Error, data)
+    } catch (error) {
+      console.error("Error parsing error event:", error)
+      callbacks.onEvent(ChatEventType.Error, { detail: "Error parsing error event" })
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.NextParticipant, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as NextParticipantResponse
-    callbacks.onEvent(ChatEventType.NextParticipant, data)
+    console.log("Received next participant event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as NextParticipantResponse
+      callbacks.onEvent(ChatEventType.NextParticipant, data)
+    } catch (error) {
+      console.error("Error parsing next participant event:", error)
+    }
   }) as EventListener)
 
-  eventSource.addEventListener(ChatEventType.Complete, () => {
+  eventSource.addEventListener(ChatEventType.Complete, (() => {
+    console.log("Received complete event")
     eventSource.close()
     callbacks.onEvent(ChatEventType.Complete, {} as ChatErrorResponse)
-  })
+  }) as EventListener)
 
   eventSource.onerror = (error) => {
     console.error("SSE Error:", error)
     eventSource.close()
-    callbacks.onEvent(ChatEventType.Error, { detail: "Connection error" })
+    callbacks.onEvent(ChatEventType.Error, { detail: "Connection error with the server. Please try again later." })
   }
 
   return () => {

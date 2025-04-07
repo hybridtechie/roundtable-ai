@@ -35,7 +35,7 @@ export const ChatSessionsProvider: React.FC<ChatSessionsProviderProps> = ({ chil
       // Take only the last 10 sessions, sorted by most recent
       const sortedSessions = response.data.chat_sessions
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10)
+        .slice(0, 30)
       setChatSessions(sortedSessions)
       setError(null)
     } catch (err) {

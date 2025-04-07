@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { ChevronsUpDown } from "lucide-react"
-import { listParticipants, listGroups, createGroup } from "@/lib/api"
+import { ChevronsUpDown, Edit, Trash2 } from "lucide-react"
+import { listParticipants, listGroups, createGroup, updateGroup, deleteGroup } from "@/lib/api"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Participant, Group } from "@/types/types"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
@@ -18,6 +19,9 @@ const Groups: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null)
 
   useEffect(() => {
     listGroups()
@@ -28,27 +32,63 @@ const Groups: React.FC = () => {
       .catch(console.error)
   }, [])
 
-  const handleCreateGroup = async () => {
+  const resetForm = () => {
+    setSelectedParticipantIds([])
+    setGroupName("")
+    setGroupDescription("")
+    setSearchTerm("")
+    setIsEditMode(false)
+    setEditingGroupId(null)
+    setIsDialogOpen(false)
+  }
+
+  const handleEditGroup = (group: Group) => {
+    setIsEditMode(true)
+    setEditingGroupId(group.id)
+    setGroupName(group.name)
+    setGroupDescription(group.description || "")
+    setSelectedParticipantIds(group.participants.map(p => p.id))
+    setIsDialogOpen(true)
+  }
+
+  const handleSubmitGroup = async () => {
     setIsLoading(true)
     try {
-      await createGroup({
-        name: groupName,
-        description: groupDescription,
-        participant_ids: selectedParticipantIds,
-      })
+      if (isEditMode && editingGroupId) {
+        await updateGroup(editingGroupId, {
+          name: groupName,
+          participant_ids: selectedParticipantIds
+        })
+        toast.success("Group updated successfully!")
+      } else {
+        await createGroup({
+          name: groupName,
+          description: groupDescription,
+          participant_ids: selectedParticipantIds,
+        })
+        toast.success("Group created successfully!")
+      }
       const res = await listGroups()
       setGroups(res.data.groups)
-      setSelectedParticipantIds([])
-      setGroupName("")
-      setGroupDescription("")
-      setSearchTerm("")
-      setIsDialogOpen(false)
-      toast.success("Group created successfully!")
+      resetForm()
     } catch (error) {
-      console.error("Error creating group:", error)
-      toast.error("Failed to create group. Please try again.")
+      console.error(`Error ${isEditMode ? "updating" : "creating"} group:`, error)
+      toast.error(`Failed to ${isEditMode ? "update" : "create"} group. Please try again.`)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDeleteGroup = async (group: Group) => {
+    try {
+      await deleteGroup(group.id)
+      const res = await listGroups()
+      setGroups(res.data.groups)
+      setGroupToDelete(null)
+      toast.success("Group deleted successfully!")
+    } catch (error) {
+      console.error("Error deleting group:", error)
+      toast.error("Failed to delete group. Please try again.")
     }
   }
 
@@ -61,13 +101,16 @@ const Groups: React.FC = () => {
     <div className="p-6">
       <h1 className="mb-4 text-3xl font-bold">Groups</h1>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        if (!open) resetForm()
+        setIsDialogOpen(open)
+      }}>
         <DialogTrigger asChild>
           <Button onClick={() => setIsDialogOpen(true)}>Create New Group</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Group</DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Group" : "Create Group"}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="mb-4">
@@ -129,19 +172,38 @@ const Groups: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleCreateGroup} disabled={selectedParticipantIds.length === 0 || !groupName.trim() || isLoading}>
+            <Button onClick={handleSubmitGroup} disabled={selectedParticipantIds.length === 0 || !groupName.trim() || isLoading}>
               {isLoading ? (
                 <>
                   <LoadingSpinner className="mr-2" size={16} />
-                  Creating...
+                  {isEditMode ? "Updating..." : "Creating..."}
                 </>
               ) : (
-                "Create"
+                isEditMode ? "Update" : "Create"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!groupToDelete} onOpenChange={(open) => !open && setGroupToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the group
+              "{groupToDelete?.name}" and remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setGroupToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => groupToDelete && handleDeleteGroup(groupToDelete)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid gap-4 mt-4">
         {groups.map((group) => (
           <Collapsible key={group.id} className="w-full">
@@ -151,12 +213,22 @@ const Groups: React.FC = () => {
                   <CardTitle>{group.name || group.id}</CardTitle>
                   {group.description && <p className="mt-1 text-sm text-gray-500">{group.description}</p>}
                 </div>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-0 w-9">
-                    <ChevronsUpDown className="w-4 h-4" />
-                    <span className="sr-only">Toggle</span>
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="icon" onClick={() => handleEditGroup(group)}>
+                    <Edit className="w-4 h-4" />
+                    <span className="sr-only">Edit</span>
                   </Button>
-                </CollapsibleTrigger>
+                  <Button variant="ghost" size="icon" onClick={() => setGroupToDelete(group)}>
+                    <Trash2 className="w-4 h-4" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="p-0 w-9">
+                      <ChevronsUpDown className="w-4 h-4" />
+                      <span className="sr-only">Toggle</span>
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
               </CardHeader>
               <CollapsibleContent>
                 <CardContent>

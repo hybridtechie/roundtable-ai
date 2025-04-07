@@ -1,21 +1,15 @@
-import React, { useState, useRef, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import React, { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { streamChat, listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
 import { toast } from "@/components/ui/sonner"
+import { X } from "lucide-react"
 import {
   Group,
   Participant,
-  ChatEventType,
-  ParticipantResponse,
-  ChatFinalResponse,
-  QuestionsResponse,
-  ChatErrorResponse,
-  NextParticipantResponse,
 } from "@/types/types"
-import { ChatMessage } from "@/components/ui/chat-message"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
 import {
   arrayMove,
@@ -27,19 +21,18 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Textarea } from "@/components/ui/textarea"
 
-interface ChatMessageType {
-  type: "participant" | "final"
-  name?: string
-  question?: string
-  content: string
-  strength?: number
-  timestamp: Date
-}
 
 interface WeightedParticipant {
   id: string
   name: string
   weight: number
+}
+
+// Question interface for drag and drop
+interface QuestionItem {
+  id: string;
+  content: string;
+  isCustom: boolean;
 }
 
 // Sortable Participant Item Component
@@ -74,9 +67,80 @@ const SortableParticipant: React.FC<{
   )
 }
 
+// Sortable Question Item Component
+const SortableQuestion: React.FC<{
+  question: QuestionItem;
+  onRemove: (id: string) => void;
+}> = ({ question, onRemove }) => {
+  // For the sortable functionality
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: question.id
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  // Handle remove button click
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    // Stop propagation to prevent drag events from interfering
+    e.stopPropagation();
+    onRemove(question.id);
+  };
+
+  return (
+    <div className="flex items-center justify-between p-2 mb-2 bg-gray-100 rounded">
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className="flex-grow cursor-move"
+      >
+        <span>{question.content}</span>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleRemoveClick}
+        className="w-8 h-8 ml-2 rounded-full"
+        type="button"
+      >
+        <X className="w-4 h-4" />
+        <span className="sr-only">Remove</span>
+      </Button>
+    </div>
+  );
+};
+
 const NewMeeting: React.FC = () => {
-  const [step, setStep] = useState<"group" | "participants" | "questions" | "chat">("group")
+  const navigate = useNavigate()
+  const [step, setStep] = useState<"group" | "participants" | "questions">("group")
   const [selectedGroup, setSelectedGroup] = useState<string>("")
+  const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
+  const [topic, setTopic] = useState<string>("")
+  const [groups, setGroups] = useState<Group[]>([])
+  
+  interface ExtendedParticipant extends WeightedParticipant {
+    persona_description: string
+    role: string
+  }
+
+  const [participants, setParticipants] = useState<ExtendedParticipant[]>([])
+  const [aiQuestions, setAiQuestions] = useState<string[]>([])
+  const [isQuestionsLoading, setIsQuestionsLoading] = useState(false)
+  const [finalQuestions, setFinalQuestions] = useState<QuestionItem[]>([])
+  const [newCustomQuestion, setNewCustomQuestion] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Setup sensors for drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
   // Handle group selection
   const handleGroupSelect = async (groupId: string) => {
@@ -98,37 +162,6 @@ const NewMeeting: React.FC = () => {
       toast.error("Failed to fetch group participants")
     }
   }
-  const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
-  const [topic, setTopic] = useState<string>("")
-  const [groups, setGroups] = useState<Group[]>([])
-  interface ExtendedParticipant extends WeightedParticipant {
-    persona_description: string
-    role: string
-  }
-
-  const [participants, setParticipants] = useState<ExtendedParticipant[]>([])
-  const [thinkingParticipant, setThinkingParticipant] = useState<string | null>(null)
-  const [questions, setQuestions] = useState<string[]>([])
-  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([])
-  const [messages, setMessages] = useState<ChatMessageType[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const cleanupRef = useRef<(() => void) | null>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
-
-  // Setup sensors for drag-and-drop
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  )
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
-    }
-  }, [messages])
 
   // Fetch groups on mount and set default group
   useEffect(() => {
@@ -161,27 +194,27 @@ const NewMeeting: React.FC = () => {
     fetchGroupsAndSetDefault()
   }, [])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.()
-    }
-  }, [])
-
   // Fetch questions when moving to next step
   const handleNextFromGroup = async () => {
     if (!selectedGroup || !topic.trim()) return
+    
+    // Move to participants step first
+    setStep("participants")
+    
+    // Then fetch questions in the background
     try {
-      getQuestions(topic, selectedGroup).then((response) => setQuestions(response.data.questions))
-
-      setStep("participants")
+      setIsQuestionsLoading(true)
+      const response = await getQuestions(topic, selectedGroup)
+      setAiQuestions(response.data.questions)
     } catch (error) {
       console.error("Error fetching questions:", error)
       toast.error("Failed to fetch questions")
+    } finally {
+      setIsQuestionsLoading(false)
     }
   }
 
-  // Handle drag-and-drop reordering
+  // Handle drag-and-drop reordering for participants
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
@@ -193,37 +226,81 @@ const NewMeeting: React.FC = () => {
       })
     }
   }
+  
+  // Handle drag-and-drop for questions
+  const handleQuestionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      // If it's a reordering within the final list
+      if (finalQuestions.some(q => q.id === active.id) && finalQuestions.some(q => q.id === over?.id)) {
+        setFinalQuestions((items) => {
+          const oldIndex = items.findIndex((item) => item.id === active.id);
+          const newIndex = items.findIndex((item) => item.id === over?.id);
+          return arrayMove(items, oldIndex, newIndex);
+        });
+      }
+    }
+  };
+  
+  // Add a question to the final list
+  const addToFinalList = (content: string, isCustom: boolean = false) => {
+    if (finalQuestions.length >= 5) return;
+    
+    // Check if question already exists in final list
+    if (finalQuestions.some(q => q.content === content)) return;
+    
+    const newQuestion: QuestionItem = {
+      id: `question-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      content,
+      isCustom
+    };
+    
+    setFinalQuestions(prev => [...prev, newQuestion]);
+    
+    // If it's an AI-generated question, remove it from the AI questions list
+    if (!isCustom) {
+      setAiQuestions(prev => prev.filter(q => q !== content));
+    }
+  };
+  
+  // Remove a question from the final list
+  const removeFromFinalList = (id: string) => {
+    const questionToRemove = finalQuestions.find(q => q.id === id);
+    if (questionToRemove) {
+      setFinalQuestions(prev => prev.filter(q => q.id !== id));
+    }
+  };
 
   // Update participant weight
   const updateWeight = (id: string, weight: number) => {
     setParticipants((prev) => prev.map((p) => (p.id === id ? { ...p, weight: Math.max(1, Math.min(10, weight)) } : p)))
   }
 
-  // Handle question selection (max 5)
-  const toggleQuestion = (question: string) => {
-    setSelectedQuestions((prev) => {
-      if (prev.includes(question)) {
-        return prev.filter((q) => q !== question)
-      } else if (prev.length < 5) {
-        return [...prev, question]
-      }
-      return prev
-    })
-  }
+  // Add custom question
+  const addCustomQuestion = () => {
+    if (newCustomQuestion.trim() && finalQuestions.length < 5) {
+      addToFinalList(newCustomQuestion.trim(), true);
+      setNewCustomQuestion("");
+    }
+  };
 
   const handleBackFromParticipants = () => {
     setStep("group")
   }
 
   const handleNextFromParticipants = () => {
-    if (participants.length > 0) setStep("questions")
+    if (participants.length > 0) {
+      setStep("questions")
+      // Clear any existing questions when moving to questions step
+      setFinalQuestions([])
+    }
   }
 
   const handleStartChat = async () => {
     if (!selectedGroup || !topic.trim()) return
 
     setIsLoading(true)
-    setMessages([])
 
     try {
       // Create meeting and get meeting_id
@@ -231,81 +308,22 @@ const NewMeeting: React.FC = () => {
         group_id: selectedGroup,
         strategy: discussionStrategy,
         topic: topic,
-        questions: selectedQuestions,
+        questions: finalQuestions.map(q => q.content),
+        participant_order: participants.map((participant, index) => ({
+          participant_id: participant.id,
+          weight: participant.weight,
+          order: index + 1,
+        })),
       })
       const meeting_id = response.data.meeting_id
-
-      // Cleanup any existing chat stream
-      cleanupRef.current?.()
-
-      // Start streaming chat with meeting_id
-      cleanupRef.current = streamChat(meeting_id, {
-        onEvent: (
-          eventType: ChatEventType,
-          data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse | NextParticipantResponse,
-        ) => {
-          switch (eventType) {
-            case ChatEventType.NextParticipant:
-              if ("participant_name" in data && "participant_id" in data) {
-                setThinkingParticipant(data.participant_name)
-              }
-              break
-            case ChatEventType.Questions:
-              if ("questions" in data) {
-                setQuestions(data.questions)
-              }
-              break
-            case ChatEventType.ParticipantResponse:
-              if ("participant" in data && "question" in data && "answer" in data) {
-                setThinkingParticipant(null)
-                const participant = participants.find((p) => p.name === data.participant)
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    type: "participant",
-                    name: data.participant,
-                    role: participant?.role,
-                    question: data.question,
-                    content: data.answer,
-                    strength: "strength" in data ? data.strength : undefined,
-                    timestamp: new Date(),
-                  },
-                ])
-                setThinkingParticipant(null)
-              }
-              break
-            case ChatEventType.FinalResponse:
-              if ("response" in data) {
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    type: "final",
-                    content: data.response,
-                    timestamp: new Date(),
-                  },
-                ])
-              }
-              break
-            case ChatEventType.Error:
-              if ("detail" in data) {
-                console.error("Chat error:", data.detail)
-                toast.error(data.detail)
-                setIsLoading(false)
-              }
-              break
-            case ChatEventType.Complete:
-              setIsLoading(false)
-              toast.success("Meeting completed successfully")
-              break
-          }
-        },
-      })
-
-      // Automatically move to the chat view
-      setStep("chat")
+      
+      toast.success("Meeting created successfully")
+      
+      // Navigate to the Chat component with the meeting ID
+      navigate(`/chat/${meeting_id}/stream`)
     } catch (error) {
-      console.error("Error starting chat:", error)
-      toast.error("Failed to start meeting")
+      console.error("Error creating meeting:", error)
+      toast.error("Failed to create meeting")
       setIsLoading(false)
     }
   }
@@ -388,52 +406,98 @@ const NewMeeting: React.FC = () => {
 
       {step === "questions" && (
         <div className="flex flex-col items-center justify-center h-full gap-4">
-          <h2 className="text-2xl font-bold">Step 3: Select Questions (Up to 5)</h2>
-          <div className="w-[70%] space-y-2">
-            {questions.map((question) => (
-              <div key={question} className="flex items-center space-x-2">
-                <Checkbox
-                  checked={selectedQuestions.includes(question)}
-                  onCheckedChange={() => toggleQuestion(question)}
-                  disabled={!selectedQuestions.includes(question) && selectedQuestions.length >= 5}
-                />
-                <span>{question}</span>
-              </div>
-            ))}
+          <h2 className="text-2xl font-bold">Step 3: Select or Create Questions</h2>
+          
+          {/* Final Questions List (Drag to reorder) */}
+          <div className="w-[70%] space-y-4 mb-4">
+            <h3 className="text-lg font-semibold">Final Questions List ({finalQuestions.length}/5)</h3>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleQuestionDragEnd}>
+              <SortableContext items={finalQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                <ul className="w-full min-h-[100px] border border-dashed border-gray-300 p-4 rounded-md">
+                  {finalQuestions.length === 0 ? (
+                    <li className="text-center text-gray-400">Drag questions here or add your own (max 5)</li>
+                  ) : (
+                    finalQuestions.map((question) => (
+                      <SortableQuestion
+                        key={question.id}
+                        question={question}
+                        onRemove={removeFromFinalList}
+                      />
+                    ))
+                  )}
+                </ul>
+              </SortableContext>
+            </DndContext>
           </div>
-          <Button
-            onClick={handleStartChat}
-            disabled={selectedQuestions.length === 0 || isLoading}
-            className="text-white bg-blue-500 hover:bg-blue-600">
-            {isLoading ? "Starting Meeting..." : "Start Meeting"}
-          </Button>
-        </div>
-      )}
+          
+          {/* Custom Questions Input */}
+          <div className="w-[70%] space-y-4 mb-4">
+            <h3 className="text-lg font-semibold">Add Your Own Question</h3>
+            <div className="flex space-x-2">
+              <Textarea
+                placeholder="Enter your custom question"
+                value={newCustomQuestion}
+                onChange={(e) => setNewCustomQuestion(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                onClick={addCustomQuestion}
+                disabled={!newCustomQuestion.trim() || finalQuestions.length >= 5}
+                className="whitespace-nowrap"
+              >
+                Add Question
+              </Button>
+            </div>
+          </div>
 
-      {step === "chat" && (
-        <div className="flex flex-col h-full">
-          <Card className="flex flex-col flex-1 border-none">
-            <CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
-                <div className="p-4 space-y-4">
-                  {messages.length === 0 && !isLoading && (
-                    <div className="text-center text-muted-foreground">
-                      No messages yet. Start the meeting to begin the discussion.
-                    </div>
-                  )}
-                  {messages.map((msg, index) => (
-                    <ChatMessage key={index} {...msg} />
-                  ))}
-                  {isLoading && thinkingParticipant && (
-                    <div className="text-center text-muted-foreground">{thinkingParticipant} is thinking...</div>
-                  )}
+          {/* AI Generated Questions */}
+          <div className="w-[70%] space-y-2">
+            <h3 className="mb-2 text-lg font-semibold">AI Generated Questions</h3>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto p-2 border border-gray-200 rounded-md">
+              {isQuestionsLoading ? (
+                <div className="flex justify-center items-center h-[100px]">
+                  <LoadingSpinner />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="mt-4">
-            <Button onClick={handleStartChat} disabled={isLoading} className="text-white bg-blue-500 hover:bg-blue-600">
-              Start Meeting
+              ) : aiQuestions.length === 0 ? (
+                <div className="py-4 text-center text-gray-400">
+                  No AI-generated questions available
+                </div>
+              ) : (
+                aiQuestions.map((question) => (
+                  <div
+                    key={question}
+                    className="flex items-center justify-between p-2 rounded bg-gray-50 hover:bg-gray-100"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", question);
+                    }}
+                  >
+                    <span>{question}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addToFinalList(question)}
+                      disabled={finalQuestions.length >= 5 || finalQuestions.some(q => q.content === question)}
+                    >
+                      Add to List
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col w-[70%] gap-2">
+            <p className="text-sm text-gray-600">
+              Selected {finalQuestions.length} of 5 questions
+              {finalQuestions.filter(q => q.isCustom).length > 0 &&
+                ` (${finalQuestions.filter(q => q.isCustom).length} custom)`}
+            </p>
+            <Button
+              onClick={handleStartChat}
+              disabled={finalQuestions.length === 0 || isLoading}
+              className="text-white bg-blue-500 hover:bg-blue-600">
+              {isLoading ? "Creating Meeting..." : "Start Meeting"}
             </Button>
           </div>
         </div>

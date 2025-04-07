@@ -250,7 +250,7 @@ class LLMClient:
     def __init__(self, provider_details):
         """
         Initialize LLM client with provider-specific details.
-        
+
         Args:
             provider_details (dict): Dictionary containing provider configuration
                 Required fields for Azure:
@@ -266,12 +266,12 @@ class LLMClient:
                     - api_key: API key
         """
         load_dotenv()
-        
+
         if not isinstance(provider_details, dict):
             error_msg = "Provider details must be a dictionary"
             logger.error(error_msg)
             raise ValueError(error_msg)
-        
+
         self.provider = provider_details.get("provider")
         if not self.provider:
             error_msg = "Provider field is required in provider_details"
@@ -284,7 +284,7 @@ class LLMClient:
             if self.provider.lower() == "azureopenai":
                 required_fields = ["deployment_name", "model", "endpoint", "api_version", "api_key"]
                 self._validate_required_fields(provider_details, required_fields)
-                
+
                 self.client = AzureOpenAIClient(
                     api_key=provider_details["api_key"],
                     azure_endpoint=provider_details["endpoint"],
@@ -293,7 +293,7 @@ class LLMClient:
             elif self.provider.lower() == "openai":
                 required_fields = ["model", "api_key"]
                 self._validate_required_fields(provider_details, required_fields)
-                
+
                 self.client = OpenAIClient(
                     api_key=provider_details["api_key"],
                     model=provider_details["model"],
@@ -305,7 +305,7 @@ class LLMClient:
         except Exception as e:
             logger.error("Failed to initialize LLM client: %s", str(e), exc_info=True)
             raise
-    
+
     def _validate_required_fields(self, provider_details, required_fields):
         """Validate that all required fields are present in provider_details."""
         missing_fields = [field for field in required_fields if field not in provider_details]
@@ -332,7 +332,7 @@ if __name__ == "__main__":
             "model": "gpt-4",
             "endpoint": os.getenv("AZURE_ENDPOINT"),
             "api_version": "2024-10-21",
-            "api_key": os.getenv("AZURE_OPENAI_API_KEY")
+            "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
         }
 
         # Initialize client with Azure OpenAI provider

@@ -74,13 +74,7 @@ async def create_group(group: GroupCreate):
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
 
         # Store the group data in Cosmos DB
-        group_data = {
-            "id": group.id,
-            "name": group.name,
-            "description": group.description,
-            "participant_ids": group.participant_ids,
-            "user_id": group.user_id
-        }
+        group_data = {"id": group.id, "name": group.name, "description": group.description, "participant_ids": group.participant_ids, "user_id": group.user_id}
 
         if group.context:
             group_data["context"] = group.context
@@ -115,13 +109,7 @@ async def update_group(group_id: str, group: GroupUpdate):
                 raise HTTPException(status_code=404, detail=f"Participant ID '{participant_id}' not found")
 
         # Update group data
-        group_data = {
-            "id": group_id,
-            "name": group.name,
-            "description": group.description,
-            "participant_ids": group.participant_ids,
-            "user_id": group.user_id
-        }
+        group_data = {"id": group_id, "name": group.name, "description": group.description, "participant_ids": group.participant_ids, "user_id": group.user_id}
 
         await cosmos_client.update_group(group.user_id, group_id, group_data)
         logger.info("Successfully updated group: %s", group_id)
@@ -160,7 +148,7 @@ async def get_group(group_id: str, user_id: str):
     """Get a specific Group with expanded participant details."""
     try:
         logger.info("Fetching group with ID: %s", group_id)
-        
+
         group = await cosmos_client.get_group(user_id, group_id)
         if not group:
             logger.error("Group not found with ID: %s", group_id)
@@ -168,16 +156,12 @@ async def get_group(group_id: str, user_id: str):
 
         # Fetch participant details
         participants = []
-        for participant_id in group.get('participant_ids', []):
+        for participant_id in group.get("participant_ids", []):
             participant = await cosmos_client.get_participant(user_id, participant_id)
             if participant:
-                participants.append({
-                    "id": participant.get('id'),
-                    "name": participant.get('name'),
-                    "role": participant.get('role')
-                })
+                participants.append({"id": participant.get("id"), "name": participant.get("name"), "role": participant.get("role")})
 
-        group['participants'] = participants
+        group["participants"] = participants
         logger.info("Successfully retrieved group: %s", group_id)
         return group
 
@@ -192,30 +176,26 @@ async def list_groups(user_id: str):
     """List all Groups with expanded participant details."""
     try:
         logger.info("Fetching all groups with participant details")
-        
+
         groups = await cosmos_client.list_groups(user_id)
         groups_data = []
 
         for group in groups:
             participants = []
-            for participant_id in group.get('participant_ids', []):
+            for participant_id in group.get("participant_ids", []):
                 participant = await cosmos_client.get_participant(user_id, participant_id)
                 if participant:
-                    participants.append({
-                        "participant_id": participant.get('id'),
-                        "name": participant.get('name'),
-                        "role": participant.get('role')
-                    })
+                    participants.append({"participant_id": participant.get("id"), "name": participant.get("name"), "role": participant.get("role")})
                 else:
-                    logger.warning("Participant %s not found for group %s", participant_id, group.get('id'))
+                    logger.warning("Participant %s not found for group %s", participant_id, group.get("id"))
 
             group_data = {
-                "id": group.get('id'),
-                "name": group.get('name'),
-                "description": group.get('description'),
-                "user_id": group.get('user_id'),
-                "participant_ids": group.get('participant_ids', []),
-                "participants": participants
+                "id": group.get("id"),
+                "name": group.get("name"),
+                "description": group.get("description"),
+                "user_id": group.get("user_id"),
+                "participant_ids": group.get("participant_ids", []),
+                "participants": participants,
             }
             groups_data.append(group_data)
 

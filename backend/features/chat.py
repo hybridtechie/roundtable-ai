@@ -1,69 +1,17 @@
-from pydantic import BaseModel
-from utils_llm import LLMClient
-import os
-from dotenv import load_dotenv
 import json
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 import asyncio
 from logger_config import setup_logger
-from features.meeting import MeetingCreate, Meeting, get_meeting
+from features.meeting import Meeting
+from features.chat_session import ChatSessionCreate, create_chat_session
 from cosmos_db import cosmos_client
-import uuid
 from datetime import datetime, timezone
+import uuid
+from features.llm import get_llm_client
+
 # Set up logger
 logger = setup_logger(__name__)
-
-# Models for chat endpoints
-class ChatSessionCreate(BaseModel):
-    meeting_id: str
-    user_message: str
-    session_id: str = None
-
-# LLM client initialization
-async def get_llm_client(user_id: str):
-    try:
-        # Fetch only LLM account details from cosmos db
-        container = cosmos_client.client.get_database_client("roundtable").get_container_client("users")
-        query = f"SELECT c.llmAccounts FROM c WHERE c.id = '{user_id}'"
-        user_data = list(container.query_items(query=query, enable_cross_partition_query=True))
-        
-        if not user_data:
-            logger.error(f"User {user_id} not found in cosmos db")
-            raise HTTPException(status_code=404, detail="User not found")
-            
-        if not user_data or "llmAccounts" not in user_data[0]:
-            logger.error(f"No LLM accounts configured for user {user_id}")
-            raise HTTPException(status_code=400, detail="No LLM accounts configured")
-            
-        # Get default provider details
-        llm_accounts = user_data[0]["llmAccounts"]
-        default_provider = llm_accounts.get("default")
-        if not default_provider:
-            logger.error(f"No default LLM provider set for user {user_id}")
-            raise HTTPException(status_code=400, detail="No default LLM provider set")
-            
-        # Find provider details matching default provider
-        provider_details = None
-        for provider in llm_accounts.get("providers", []):
-            if provider["provider"] == default_provider:
-                provider_details = provider
-                break
-                
-        if not provider_details:
-            logger.error(f"Details for default provider {default_provider} not found")
-            raise HTTPException(status_code=400, detail="Default provider details not found")
-            
-        # Initialize LLM client with provider details
-        client = LLMClient(provider_details)
-        logger.debug(f"Initialized LLM client with provider: {default_provider}")
-        return client
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to initialize LLM client: %s", str(e))
-        raise HTTPException(status_code=500, detail="Failed to initialize LLM client")
 
 
 # SSE event formatting
@@ -84,49 +32,49 @@ class MeetingDiscussion:
         self.meeting_id = meeting.id
         self.questions = meeting.questions
         self.discussion_log = []
-        self.user_id = meeting.user_id
-        
+        self.chat_session = None
+        self.message_history = []  # List to store message history
+        self.user_id = meeting.user_id  # Add user_id from meeting
+
         # Map participants from participant_order
         self.participants = {}
         for order in meeting.participant_order:
-            participant = next(
-                (p for p in meeting.participants if p["participant_id"] == order.participant_id),
-                None
-            )
+            participant = next((p for p in meeting.participants if p["participant_id"] == order.participant_id), None)
             if participant:
                 self.participants[participant["participant_id"]] = {
                     "name": participant["name"],
                     "persona_description": participant.get("persona_description", "participant"),
                     "role": participant.get("role", "Team Member"),
                     "weight": order.weight,
-                    "order": order.order
+                    "order": order.order,
                 }
         logger.info("Initialized meeting discussion for user '%s'", self.user_id)
 
-    def generate_questions(self, llm_client):
-        """Generate 3 relevant questions based on the topic."""
-        prompt = (
-            f"Generate exactly 3 concise, relevant questions for a discussion on '{self.topic}'. Do not respond with any other details\n" f"List them as:\n1. Question 1\n2. Question 2\n3. Question 3"
-        )
-        messages = [{"role": "system", "content": prompt}]
-        response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
-        content = response.strip().split("\n")
-        self.questions = [line.strip()[3:] for line in content if line.strip()]
-        if len(self.questions) != 3:
-            raise HTTPException(status_code=500, detail="Failed to generate exactly 3 questions")
-        logger.info("Questions generated: %s", self.questions)
-
-    def ask_question(self, llm_client, participant_id: str, question: str, context: str = None):
+    def ask_question(self, llm_client, participant_id: str, question: str, messages_list=None):
         """Ask a question to a participant with concise, conversational response."""
         participant = self.participants[participant_id]
-        prompt = (
-            f"You are {participant['name']}, a {participant['persona_description']}. "
-            f"Respond to this question in a brief, conversational way, as you would in a meeting: '{question}'. "
+        
+        # Part 1: System Prompt
+        participant_list = [f"{p['name']} ({p['role']})" for p in self.participants.values()]
+        system_prompt = (
+            f"You are {participant['persona_description']}. "
+            f"Your role is {participant['role']}. "
+            f"You are participating in a meeting about '{self.topic}'. "
+            f"Meeting participants: {', '.join(participant_list)}. "
             f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
         )
-        if context:
-            prompt += f"\n\nContext from previous answers: {context}"
-        messages = [{"role": "system", "content": prompt}, {"role": "user", "content": self.topic}]
+        
+        # Part 2: Message History
+        messages = [{"role": "system", "content": system_prompt}]
+        if messages_list:
+            messages.extend(messages_list)
+        
+        # Part 3: Current Question
+        messages.append({
+            "role": "user",
+            "content": f"Please provide a concise response to this question based on the meeting topic: {question}"
+        })
+        
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
 
@@ -147,17 +95,74 @@ class MeetingDiscussion:
             logger.warning("Invalid strength from %s: %s", participant["name"], response)
             return 0
 
-    def synthesize_response(self, llm_client):
-        """Synthesize a final response from the discussion log."""
-        prompt = f"Based on this discussion log for the topic '{self.topic}', " f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
-        messages = [{"role": "system", "content": prompt}]
+    async def synthesize_response(self, llm_client):
+        """Synthesize a final response from the discussion log and store in chat session."""
+        # Part 1: System Prompt
+        participants_info = []
+        for pid, p in self.participants.items():
+            participants_info.append(f"{p['name']} ({p['role']}) - Weight: {p['weight']}, Order: {p['order']}")
+        
+        system_prompt = (
+            f"You are provided with a meeting transcript of a meeting conducted for topic '{self.topic}'. "
+            f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\n\n"
+            f"Important Note: Each participant has a weight assigned (1-10) that indicates their expertise and influence level. "
+            f"Participants with higher weights should have their contributions valued more heavily in the final analysis.\n\n"
+            f"Objective: Understand the meeting discussion and provide a summary that includes:\n"
+            f"- All important discussion points, prioritizing input from high-weight participants\n"
+            f"- Pros and cons discussed, with emphasis on points raised by more influential participants\n"
+            f"- Main arguments and perspectives, weighted by participant expertise\n"
+            f"- Key contributions from each participant considering their role, expertise, and assigned weight\n"
+            f"Please analyze each participant's input considering their role and weight, giving more emphasis to higher-weighted participants' perspectives."
+        )
+
+        # Part 2: Message Log (all as user messages)
+        messages = [{"role": "system", "content": system_prompt}]
+        for entry in self.discussion_log:
+            msg = f"{entry['participant']} responding to '{entry['question']}': {entry['answer']}"
+            messages.append({"role": "user", "content": msg})
+
+        # Part 3: Final Request
+        messages.append({
+            "role": "user",
+            "content": (
+                f"Based on the above meeting transcript, please provide a comprehensive summary of the discussion on '{self.topic}'. "
+                f"Consider each participant's weight when analyzing their contributions - participants with higher weights "
+                f"should have their input weighted more heavily in the final analysis. Include the key points made by each "
+                f"participant, their perspectives based on their roles and weights, and synthesize the overall discussion "
+                f"into clear, actionable insights. When highlighting consensus or differences in viewpoints, give more "
+                f"consideration to the opinions of participants with higher weights."
+            )
+        })
+
+        # Get response
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
-        return response.strip()
+        response = response.strip()
+
+        # Create/update chat session
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        if not self.chat_session:
+            session_id = str(uuid.uuid4())
+            self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [{"role": "system", "content": prompt}], "display_messages": []}
+
+        # Add summary message
+        self.chat_session["messages"].append({"role": "assistant", "content": response})
+        self.chat_session["display_messages"].append(
+            {"role": "system", "content": response, "type": "summary", "name": "Meeting Summary", "step": "final", "timestamp": datetime.now(timezone.utc).isoformat()}
+        )
+
+        # Save chat session
+        chat_container.upsert_item(body=self.chat_session)
+        return response
 
     async def conduct_discussion(self, llm_client):
         """Conduct the discussion based on strategy and yield SSE events."""
         if self.strategy not in ["round robin", "opinionated", "chat"]:
             raise HTTPException(status_code=400, detail="Invalid strategy")
+
+        # Initialize chat session
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        session_id = str(uuid.uuid4())
+        self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [], "display_messages": []}
 
         if self.strategy in ["round robin", "opinionated"]:
             yield format_sse_event("questions", {"questions": self.questions})
@@ -171,11 +176,30 @@ class MeetingDiscussion:
                     yield format_sse_event("next_participant", {"participant_id": pid, "participant_name": self.participants[pid]["name"]})
                     await asyncio.sleep(0.1)  # Add delay before response
 
-                    answer = self.ask_question(llm_client, pid, question, context)
+                    answer = self.ask_question(llm_client, pid, question, self.message_history)
+                    # Add to discussion log
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
+                    # Add to message history
+                    self.message_history.append({
+                        "role": "assistant",
+                        "content": f"{self.participants[pid]['name']} said \"{answer}\""
+                    })
+                    # Add to chat session
+                    self.chat_session["messages"].append({"role": "assistant", "content": answer})
+                    self.chat_session["display_messages"].append(
+                        {
+                            "role": self.participants[pid]["role"],
+                            "content": answer,
+                            "type": "participant",
+                            "name": self.participants[pid]["name"],
+                            "step": f"question_{len(self.questions)}_participant_{pid}",
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
+                    # Save chat session
+                    chat_container.upsert_item(body=self.chat_session)
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     await asyncio.sleep(0.1)  # Add delay after each response
-                    context += f"{self.participants[pid]['name']}: {answer}\n"
 
         elif self.strategy == "opinionated":
             for question in self.questions:
@@ -185,55 +209,66 @@ class MeetingDiscussion:
                     opinions[pid] = strength
 
                 sorted_participants = sorted(opinions.items(), key=lambda x: x[1], reverse=True)
-                context = ""
                 for pid, strength in sorted_participants:
                     if strength > 0:
                         # Emit next participant event
                         yield format_sse_event("next_participant", {"participant_id": pid, "participant_name": self.participants[pid]["name"]})
                         await asyncio.sleep(0.1)  # Add delay before response
 
-                        answer = self.ask_question(llm_client, pid, question, context)
+                        answer = self.ask_question(llm_client, pid, question, self.message_history)
+                        # Add to discussion log
                         self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
+                        # Add to message history
+                        self.message_history.append({
+                            "role": "assistant",
+                            "content": f"{self.participants[pid]['name']} said \"{answer}\""
+                        })
+                        # Add to chat session
+                        self.chat_session["messages"].append({"role": "assistant", "content": answer})
+                        self.chat_session["display_messages"].append(
+                            {
+                                "role": self.participants[pid]["role"],
+                                "content": answer,
+                                "type": "participant",
+                                "name": self.participants[pid]["name"],
+                                "step": f"question_{len(self.questions)}_participant_{pid}_strength_{strength}",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            }
+                        )
+                        # Save chat session
+                        chat_container.upsert_item(body=self.chat_session)
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         await asyncio.sleep(0.1)  # Add delay after each response
-                        context += f"{self.participants[pid]['name']} (Strength {strength}): {answer}\n"
 
-            # Synthesize final response for round robin and opinionated
-            final_response = self.synthesize_response(llm_client)
-            yield format_sse_event("final_response", {"response": final_response})
-            yield format_sse_event("complete", {})
+        # Synthesize final response for round robin and opinionated
+        final_response = await self.synthesize_response(llm_client)
+        self.chat_session["display_messages"].append(
+            {
+                "role": "System",
+                "content": final_response,
+                "type": "final_response",
+                "name": "System",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        yield format_sse_event("final_response", {"response": final_response})
+        yield format_sse_event("complete", {})
 
     async def handle_chat_request(self, chat_request: ChatSessionCreate) -> dict:
         """Handle a chat request for the chat strategy."""
         try:
             if self.strategy != "chat" or len(self.participants) != 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid meeting: must be chat strategy with exactly one participant"
-                )
-                
-            # Get chat sessions container
+                raise HTTPException(status_code=400, detail="Invalid meeting: must be chat strategy with exactly one participant")
+
             chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-            
-            # If no session_id, create a new chat session
+
+            # Get or create chat session
             if not chat_request.session_id:
-                session_id = str(uuid.uuid4())
-                chat_session = {
-                    "id": session_id,
-                    "meeting_id": chat_request.meeting_id,
-                    "user_id": self.user_id,  # Added user_id for partition key
-                    "messages": [],
-                    "display_messages": [],
-                    "participant_id": next(iter(self.participants.keys()))  # Get the only participant's ID
-                }
-                chat_container.upsert_item(body=chat_session)
+                chat_session = create_chat_session(chat_request.meeting_id, self.user_id, next(iter(self.participants.keys())))
+                session_id = chat_session["id"]
             else:
-                # Get existing chat session
                 try:
-                    chat_session = chat_container.read_item(
-                        item=chat_request.session_id,
-                        partition_key=self.user_id
-                    )
+                    chat_session = chat_container.read_item(item=chat_request.session_id, partition_key=self.user_id)
                     session_id = chat_request.session_id
                 except Exception as e:
                     logger.error(f"Error retrieving chat session: {str(e)}")
@@ -258,25 +293,14 @@ class MeetingDiscussion:
 
             # If this is a new chat session, add the system prompt as first message
             if not chat_session["messages"]:
-                chat_session["messages"].append({
-                    "role": "system",
-                    "content": system_prompt
-                })
+                chat_session["messages"].append({"role": "system", "content": system_prompt})
 
             # Add user message to history
-            chat_session["messages"].append({
-                "role": "user",
-                "content": chat_request.user_message
-            })
+            chat_session["messages"].append({"role": "user", "content": chat_request.user_message})
             # Add user message to display_messages
-            chat_session["display_messages"].append({
-                "role": "user",
-                "content": chat_request.user_message,
-                "type": "user",
-                "name": "You",
-                "step": "",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+            chat_session["display_messages"].append(
+                {"role": "user", "content": chat_request.user_message, "type": "user", "name": "You", "step": "", "timestamp": datetime.now(timezone.utc).isoformat()}
+            )
 
             # Get LLM client
             llm_client = await get_llm_client(self.user_id)
@@ -286,19 +310,11 @@ class MeetingDiscussion:
             response, _ = llm_client.send_request(messages)
 
             # Add assistant's response to history
-            chat_session["messages"].append({
-                "role": "assistant",
-                "content": response
-            })
+            chat_session["messages"].append({"role": "assistant", "content": response})
             # Add assistant's response to display_messages
-            chat_session["display_messages"].append({
-                "role": participant_info['role'],
-                "content": response,
-                "type": "participant",
-                "name": participant_info['name'],
-                "step": "",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+            chat_session["display_messages"].append(
+                {"role": participant_info["role"], "content": response, "type": "participant", "name": participant_info["name"], "step": "", "timestamp": datetime.now(timezone.utc).isoformat()}
+            )
             # Get timestamp from last display message
             last_display_message = chat_session["display_messages"][-1]
 
@@ -308,12 +324,12 @@ class MeetingDiscussion:
             return {
                 "session_id": session_id,
                 "response": response,
-                "role": participant_info['role'],
+                "role": participant_info["role"],
                 "content": chat_request.user_message,
                 "type": "participant",
-                "name": participant_info['name'],
+                "name": participant_info["name"],
                 "step": "",
-                "timestamp": last_display_message["timestamp"]
+                "timestamp": last_display_message["timestamp"],
             }
 
         except HTTPException:
@@ -321,6 +337,7 @@ class MeetingDiscussion:
         except Exception as e:
             logger.error(f"Error handling chat request: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
 
 async def stream_meeting_discussion(meeting: Meeting):
     """Stream the meeting discussion using SSE."""
@@ -334,114 +351,3 @@ async def stream_meeting_discussion(meeting: Meeting):
     except Exception as e:
         logger.error("Unexpected error: %s", str(e))
         yield format_sse_event("error", {"detail": "Internal server error"})
-
-async def get_user_chat_sessions(user_id: str) -> list:
-    """Fetch all chat sessions for a user with meeting details."""
-    try:
-        # Get chat sessions container
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-        
-        # Query all chat sessions for the user using the partition key
-        query = f"SELECT * FROM c WHERE c.user_id = '{user_id}'"
-        chat_sessions = list(chat_container.query_items(
-            query=query,
-            partition_key=user_id
-        ))
-        
-        # Enhance each chat session with meeting details
-        enhanced_sessions = []
-        for session in chat_sessions:
-            # Get meeting details
-            meeting_id = session.get("meeting_id")
-            if meeting_id:
-                try:
-                    meeting = await get_meeting(meeting_id, user_id)
-                    
-                    # Add meeting details to the session
-                    session["meeting_topic"] = meeting.topic
-                    session["meeting_name"] = meeting.name
-                    session["participants"] = meeting.participants
-                    
-                except Exception as e:
-                    logger.warning(f"Could not fetch meeting details for chat session {session.get('id')}: {str(e)}")
-                    # Continue even if meeting details can't be fetched
-            
-            enhanced_sessions.append(session)
-            
-        logger.info(f"Retrieved and enhanced {len(enhanced_sessions)} chat sessions for user {user_id}")
-        return enhanced_sessions
-        
-    except Exception as e:
-        logger.error(f"Error fetching chat sessions for user {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch chat sessions")
-
-async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
-    """Fetch a specific chat session by ID with meeting details."""
-    try:
-        # Get chat sessions container
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-        
-        # Get the chat session
-        try:
-            chat_session = chat_container.read_item(
-                item=session_id,
-                partition_key=user_id
-            )
-        except Exception as e:
-            logger.error(f"Error retrieving chat session {session_id}: {str(e)}")
-            raise HTTPException(status_code=404, detail="Chat session not found")
-        
-        # Get meeting details
-        meeting_id = chat_session.get("meeting_id")
-        if meeting_id:
-            try:
-                meeting = await get_meeting(meeting_id, user_id)
-                
-                # Add meeting details to the response
-                chat_session["meeting_topic"] = meeting.topic
-                chat_session["meeting_name"] = meeting.name
-                chat_session["participants"] = meeting.participants
-                
-            except Exception as e:
-                logger.warning(f"Could not fetch meeting details for chat session {session_id}: {str(e)}")
-                # Continue even if meeting details can't be fetched
-        
-        logger.info(f"Retrieved chat session {session_id} for user {user_id}")
-        return chat_session
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching chat session {session_id} for user {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch chat session")
-
-async def delete_chat_session(session_id: str, user_id: str) -> dict:
-    """Delete a chat session by ID."""
-    try:
-        # Get chat sessions container
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-        
-        # Check if the chat session exists
-        try:
-            chat_session = chat_container.read_item(
-                item=session_id,
-                partition_key=user_id
-            )
-        except Exception as e:
-            logger.error(f"Error retrieving chat session {session_id} for deletion: {str(e)}")
-            raise HTTPException(status_code=404, detail="Chat session not found")
-        
-        # Delete the chat session
-        chat_container.delete_item(
-            item=session_id,
-            partition_key=user_id
-        )
-        
-        logger.info(f"Deleted chat session {session_id} for user {user_id}")
-        return {"message": f"Chat session {session_id} deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting chat session {session_id} for user {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to delete chat session")

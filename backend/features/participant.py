@@ -8,10 +8,11 @@ from cosmos_db import cosmos_client
 # Set up logger
 logger = setup_logger(__name__)
 
-def generate_persona_description(participant: 'ParticipantBase') -> str:
+
+def generate_persona_description(participant: "ParticipantBase") -> str:
     """Generate a markdown formatted persona description from participant fields."""
     persona_parts = [f"You are {participant.name} with role {participant.role}. Your details are below:\n"]
-    
+
     field_sections = [
         ("Professional Background", participant.professional_background),
         ("Industry Experience", participant.industry_experience),
@@ -20,13 +21,13 @@ def generate_persona_description(participant: 'ParticipantBase') -> str:
         ("Soft Skills", participant.soft_skills),
         ("Core Qualities", participant.core_qualities),
         ("Style Preferences", participant.style_preferences),
-        ("Additional Information", participant.additional_info)
+        ("Additional Information", participant.additional_info),
     ]
-    
+
     for section_title, content in field_sections:
         if content:
             persona_parts.append(f"\n## {section_title}\n{content}")
-            
+
     return "\n".join(persona_parts)
 
 
@@ -42,20 +43,17 @@ def validate_participant_data(data: dict) -> None:
             ("technical_stack", 1000),
             ("soft_skills", 1000),
             ("core_qualities", 1000),
-            ("style_preferences", 1000)
+            ("style_preferences", 1000),
         ]
 
         for field, max_length in required_fields:
             if not data.get(field) or not str(data[field]).strip():
                 logger.error(f"Validation failed: {field} is empty or whitespace")
                 raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} is required")
-            
+
             if len(str(data[field])) > max_length:
                 logger.error(f"Validation failed: {field} length exceeds {max_length} characters")
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters"
-                )
+                raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters")
 
         logger.debug("Participant data validation successful")
     except HTTPException:
@@ -105,7 +103,7 @@ async def create_participant(participant: ParticipantCreate):
     try:
         # Generate persona description using helper function
         persona_description = generate_persona_description(participant)
-        
+
         # Store the participant data in Cosmos DB
         participant_data = {
             "id": participant.id,
@@ -120,12 +118,12 @@ async def create_participant(participant: ParticipantCreate):
             "style_preferences": participant.style_preferences,
             "additional_info": participant.additional_info,
             "user_id": participant.user_id,
-            "persona_description": persona_description
+            "persona_description": persona_description,
         }
-        
+
         await cosmos_client.add_participant(participant.user_id, participant_data)
         logger.info("Successfully created participant: %s", participant.id)
-        
+
         return {"message": f"Participant '{participant.name}' with ID '{participant.id}' created successfully"}
 
     except Exception as e:
@@ -137,7 +135,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
     """Update a Participant."""
     try:
         logger.info("Updating participant with ID: %s", participant_id)
-        
+
         # Get current participant to check existence
         current_participant = await cosmos_client.get_participant(participant.user_id, participant_id)
         if not current_participant:
@@ -146,7 +144,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
 
         # Generate persona description using helper function
         persona_description = generate_persona_description(participant)
-        
+
         # Update participant data
         participant_data = {
             "id": participant_id,
@@ -161,7 +159,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "style_preferences": participant.style_preferences,
             "additional_info": participant.additional_info,
             "user_id": participant.user_id,
-            "persona_description": persona_description
+            "persona_description": persona_description,
         }
 
         await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
@@ -179,7 +177,7 @@ async def delete_participant(participant_id: str, user_id: str):
     """Delete a Participant."""
     try:
         logger.info("Deleting participant with ID: %s", participant_id)
-        
+
         # Get current participant to check existence
         current_participant = await cosmos_client.get_participant(user_id, participant_id)
         if not current_participant:
@@ -202,7 +200,7 @@ async def get_participant(participant_id: str, user_id: str):
     try:
         logger.info("Fetching participant with ID: %s", participant_id)
         participant = await cosmos_client.get_participant(user_id, participant_id)
-        
+
         if not participant:
             logger.error("Participant not found with ID: %s", participant_id)
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
@@ -222,7 +220,7 @@ async def list_participants(user_id: str):
     try:
         logger.info("Fetching all participants")
         participants = await cosmos_client.list_participants(user_id)
-        
+
         logger.info("Successfully retrieved %d participants", len(participants))
         return {"participants": participants}
 

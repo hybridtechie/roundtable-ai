@@ -74,6 +74,7 @@ export interface Meeting {
   participant_ids: string[]
   group_ids: string[]
   topic?: string
+  strategy: string
   participants: Participant[]
 }
 
@@ -88,6 +89,14 @@ export interface ChatSession {
   meeting_id?: string
   meeting_name?: string
   meeting_topic?: string
+  group_name?: string
+  group_id?: string
+  _ts?: number
+  participants: {
+    participant_id: string
+    name: string
+    role: string
+  }[]
 }
 
 export interface ChatMessage {
@@ -99,15 +108,15 @@ export interface ChatMessage {
 }
 
 export interface UserInfo {
-  user_id: string;
-  display_name: string;
-  email: string;
+  user_id: string
+  display_name: string
+  email: string
 }
 
 export interface UserDetailInfo extends UserInfo {
-  llm_providers_count: number;
-  participants_count: number;
-  meetings_count: number;
-  groups_count: number;
-  chat_sessions_count: number;
+  llm_providers_count: number
+  participants_count: number
+  meetings_count: number
+  groups_count: number
+  chat_sessions_count: number
 }
