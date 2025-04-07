@@ -81,7 +81,7 @@ export const listGroups = () => api.get<{ groups: Group[] }>(`/groups?user_id=${
 export const getGroup = (groupId: string) => api.get<Group>(`/group/${groupId}?user_id=${USER_ID}`)
 
 export const updateGroup = (groupId: string, data: { name: string; participant_ids: string[] }) =>
-  api.put(`/group/${groupId}`, data)
+  api.put(`/group/${groupId}`, { ...data, user_id: USER_ID })
 
 export const deleteGroup = (groupId: string) => api.delete(`/group/${groupId}?user_id=${USER_ID}`)
 

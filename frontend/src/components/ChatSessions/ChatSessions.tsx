@@ -85,7 +85,7 @@ const ChatSessions: React.FC = () => {
       {/* Chats Section */}
       <div>
         <div className="px-2 mb-2">
-          <h3 className="text-sm font-medium">Recent Chats</h3>
+          <h3 className="text-sm font-medium">Direct Chat</h3>
         </div>
         <div className="flex flex-col space-y-1 max-h-[300px] overflow-y-auto">
           {sortByTimestamp(chats)
@@ -121,7 +121,7 @@ const ChatSessions: React.FC = () => {
       <div>
         <hr className="my-2 border-gray-200" />
         <div className="px-2 mb-2">
-          <h3 className="text-sm font-medium">Meetings</h3>
+          <h3 className="text-sm font-medium">Groups</h3>
         </div>
         <div className="flex flex-col space-y-1">
           {sortByTimestamp(meetings).map((group) => (
