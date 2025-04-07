@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, delete_meeting, MeetingCreate, MeetingTopic
@@ -384,8 +384,20 @@ async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
         logger.error("Failed to generate questions: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
 
-
 # User Endpoints
+
+# Login User
+@app.post("/login")
+async def login_endpoint(authorization: str = Header(...)):
+    try:
+        logger.info("Processing login request")
+        result = await login_user(authorization)
+        logger.info("Successfully processed login request")
+        return result
+    except Exception as e:
+        logger.error("Login failed: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+
 
 
 # Get Basic User Information
