@@ -91,7 +91,7 @@ const ChatSessions: React.FC = () => {
           {sortByTimestamp(chats)
             .slice(0, 5)
             .map((group) => (
-              <Collapsible key={group.key} defaultOpen className="w-full">
+              <Collapsible key={group.key} defaultOpen={false} className="w-full">
                 <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">
                   <ChevronRight className="w-4 h-4" />
                   <span className="ml-1 text-sm font-medium truncate">{group.name}</span>
@@ -125,7 +125,7 @@ const ChatSessions: React.FC = () => {
         </div>
         <div className="flex flex-col space-y-1">
           {sortByTimestamp(meetings).map((group) => (
-            <Collapsible key={group.key} defaultOpen className="w-full">
+            <Collapsible key={group.key} defaultOpen={false} className="w-full">
               <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">
                 <ChevronRight className="w-4 h-4" />
                 <span className="ml-1 text-sm font-medium truncate">{group.name}</span>

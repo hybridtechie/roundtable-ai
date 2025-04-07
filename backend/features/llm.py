@@ -1,8 +1,9 @@
 from fastapi import HTTPException
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from logger_config import setup_logger
 from cosmos_db import cosmos_client
+from utils_llm import LLMClient
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -21,7 +22,7 @@ class LLMAccounts(BaseModel):
     default: str
     providers: List[LLMProvider]
 
-    @validator("default")
+    @field_validator("default")
     def validate_default(cls, v, values):
         if "providers" in values:
             providers = [p.provider for p in values["providers"]]
@@ -221,3 +222,47 @@ async def set_default_provider(provider: str, user_id: str):
     except Exception as e:
         logger.error("Error setting default provider: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while setting default provider")
+async def get_llm_client(user_id: str):
+    """Initialize and return an LLM client for the given user."""
+    try:
+        # Fetch only LLM account details from cosmos db
+        container = cosmos_client.client.get_database_client("roundtable").get_container_client("users")
+        query = f"SELECT c.llmAccounts FROM c WHERE c.id = '{user_id}'"
+        user_data = list(container.query_items(query=query, enable_cross_partition_query=True))
+
+        if not user_data:
+            logger.error(f"User {user_id} not found in cosmos db")
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if not user_data or "llmAccounts" not in user_data[0]:
+            logger.error(f"No LLM accounts configured for user {user_id}")
+            raise HTTPException(status_code=400, detail="No LLM accounts configured")
+
+        # Get default provider details
+        llm_accounts = user_data[0]["llmAccounts"]
+        default_provider = llm_accounts.get("default")
+        if not default_provider:
+            logger.error(f"No default LLM provider set for user {user_id}")
+            raise HTTPException(status_code=400, detail="No default LLM provider set")
+
+        # Find provider details matching default provider
+        provider_details = None
+        for provider in llm_accounts.get("providers", []):
+            if provider["provider"] == default_provider:
+                provider_details = provider
+                break
+
+        if not provider_details:
+            logger.error(f"Details for default provider {default_provider} not found")
+            raise HTTPException(status_code=400, detail="Default provider details not found")
+
+        # Initialize LLM client with provider details
+        client = LLMClient(provider_details)
+        logger.debug(f"Initialized LLM client with provider: {default_provider}")
+        return client
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to initialize LLM client: %s", str(e))
+        raise HTTPException(status_code=500, detail="Failed to initialize LLM client")

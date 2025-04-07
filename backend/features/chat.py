@@ -1,4 +1,3 @@
-from utils_llm import LLMClient
 import json
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
@@ -8,55 +7,11 @@ from features.meeting import Meeting
 from features.chat_session import ChatSessionCreate, create_chat_session
 from cosmos_db import cosmos_client
 from datetime import datetime, timezone
+import uuid
+from features.llm import get_llm_client
 
 # Set up logger
 logger = setup_logger(__name__)
-
-
-# LLM client initialization
-async def get_llm_client(user_id: str):
-    try:
-        # Fetch only LLM account details from cosmos db
-        container = cosmos_client.client.get_database_client("roundtable").get_container_client("users")
-        query = f"SELECT c.llmAccounts FROM c WHERE c.id = '{user_id}'"
-        user_data = list(container.query_items(query=query, enable_cross_partition_query=True))
-
-        if not user_data:
-            logger.error(f"User {user_id} not found in cosmos db")
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if not user_data or "llmAccounts" not in user_data[0]:
-            logger.error(f"No LLM accounts configured for user {user_id}")
-            raise HTTPException(status_code=400, detail="No LLM accounts configured")
-
-        # Get default provider details
-        llm_accounts = user_data[0]["llmAccounts"]
-        default_provider = llm_accounts.get("default")
-        if not default_provider:
-            logger.error(f"No default LLM provider set for user {user_id}")
-            raise HTTPException(status_code=400, detail="No default LLM provider set")
-
-        # Find provider details matching default provider
-        provider_details = None
-        for provider in llm_accounts.get("providers", []):
-            if provider["provider"] == default_provider:
-                provider_details = provider
-                break
-
-        if not provider_details:
-            logger.error(f"Details for default provider {default_provider} not found")
-            raise HTTPException(status_code=400, detail="Default provider details not found")
-
-        # Initialize LLM client with provider details
-        client = LLMClient(provider_details)
-        logger.debug(f"Initialized LLM client with provider: {default_provider}")
-        return client
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to initialize LLM client: %s", str(e))
-        raise HTTPException(status_code=500, detail="Failed to initialize LLM client")
 
 
 # SSE event formatting
@@ -78,6 +33,7 @@ class MeetingDiscussion:
         self.questions = meeting.questions
         self.discussion_log = []
         self.chat_session = None
+        self.message_history = []  # List to store message history
         self.user_id = meeting.user_id  # Add user_id from meeting
 
         # Map participants from participant_order
@@ -94,30 +50,31 @@ class MeetingDiscussion:
                 }
         logger.info("Initialized meeting discussion for user '%s'", self.user_id)
 
-    def generate_questions(self, llm_client):
-        """Generate 3 relevant questions based on the topic."""
-        prompt = (
-            f"Generate exactly 3 concise, relevant questions for a discussion on '{self.topic}'. Do not respond with any other details\n" f"List them as:\n1. Question 1\n2. Question 2\n3. Question 3"
-        )
-        messages = [{"role": "system", "content": prompt}]
-        response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
-        content = response.strip().split("\n")
-        self.questions = [line.strip()[3:] for line in content if line.strip()]
-        if len(self.questions) != 3:
-            raise HTTPException(status_code=500, detail="Failed to generate exactly 3 questions")
-        logger.info("Questions generated: %s", self.questions)
-
-    def ask_question(self, llm_client, participant_id: str, question: str, context: str = None):
+    def ask_question(self, llm_client, participant_id: str, question: str, messages_list=None):
         """Ask a question to a participant with concise, conversational response."""
         participant = self.participants[participant_id]
-        prompt = (
-            f"You are {participant['name']}, a {participant['persona_description']}. "
-            f"Respond to this question in a brief, conversational way, as you would in a meeting: '{question}'. "
+        
+        # Part 1: System Prompt
+        participant_list = [f"{p['name']} ({p['role']})" for p in self.participants.values()]
+        system_prompt = (
+            f"You are {participant['persona_description']}. "
+            f"Your role is {participant['role']}. "
+            f"You are participating in a meeting about '{self.topic}'. "
+            f"Meeting participants: {', '.join(participant_list)}. "
             f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
         )
-        if context:
-            prompt += f"\n\nContext from previous answers: {context}"
-        messages = [{"role": "system", "content": prompt}, {"role": "user", "content": self.topic}]
+        
+        # Part 2: Message History
+        messages = [{"role": "system", "content": system_prompt}]
+        if messages_list:
+            messages.extend(messages_list)
+        
+        # Part 3: Current Question
+        messages.append({
+            "role": "user",
+            "content": f"Please provide a concise response to this question based on the meeting topic: {question}"
+        })
+        
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
 
@@ -140,8 +97,44 @@ class MeetingDiscussion:
 
     async def synthesize_response(self, llm_client):
         """Synthesize a final response from the discussion log and store in chat session."""
-        prompt = f"Based on this discussion log for the topic '{self.topic}', provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
-        messages = [{"role": "system", "content": prompt}]
+        # Part 1: System Prompt
+        participants_info = []
+        for pid, p in self.participants.items():
+            participants_info.append(f"{p['name']} ({p['role']}) - Weight: {p['weight']}, Order: {p['order']}")
+        
+        system_prompt = (
+            f"You are provided with a meeting transcript of a meeting conducted for topic '{self.topic}'. "
+            f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\n\n"
+            f"Important Note: Each participant has a weight assigned (1-10) that indicates their expertise and influence level. "
+            f"Participants with higher weights should have their contributions valued more heavily in the final analysis.\n\n"
+            f"Objective: Understand the meeting discussion and provide a summary that includes:\n"
+            f"- All important discussion points, prioritizing input from high-weight participants\n"
+            f"- Pros and cons discussed, with emphasis on points raised by more influential participants\n"
+            f"- Main arguments and perspectives, weighted by participant expertise\n"
+            f"- Key contributions from each participant considering their role, expertise, and assigned weight\n"
+            f"Please analyze each participant's input considering their role and weight, giving more emphasis to higher-weighted participants' perspectives."
+        )
+
+        # Part 2: Message Log (all as user messages)
+        messages = [{"role": "system", "content": system_prompt}]
+        for entry in self.discussion_log:
+            msg = f"{entry['participant']} responding to '{entry['question']}': {entry['answer']}"
+            messages.append({"role": "user", "content": msg})
+
+        # Part 3: Final Request
+        messages.append({
+            "role": "user",
+            "content": (
+                f"Based on the above meeting transcript, please provide a comprehensive summary of the discussion on '{self.topic}'. "
+                f"Consider each participant's weight when analyzing their contributions - participants with higher weights "
+                f"should have their input weighted more heavily in the final analysis. Include the key points made by each "
+                f"participant, their perspectives based on their roles and weights, and synthesize the overall discussion "
+                f"into clear, actionable insights. When highlighting consensus or differences in viewpoints, give more "
+                f"consideration to the opinions of participants with higher weights."
+            )
+        })
+
+        # Get response
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         response = response.strip()
 
@@ -183,9 +176,14 @@ class MeetingDiscussion:
                     yield format_sse_event("next_participant", {"participant_id": pid, "participant_name": self.participants[pid]["name"]})
                     await asyncio.sleep(0.1)  # Add delay before response
 
-                    answer = self.ask_question(llm_client, pid, question, context)
+                    answer = self.ask_question(llm_client, pid, question, self.message_history)
                     # Add to discussion log
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
+                    # Add to message history
+                    self.message_history.append({
+                        "role": "assistant",
+                        "content": f"{self.participants[pid]['name']} said \"{answer}\""
+                    })
                     # Add to chat session
                     self.chat_session["messages"].append({"role": "assistant", "content": answer})
                     self.chat_session["display_messages"].append(
@@ -202,7 +200,6 @@ class MeetingDiscussion:
                     chat_container.upsert_item(body=self.chat_session)
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     await asyncio.sleep(0.1)  # Add delay after each response
-                    context += f"{self.participants[pid]['name']}: {answer}\n"
 
         elif self.strategy == "opinionated":
             for question in self.questions:
@@ -212,16 +209,20 @@ class MeetingDiscussion:
                     opinions[pid] = strength
 
                 sorted_participants = sorted(opinions.items(), key=lambda x: x[1], reverse=True)
-                context = ""
                 for pid, strength in sorted_participants:
                     if strength > 0:
                         # Emit next participant event
                         yield format_sse_event("next_participant", {"participant_id": pid, "participant_name": self.participants[pid]["name"]})
                         await asyncio.sleep(0.1)  # Add delay before response
 
-                        answer = self.ask_question(llm_client, pid, question, context)
+                        answer = self.ask_question(llm_client, pid, question, self.message_history)
                         # Add to discussion log
                         self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
+                        # Add to message history
+                        self.message_history.append({
+                            "role": "assistant",
+                            "content": f"{self.participants[pid]['name']} said \"{answer}\""
+                        })
                         # Add to chat session
                         self.chat_session["messages"].append({"role": "assistant", "content": answer})
                         self.chat_session["display_messages"].append(
@@ -238,12 +239,20 @@ class MeetingDiscussion:
                         chat_container.upsert_item(body=self.chat_session)
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         await asyncio.sleep(0.1)  # Add delay after each response
-                        context += f"{self.participants[pid]['name']} (Strength {strength}): {answer}\n"
 
-            # Synthesize final response for round robin and opinionated
-            final_response = await self.synthesize_response(llm_client)
-            yield format_sse_event("final_response", {"response": final_response})
-            yield format_sse_event("complete", {})
+        # Synthesize final response for round robin and opinionated
+        final_response = await self.synthesize_response(llm_client)
+        self.chat_session["display_messages"].append(
+            {
+                "role": "System",
+                "content": final_response,
+                "type": "final_response",
+                "name": "System",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        yield format_sse_event("final_response", {"response": final_response})
+        yield format_sse_event("complete", {})
 
     async def handle_chat_request(self, chat_request: ChatSessionCreate) -> dict:
         """Handle a chat request for the chat strategy."""
