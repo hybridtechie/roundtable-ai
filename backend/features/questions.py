@@ -8,8 +8,10 @@ from features.group import get_group
 # Set up logger
 logger = setup_logger(__name__)
 
+
 class QuestionResponse(BaseModel):
     questions: list[str]
+
 
 async def generate_questions(topic: str, group_id: str, user_id: str) -> QuestionResponse:
     """Generate questions based on topic and group context."""
@@ -23,6 +25,7 @@ async def generate_questions(topic: str, group_id: str, user_id: str) -> Questio
 
         # Get LLM client with user's configuration
         from features.chat import get_llm_client  # Import here to avoid circular import
+
         llm_client = await get_llm_client(user_id)
 
         # Get prompt from prompts.py
@@ -31,7 +34,7 @@ async def generate_questions(topic: str, group_id: str, user_id: str) -> Questio
         # Generate questions using LLM
         messages = [{"role": "system", "content": prompt}]
         response, _ = llm_client.send_request(messages)
-        
+
         # Process response into list of questions
         questions = [line.strip()[3:] for line in response.strip().split("\n") if line.strip()]
 
