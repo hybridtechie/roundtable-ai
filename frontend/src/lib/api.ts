@@ -112,6 +112,8 @@ export const sendChatMessage = (meetingId: string, message: string, sessionId?: 
 
 export const getChatSession = (sessionId: string) => api.get(`/chat-session/${sessionId}?user_id=${USER_ID}`)
 
+export const deleteChatSession = (sessionId: string) => api.delete(`/chat-session/${sessionId}?user_id=${USER_ID}`)
+
 interface StreamCallbacks {
   onEvent: (
     eventType: ChatEventType,

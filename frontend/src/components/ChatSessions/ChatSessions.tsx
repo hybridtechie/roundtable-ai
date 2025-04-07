@@ -2,6 +2,9 @@ import React from "react"
 import { NavLink } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { MoreHorizontal } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { deleteChatSession } from "@/lib/api"
 import { useChatSessions } from "@/context/ChatSessionsContext"
 import { ChatSession } from "@/types/types"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -15,8 +18,42 @@ interface GroupedSessions {
   }
 }
 
+interface ChatMenuProps {
+  sessionId: string
+  onDelete: () => void
+}
+
+const ChatMenu: React.FC<ChatMenuProps> = ({ onDelete }) => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="w-8 h-8 p-0" onClick={(e) => e.preventDefault()}>
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={(e) => {
+          e.preventDefault()
+          onDelete()
+        }}>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 const ChatSessions: React.FC = () => {
-  const { chatSessions, loading, error } = useChatSessions()
+  const { chatSessions, loading, error, refreshChatSessions } = useChatSessions()
+
+  const handleDelete = async (sessionId: string) => {
+    try {
+      await deleteChatSession(sessionId)
+      refreshChatSessions() // Refresh the chat sessions list
+    } catch (error) {
+      console.error("Failed to delete chat session:", error)
+    }
+  }
   console.log("ChatSessions Length:", chatSessions.length)
   console.log("All ChatSessions:", chatSessions)
   if (loading) {
@@ -44,7 +81,7 @@ const ChatSessions: React.FC = () => {
     })
     // Check if it's a single participant session
     const isSingleParticipant = session.participants?.length === 1
-    const key = isSingleParticipant ? session.participants[0].participant_id : session.meeting_id || "other"
+    const key = isSingleParticipant ? session.participants[0].participant_id : session.group_id || "other"
 
     if (!acc[key]) {
       acc[key] = {
@@ -120,9 +157,14 @@ const ChatSessions: React.FC = () => {
                         className={({ isActive }: { isActive: boolean }) =>
                           `w-full pl-4 rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
                         }>
-                        <Button variant="ghost" className="justify-start w-full font-normal truncate">
-                          {session.title || session.meeting_name || session.meeting_topic || `Chat ${session.id.substring(0, 8)}`}
-                        </Button>
+                        <div className="flex items-center w-full">
+                          <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
+                            {session.title || session.meeting_name || session.meeting_topic || `Chat ${session.id.substring(0, 8)}`}
+                          </Button>
+                          <div className="flex-shrink-0">
+                            <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />
+                          </div>
+                        </div>
                       </NavLink>
                     ))}
                   </div>
@@ -156,9 +198,14 @@ const ChatSessions: React.FC = () => {
                       className={({ isActive }: { isActive: boolean }) =>
                         `w-full pl-4 rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
                       }>
-                      <Button variant="ghost" className="justify-start w-full font-normal truncate">
-                        {session.title || session.meeting_name || session.group_name || session.meeting_topic || `Chat ${session.id.substring(0, 8)}`}
-                      </Button>
+                      <div className="flex items-center w-full">
+                        <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
+                          {session.title || session.meeting_topic || session.meeting_name || session.group_name  || `Chat ${session.id.substring(0, 8)}`}
+                        </Button>
+                        <div className="flex-shrink-0">
+                          <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />
+                        </div>
+                      </div>
                     </NavLink>
                   ))}
                 </div>

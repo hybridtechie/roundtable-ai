@@ -49,6 +49,7 @@ async def get_user_chat_sessions(user_id: str) -> list:
                             group = await get_group(group_id, user_id)
                             if group:
                                 session["group_name"] = group.get("name")
+                                session["group_id"] = group.get("id")
                         except Exception as e:
                             logger.warning(f"Could not fetch group details for meeting {meeting_id}: {str(e)}")
                             # Continue even if group details can't be fetched

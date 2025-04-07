@@ -90,6 +90,7 @@ export interface ChatSession {
   meeting_name?: string
   meeting_topic?: string
   group_name?: string
+  group_id?: string
   _ts?: number
   participants: {
     participant_id: string
