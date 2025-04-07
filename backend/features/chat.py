@@ -84,7 +84,8 @@ class MeetingDiscussion:
         self.meeting_id = meeting.id
         self.questions = meeting.questions
         self.discussion_log = []
-        self.user_id = meeting.user_id
+        self.chat_session = None
+        self.user_id = meeting.user_id  # Add user_id from meeting
         
         # Map participants from participant_order
         self.participants = {}
@@ -147,17 +148,58 @@ class MeetingDiscussion:
             logger.warning("Invalid strength from %s: %s", participant["name"], response)
             return 0
 
-    def synthesize_response(self, llm_client):
-        """Synthesize a final response from the discussion log."""
-        prompt = f"Based on this discussion log for the topic '{self.topic}', " f"provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
+    async def synthesize_response(self, llm_client):
+        """Synthesize a final response from the discussion log and store in chat session."""
+        prompt = f"Based on this discussion log for the topic '{self.topic}', provide a concise summary or conclusion:\n{json.dumps(self.discussion_log, indent=2)}"
         messages = [{"role": "system", "content": prompt}]
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
-        return response.strip()
+        response = response.strip()
+
+        # Create/update chat session
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        if not self.chat_session:
+            session_id = str(uuid.uuid4())
+            self.chat_session = {
+                "id": session_id,
+                "meeting_id": self.meeting_id,
+                "user_id": self.user_id,
+                "messages": [{"role": "system", "content": prompt}],
+                "display_messages": []
+            }
+
+        # Add summary message
+        self.chat_session["messages"].append({
+            "role": "assistant",
+            "content": response
+        })
+        self.chat_session["display_messages"].append({
+            "role": "system",
+            "content": response,
+            "type": "summary",
+            "name": "Meeting Summary",
+            "step": "final",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
+        # Save chat session
+        chat_container.upsert_item(body=self.chat_session)
+        return response
 
     async def conduct_discussion(self, llm_client):
         """Conduct the discussion based on strategy and yield SSE events."""
         if self.strategy not in ["round robin", "opinionated", "chat"]:
             raise HTTPException(status_code=400, detail="Invalid strategy")
+
+        # Initialize chat session
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        session_id = str(uuid.uuid4())
+        self.chat_session = {
+            "id": session_id,
+            "meeting_id": self.meeting_id,
+            "user_id": self.user_id,
+            "messages": [],
+            "display_messages": []
+        }
 
         if self.strategy in ["round robin", "opinionated"]:
             yield format_sse_event("questions", {"questions": self.questions})
@@ -172,7 +214,23 @@ class MeetingDiscussion:
                     await asyncio.sleep(0.1)  # Add delay before response
 
                     answer = self.ask_question(llm_client, pid, question, context)
+                    # Add to discussion log
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
+                    # Add to chat session
+                    self.chat_session["messages"].append({
+                        "role": "assistant",
+                        "content": answer
+                    })
+                    self.chat_session["display_messages"].append({
+                        "role": self.participants[pid]["role"],
+                        "content": answer,
+                        "type": "participant",
+                        "name": self.participants[pid]["name"],
+                        "step": f"question_{len(self.questions)}_participant_{pid}",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                    # Save chat session
+                    chat_container.upsert_item(body=self.chat_session)
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     await asyncio.sleep(0.1)  # Add delay after each response
                     context += f"{self.participants[pid]['name']}: {answer}\n"
@@ -193,13 +251,29 @@ class MeetingDiscussion:
                         await asyncio.sleep(0.1)  # Add delay before response
 
                         answer = self.ask_question(llm_client, pid, question, context)
+                        # Add to discussion log
                         self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
+                        # Add to chat session
+                        self.chat_session["messages"].append({
+                            "role": "assistant",
+                            "content": answer
+                        })
+                        self.chat_session["display_messages"].append({
+                            "role": self.participants[pid]["role"],
+                            "content": answer,
+                            "type": "participant",
+                            "name": self.participants[pid]["name"],
+                            "step": f"question_{len(self.questions)}_participant_{pid}_strength_{strength}",
+                            "timestamp": datetime.now(timezone.utc).isoformat()
+                        })
+                        # Save chat session
+                        chat_container.upsert_item(body=self.chat_session)
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         await asyncio.sleep(0.1)  # Add delay after each response
                         context += f"{self.participants[pid]['name']} (Strength {strength}): {answer}\n"
 
             # Synthesize final response for round robin and opinionated
-            final_response = self.synthesize_response(llm_client)
+            final_response = await self.synthesize_response(llm_client)
             yield format_sse_event("final_response", {"response": final_response})
             yield format_sse_event("complete", {})
 
