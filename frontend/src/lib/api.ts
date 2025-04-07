@@ -48,7 +48,7 @@ export const createParticipant = (data: {
   core_qualities: string
   style_preferences: string
   additional_info: string
-}) => api.post("/participant", data)
+}) => api.post("/participant", { ...data, user_id: USER_ID })
 
 export const listParticipants = () => api.get<{ participants: Participant[] }>(`/participants?user_id=${USER_ID}`)
 
@@ -68,7 +68,7 @@ export const updateParticipant = (
     style_preferences: string
     additional_info: string
   },
-) => api.put(`/participant/${participantId}`, data)
+) => api.put(`/participant/${participantId}`, { ...data, user_id: USER_ID })
 
 export const deleteParticipant = (participantId: string) => api.delete(`/participant/${participantId}?user_id=${USER_ID}`)
 
