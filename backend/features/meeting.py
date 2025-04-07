@@ -265,6 +265,46 @@ async def get_meeting(meeting_id: str, user_id: str) -> Meeting:
         raise HTTPException(status_code=500, detail="Internal server error while fetching meeting")
 
 
+async def delete_meeting(meeting_id: str, user_id: str):
+    """Delete a meeting and its associated chat sessions."""
+    logger.info("Deleting meeting: %s", meeting_id)
+
+    try:
+        # Check if meeting exists
+        meeting_data = await cosmos_client.get_meeting(user_id, meeting_id)
+        if not meeting_data:
+            logger.error("Meeting not found: %s", meeting_id)
+            raise HTTPException(status_code=404, detail=f"Meeting ID '{meeting_id}' not found")
+
+        # Delete associated chat sessions
+        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        query = f"SELECT * FROM c WHERE c.meeting_id = '{meeting_id}' AND c.user_id = '{user_id}'"
+        chat_sessions = list(chat_container.query_items(
+            query=query,
+            partition_key=user_id
+        ))
+        
+        # Delete each chat session
+        for session in chat_sessions:
+            chat_container.delete_item(
+                item=session["id"],
+                partition_key=user_id
+            )
+            logger.info(f"Deleted chat session {session['id']} for meeting {meeting_id}")
+        
+        # Delete the meeting
+        await cosmos_client.delete_meeting(user_id, meeting_id)
+
+        logger.info("Successfully deleted meeting and associated chat sessions: %s", meeting_id)
+        return {"message": f"Meeting '{meeting_id}' and {len(chat_sessions)} associated chat sessions deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error deleting meeting: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error while deleting meeting")
+
+
 async def set_meeting_topic(meeting_topic: MeetingTopic):
     """Set a topic for an existing meeting."""
     logger.info("Setting topic for meeting: %s", meeting_topic.meeting_id)

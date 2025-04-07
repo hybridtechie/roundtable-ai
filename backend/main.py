@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
-from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, MeetingCreate, MeetingTopic
+from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic,delete_meeting, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import stream_meeting_discussion, MeetingDiscussion, ChatSessionCreate, get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
 from features.llm import create_llm_account, update_llm_account, delete_llm_account, get_llm_accounts, set_default_provider, LLMAccountCreate, LLMAccountUpdate
@@ -201,6 +201,18 @@ async def list_meetings_endpoint(user_id: str):
         logger.error("Failed to fetch meetings: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
 
+
+# Delete Meeting
+@app.delete("/meeting/{meeting_id}")
+async def delete_meeting_endpoint(meeting_id: str, user_id: str):
+    try:
+        logger.info("Deleting meeting: %s for user: %s", meeting_id, user_id)
+        result = await delete_meeting(meeting_id, user_id)
+        logger.info("Successfully deleted meeting: %s", meeting_id)
+        return result
+    except Exception as e:
+        logger.error("Failed to delete meeting %s: %s", meeting_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete meeting: {str(e)}")
 
 # Get Meeting
 @app.get("/meeting/{meeting_id}")
