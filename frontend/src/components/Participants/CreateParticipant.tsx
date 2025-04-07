@@ -27,6 +27,7 @@ const CreateParticipant: React.FC = () => {
   const handleCreateParticipant = async () => {
     setIsLoading(true)
     try {
+      console.log("Creating participant:", newParticipant)
       await createParticipant(newParticipant)
       setNewParticipant(initialState)
       toast.success("Participant created successfully!")
