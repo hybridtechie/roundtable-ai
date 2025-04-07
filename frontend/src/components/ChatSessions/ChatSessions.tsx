@@ -17,7 +17,8 @@ interface GroupedSessions {
 
 const ChatSessions: React.FC = () => {
   const { chatSessions, loading, error } = useChatSessions()
-
+  console.log("ChatSessions Length:", chatSessions.length)
+  console.log("All ChatSessions:", chatSessions)
   if (loading) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -35,6 +36,12 @@ const ChatSessions: React.FC = () => {
   }
 
   const groupedSessions = chatSessions.reduce<GroupedSessions>((acc, session) => {
+    console.log('Processing session:', {
+      id: session.id,
+      participants: session.participants?.length,
+      meeting_id: session.meeting_id,
+      group_name: session.group_name
+    })
     // Check if it's a single participant session
     const isSingleParticipant = session.participants?.length === 1
     const key = isSingleParticipant ? session.participants[0].participant_id : session.meeting_id || "other"
@@ -58,6 +65,7 @@ const ChatSessions: React.FC = () => {
   })
 
   // Separate sessions into chats and meetings
+  console.log('Before categorization - groupedSessions:', groupedSessions)
   const { chats, meetings } = Object.entries(groupedSessions).reduce(
     (acc, [key, group]) => {
       if (group.type === "participant") {
@@ -70,16 +78,21 @@ const ChatSessions: React.FC = () => {
     { chats: [], meetings: [] } as {
       chats: ((typeof groupedSessions)[string] & { key: string })[]
       meetings: ((typeof groupedSessions)[string] & { key: string })[]
-    },
+    }
   )
+  console.log('After categorization - meetings:', meetings)
 
   // Sort by most recent timestamp
+  console.log('Before sorting - meetings:', meetings)
   const sortByTimestamp = (items: ((typeof groupedSessions)[string] & { key: string })[]) => {
-    return items.sort((a, b) => {
+    const sorted = items.sort((a, b) => {
       const aLatest = Math.max(...a.sessions.map((s) => s._ts ?? 0))
       const bLatest = Math.max(...b.sessions.map((s) => s._ts ?? 0))
+      console.log('Comparing timestamps:', { a: aLatest, b: bLatest })
       return bLatest - aLatest
     })
+    console.log('After sorting:', sorted)
+    return sorted
   }
 
   return (
@@ -126,7 +139,9 @@ const ChatSessions: React.FC = () => {
           <h3 className="text-sm font-medium">Groups</h3>
         </div>
         <div className="flex flex-col space-y-1">
-          {sortByTimestamp(meetings).map((group) => (
+          {sortByTimestamp(meetings).map((group) => {
+            console.log('Processing group:', group)
+            return (
             <Collapsible key={group.key} defaultOpen={false} className="w-full">
               <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">
                 <ChevronRight className="w-4 h-4" />
@@ -149,7 +164,7 @@ const ChatSessions: React.FC = () => {
                 </div>
               </CollapsibleContent>
             </Collapsible>
-          ))}
+          )})}
         </div>
       </div>
     </div>

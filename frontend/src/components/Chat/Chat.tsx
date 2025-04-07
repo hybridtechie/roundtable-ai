@@ -1,17 +1,28 @@
 import React, { useRef, useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useLocation } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ChatInput } from "@/components/ui/chat-input"
-import { getChatSession, sendChatMessage } from "@/lib/api"
-import { ChatMessage as ChatMessageType } from "@/types/types"
+import { getChatSession, sendChatMessage, streamChat, getMeeting } from "@/lib/api"
+import { toast } from "@/components/ui/sonner"
+import {
+  ChatMessage as ChatMessageType,
+  ChatEventType,
+  ParticipantResponse,
+  ChatFinalResponse,
+  QuestionsResponse,
+  ChatErrorResponse,
+  NextParticipantResponse
+} from "@/types/types"
 
 interface DisplayMessage {
   type?: string
   name?: string
   role?: string
+  question?: string
   content: string
+  strength?: number
   timestamp: Date
 }
 
@@ -25,9 +36,11 @@ interface ChatSessionDetails {
   meeting_name?: string
   meeting_topic?: string
 }
-
 const Chat: React.FC = () => {
   const { meetingId, sessionId } = useParams<{ meetingId: string; sessionId?: string }>()
+  const location = useLocation()
+  const isStreamMode = location.pathname.includes('/stream')
+  
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(sessionId)
   const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -35,11 +48,21 @@ const Chat: React.FC = () => {
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionTitle, setSessionTitle] = useState<string>("")
+  const [thinkingParticipant, setThinkingParticipant] = useState<string | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const cleanupRef = useRef<(() => void) | null>(null)
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.()
+    }
+  }, [])
+
+  // Handle regular chat session loading
   useEffect(() => {
     const fetchChatSession = async () => {
-      if (!sessionId) {
+      if (!sessionId || isStreamMode) {
         setIsLoading(false)
         return
       }
@@ -77,7 +100,123 @@ const Chat: React.FC = () => {
     }
 
     fetchChatSession()
-  }, [sessionId])
+  }, [sessionId, isStreamMode])
+
+  // Handle streaming chat mode
+  useEffect(() => {
+    const startStreamingChat = async () => {
+      if (!meetingId || !isStreamMode) {
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      setMessages([])
+      console.log("Starting streaming chat for meeting ID:", meetingId)
+
+      try {
+        // Get meeting details to set title
+        const meetingResponse = await getMeeting(meetingId)
+        console.log("Meeting response:", meetingResponse.data)
+        
+        // Check if meeting data exists and has the expected structure
+        if (meetingResponse.data && meetingResponse.data.meeting) {
+          const meeting = meetingResponse.data.meeting
+          
+          // Set session title if name or topic exists
+          if (meeting && (meeting.name || meeting.topic)) {
+            setSessionTitle(
+              `${meeting.name || ""}${meeting.name && meeting.topic ? "\n" : ""}${meeting.topic || ""}`,
+            )
+          } else {
+            // Set a default title if name and topic are missing
+            setSessionTitle("Meeting Discussion")
+          }
+        } else {
+          // Set a default title if meeting data is missing
+          setSessionTitle("Meeting Discussion")
+          console.warn("Meeting data is missing or has unexpected structure:", meetingResponse.data)
+        }
+
+        // Cleanup any existing chat stream
+        cleanupRef.current?.()
+
+        // Start streaming chat with meeting_id
+        cleanupRef.current = streamChat(meetingId, {
+          onEvent: (
+            eventType: ChatEventType,
+            data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse | NextParticipantResponse,
+          ) => {
+            switch (eventType) {
+              case ChatEventType.NextParticipant:
+                if ("participant_name" in data && "participant_id" in data) {
+                  setThinkingParticipant(data.participant_name)
+                }
+                break
+              case ChatEventType.ParticipantResponse:
+                if ("participant" in data && "question" in data && "answer" in data) {
+                  setThinkingParticipant(null)
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      type: "participant",
+                      name: data.participant,
+                      question: data.question,
+                      content: data.answer,
+                      strength: "strength" in data ? data.strength : undefined,
+                      timestamp: new Date(),
+                    },
+                  ])
+                }
+                break
+              case ChatEventType.FinalResponse:
+                if ("response" in data) {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      type: "final",
+                      content: data.response,
+                      timestamp: new Date(),
+                    },
+                  ])
+                }
+                break
+              case ChatEventType.Error:
+                if ("detail" in data) {
+                  console.error("Chat error:", data.detail)
+                  toast.error(data.detail)
+                  setIsLoading(false)
+                }
+                break
+              case ChatEventType.Complete:
+                setIsLoading(false)
+                toast.success("Meeting completed successfully")
+                break
+            }
+          },
+        })
+        console.log("Chat stream started successfully")
+      } catch (error) {
+        console.error("Error starting chat stream:", error)
+        // More detailed error logging
+        if (error instanceof Error) {
+          console.error("Error message:", error.message)
+          console.error("Error stack:", error.stack)
+          setError(`Failed to start chat stream: ${error.message}`)
+        } else {
+          setError("Failed to start chat stream: Unknown error")
+        }
+        setIsLoading(false)
+        toast.error("Failed to start chat stream. Please try again or contact support if the issue persists.")
+      }
+    }
+
+    startStreamingChat()
+    
+    return () => {
+      cleanupRef.current?.()
+    }
+  }, [meetingId, isStreamMode])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -151,25 +290,38 @@ const Chat: React.FC = () => {
                       <span>Loading messages...</span>
                     </div>
                   ) : error ? (
-                    error
+                    <div className="text-red-500">
+                      <p className="font-semibold">Error:</p>
+                      <p>{error}</p>
+                      <p className="mt-2 text-sm">
+                        Try refreshing the page or creating a new meeting.
+                      </p>
+                    </div>
                   ) : (
-                    "Start a new conversation..."
+                    isStreamMode ?
+                      "Waiting for participants to join the discussion..." :
+                      sessionId ? "Start a new conversation..." : "Waiting for user input..."
                   )}
                 </div>
               )}
               {messages.map((msg, index) => (
                 <ChatMessage key={index} {...msg} />
               ))}
+              {isLoading && thinkingParticipant && (
+                <div className="text-center text-muted-foreground">{thinkingParticipant} is thinking...</div>
+              )}
             </div>
           </div>
         </CardContent>
-        <ChatInput
-          value={inputValue}
-          onChange={setInputValue}
-          onSend={handleSendMessage}
-          disabled={isLoading || !!error || !meetingId}
-          isLoading={isSending}
-        />
+        {!isStreamMode && (
+          <ChatInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSend={handleSendMessage}
+            disabled={isLoading || !!error || !meetingId}
+            isLoading={isSending}
+          />
+        )}
       </Card>
     </div>
   )

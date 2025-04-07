@@ -32,6 +32,7 @@ function App() {
                   <Route path="/meetings/new" element={<NewMeeting />} />
                   <Route path="/chat/new" element={<NewChat />} />
                   <Route path="/chat/:meetingId/session/:sessionId?" element={<Chat />} />
+                  <Route path="/chat/:meetingId/stream" element={<Chat />} />
                 </Routes>
               </div>
             </div>

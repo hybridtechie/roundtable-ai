@@ -56,7 +56,9 @@ async def get_user_chat_sessions(user_id: str) -> list:
                 except Exception as e:
                     logger.warning(f"Could not fetch meeting details for chat session {session.get('id')}: {str(e)}")
                     # Continue even if meeting details can't be fetched
-
+            session["display_messages"]=[]
+            session["messages"]=[]
+            
             enhanced_sessions.append(session)
 
         logger.info(f"Retrieved and enhanced {len(enhanced_sessions)} chat sessions for user {user_id}")

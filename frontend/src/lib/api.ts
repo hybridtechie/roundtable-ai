@@ -158,42 +158,78 @@ export const getUserInfo = () => api.get<UserInfo>(`/user/me?user_id=${USER_ID}`
 export const getUserDetailInfo = () => api.get<UserDetailInfo>(`/user/me/detail?user_id=${USER_ID}`)
 
 export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() => void) => {
-  const eventSource = new EventSource(`${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`)
+  console.log(`Starting chat stream for meeting ID: ${meetingId}, user ID: ${USER_ID}`)
+  const url = `${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`
+  console.log(`EventSource URL: ${url}`)
+  
+  const eventSource = new EventSource(url)
+
+  // Handle connection open
+  eventSource.onopen = () => {
+    console.log("EventSource connection opened successfully")
+  }
 
   eventSource.addEventListener(ChatEventType.Questions, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as QuestionsResponse
-    callbacks.onEvent(ChatEventType.Questions, data)
+    console.log("Received questions event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as QuestionsResponse
+      callbacks.onEvent(ChatEventType.Questions, data)
+    } catch (error) {
+      console.error("Error parsing questions event:", error)
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.ParticipantResponse, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as ParticipantResponse
-    callbacks.onEvent(ChatEventType.ParticipantResponse, data)
+    console.log("Received participant response event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as ParticipantResponse
+      callbacks.onEvent(ChatEventType.ParticipantResponse, data)
+    } catch (error) {
+      console.error("Error parsing participant response event:", error)
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.FinalResponse, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as ChatFinalResponse
-    callbacks.onEvent(ChatEventType.FinalResponse, data)
+    console.log("Received final response event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as ChatFinalResponse
+      callbacks.onEvent(ChatEventType.FinalResponse, data)
+    } catch (error) {
+      console.error("Error parsing final response event:", error)
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.Error, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as ChatErrorResponse
-    callbacks.onEvent(ChatEventType.Error, data)
+    console.log("Received error event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as ChatErrorResponse
+      callbacks.onEvent(ChatEventType.Error, data)
+    } catch (error) {
+      console.error("Error parsing error event:", error)
+      callbacks.onEvent(ChatEventType.Error, { detail: "Error parsing error event" })
+    }
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.NextParticipant, ((event: MessageEvent) => {
-    const data = JSON.parse(event.data) as NextParticipantResponse
-    callbacks.onEvent(ChatEventType.NextParticipant, data)
+    console.log("Received next participant event:", event.data)
+    try {
+      const data = JSON.parse(event.data) as NextParticipantResponse
+      callbacks.onEvent(ChatEventType.NextParticipant, data)
+    } catch (error) {
+      console.error("Error parsing next participant event:", error)
+    }
   }) as EventListener)
 
-  eventSource.addEventListener(ChatEventType.Complete, () => {
+  eventSource.addEventListener(ChatEventType.Complete, (() => {
+    console.log("Received complete event")
     eventSource.close()
     callbacks.onEvent(ChatEventType.Complete, {} as ChatErrorResponse)
-  })
+  }) as EventListener)
 
   eventSource.onerror = (error) => {
     console.error("SSE Error:", error)
     eventSource.close()
-    callbacks.onEvent(ChatEventType.Error, { detail: "Connection error" })
+    callbacks.onEvent(ChatEventType.Error, { detail: "Connection error with the server. Please try again later." })
   }
 
   return () => {

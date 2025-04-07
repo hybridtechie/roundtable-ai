@@ -1,21 +1,14 @@
-import React, { useState, useRef, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import React, { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { streamChat, listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
+import { listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
 import { toast } from "@/components/ui/sonner"
 import {
   Group,
   Participant,
-  ChatEventType,
-  ParticipantResponse,
-  ChatFinalResponse,
-  QuestionsResponse,
-  ChatErrorResponse,
-  NextParticipantResponse,
 } from "@/types/types"
-import { ChatMessage } from "@/components/ui/chat-message"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
 import {
   arrayMove,
@@ -27,14 +20,6 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Textarea } from "@/components/ui/textarea"
 
-interface ChatMessageType {
-  type: "participant" | "final"
-  name?: string
-  question?: string
-  content: string
-  strength?: number
-  timestamp: Date
-}
 
 interface WeightedParticipant {
   id: string
@@ -75,7 +60,8 @@ const SortableParticipant: React.FC<{
 }
 
 const NewMeeting: React.FC = () => {
-  const [step, setStep] = useState<"group" | "participants" | "questions" | "chat">("group")
+  const navigate = useNavigate()
+  const [step, setStep] = useState<"group" | "participants" | "questions">("group")
   const [selectedGroup, setSelectedGroup] = useState<string>("")
 
   // Handle group selection
@@ -107,13 +93,9 @@ const NewMeeting: React.FC = () => {
   }
 
   const [participants, setParticipants] = useState<ExtendedParticipant[]>([])
-  const [thinkingParticipant, setThinkingParticipant] = useState<string | null>(null)
   const [questions, setQuestions] = useState<string[]>([])
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([])
-  const [messages, setMessages] = useState<ChatMessageType[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const cleanupRef = useRef<(() => void) | null>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Setup sensors for drag-and-drop
   const sensors = useSensors(
@@ -123,12 +105,6 @@ const NewMeeting: React.FC = () => {
     }),
   )
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
-    }
-  }, [messages])
 
   // Fetch groups on mount and set default group
   useEffect(() => {
@@ -159,13 +135,6 @@ const NewMeeting: React.FC = () => {
       }
     }
     fetchGroupsAndSetDefault()
-  }, [])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.()
-    }
   }, [])
 
   // Fetch questions when moving to next step
@@ -223,7 +192,6 @@ const NewMeeting: React.FC = () => {
     if (!selectedGroup || !topic.trim()) return
 
     setIsLoading(true)
-    setMessages([])
 
     try {
       // Create meeting and get meeting_id
@@ -239,78 +207,14 @@ const NewMeeting: React.FC = () => {
         })),
       })
       const meeting_id = response.data.meeting_id
-
-      // Cleanup any existing chat stream
-      cleanupRef.current?.()
-
-      // Start streaming chat with meeting_id
-      cleanupRef.current = streamChat(meeting_id, {
-        onEvent: (
-          eventType: ChatEventType,
-          data: ParticipantResponse | ChatFinalResponse | QuestionsResponse | ChatErrorResponse | NextParticipantResponse,
-        ) => {
-          switch (eventType) {
-            case ChatEventType.NextParticipant:
-              if ("participant_name" in data && "participant_id" in data) {
-                setThinkingParticipant(data.participant_name)
-              }
-              break
-            case ChatEventType.Questions:
-              if ("questions" in data) {
-                setQuestions(data.questions)
-              }
-              break
-            case ChatEventType.ParticipantResponse:
-              if ("participant" in data && "question" in data && "answer" in data) {
-                setThinkingParticipant(null)
-                const participant = participants.find((p) => p.name === data.participant)
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    type: "participant",
-                    name: data.participant,
-                    role: participant?.role,
-                    question: data.question,
-                    content: data.answer,
-                    strength: "strength" in data ? data.strength : undefined,
-                    timestamp: new Date(),
-                  },
-                ])
-                setThinkingParticipant(null)
-              }
-              break
-            case ChatEventType.FinalResponse:
-              if ("response" in data) {
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    type: "final",
-                    content: data.response,
-                    timestamp: new Date(),
-                  },
-                ])
-              }
-              break
-            case ChatEventType.Error:
-              if ("detail" in data) {
-                console.error("Chat error:", data.detail)
-                toast.error(data.detail)
-                setIsLoading(false)
-              }
-              break
-            case ChatEventType.Complete:
-              setIsLoading(false)
-              toast.success("Meeting completed successfully")
-              break
-          }
-        },
-      })
-
-      // Automatically move to the chat view
-      setStep("chat")
+      
+      toast.success("Meeting created successfully")
+      
+      // Navigate to the Chat component with the meeting ID
+      navigate(`/chat/${meeting_id}/stream`)
     } catch (error) {
-      console.error("Error starting chat:", error)
-      toast.error("Failed to start meeting")
+      console.error("Error creating meeting:", error)
+      toast.error("Failed to create meeting")
       setIsLoading(false)
     }
   }
@@ -410,37 +314,8 @@ const NewMeeting: React.FC = () => {
             onClick={handleStartChat}
             disabled={selectedQuestions.length === 0 || isLoading}
             className="text-white bg-blue-500 hover:bg-blue-600">
-            {isLoading ? "Starting Meeting..." : "Start Meeting"}
+            {isLoading ? "Creating Meeting..." : "Start Chat"}
           </Button>
-        </div>
-      )}
-
-      {step === "chat" && (
-        <div className="flex flex-col h-full">
-          <Card className="flex flex-col flex-1 border-none">
-            <CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
-                <div className="p-4 space-y-4">
-                  {messages.length === 0 && !isLoading && (
-                    <div className="text-center text-muted-foreground">
-                      No messages yet. Start the meeting to begin the discussion.
-                    </div>
-                  )}
-                  {messages.map((msg, index) => (
-                    <ChatMessage key={index} {...msg} />
-                  ))}
-                  {isLoading && thinkingParticipant && (
-                    <div className="text-center text-muted-foreground">{thinkingParticipant} is thinking...</div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="mt-4">
-            <Button onClick={handleStartChat} disabled={isLoading} className="text-white bg-blue-500 hover:bg-blue-600">
-              Start Meeting
-            </Button>
-          </div>
         </div>
       )}
     </div>
