@@ -69,8 +69,15 @@ const ChatSessions: React.FC = () => {
         <h3 className="text-sm font-medium">Recent Chats</h3>
       </div>
       <div className="flex flex-col space-y-1">
-        {Object.entries(groupedSessions).map(([key, group]) => (
-          <Collapsible key={key} defaultOpen className="w-full">
+        {Object.entries(groupedSessions)
+          .sort(([, a], [, b]) => {
+            // Sort by the most recent _ts in each group
+            const aLatest = Math.max(...a.sessions.map(s => s._ts ?? 0));
+            const bLatest = Math.max(...b.sessions.map(s => s._ts ?? 0));
+            return bLatest - aLatest;
+          })
+          .map(([key, group]) => (
+            <Collapsible key={key} defaultOpen className="w-full">
             <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">
               <ChevronRight className="w-4 h-4" />
               <span className="ml-1 text-sm font-medium">
