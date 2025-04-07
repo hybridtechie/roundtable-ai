@@ -53,7 +53,7 @@ const Participants: React.FC = () => {
       style_preferences: decodeMarkdownContent(participant.style_preferences),
       additional_info: decodeMarkdownContent(participant.additional_info),
     }
-    
+
     setSelectedParticipant(decodedParticipant)
     setEditedParticipant(decodedParticipant)
     setIsEditDialogOpen(true)
@@ -68,12 +68,12 @@ const Participants: React.FC = () => {
           Create New
         </Button>
       </div>
-      
+
       <div className="flex items-start gap-2 p-3 mb-4 rounded-md bg-muted">
         <Info className="w-5 h-5 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-muted-foreground">
-          All participant fields support markdown formatting. You can use <strong>bold</strong>, <em>italic</em>,
-          lists, and other markdown syntax to format your content.
+          All participant fields support markdown formatting. You can use <strong>bold</strong>, <em>italic</em>, lists, and other
+          markdown syntax to format your content.
         </p>
       </div>
 
@@ -269,7 +269,7 @@ const Participants: React.FC = () => {
                       additional_info: encodeMarkdownContent(editedParticipant.additional_info),
                       user_id: "roundtable_ai_admin",
                     }
-                    
+
                     await updateParticipant(selectedParticipant.id, encodedParticipant)
                     toast.success("Participant updated successfully")
                     setIsEditDialogOpen(false)

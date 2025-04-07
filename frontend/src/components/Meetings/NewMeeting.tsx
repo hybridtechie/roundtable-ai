@@ -235,8 +235,8 @@ const NewMeeting: React.FC = () => {
         participant_order: participants.map((participant, index) => ({
           participant_id: participant.id,
           weight: participant.weight,
-          order: index + 1
-        }))
+          order: index + 1,
+        })),
       })
       const meeting_id = response.data.meeting_id
 

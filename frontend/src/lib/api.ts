@@ -21,10 +21,10 @@ const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL
   }
-  
+
   // Check if we're in development or production
-  const isDevelopment = import.meta.env.MODE === 'development'
-  
+  const isDevelopment = import.meta.env.MODE === "development"
+
   return isDevelopment
     ? "http://localhost:8000" // Local development
     : "https://wa-roundtableai-azd3a2hxenb9a4gr.australiaeast-01.azurewebsites.net" // Production

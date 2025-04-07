@@ -51,7 +51,9 @@ const Chat: React.FC = () => {
 
         // Set session title from meeting name/topic if available
         if (sessionData.meeting_name || sessionData.meeting_topic) {
-          setSessionTitle(`${sessionData.meeting_name || ""}${sessionData.meeting_name && sessionData.meeting_topic ? '\n' : ''}${sessionData.meeting_topic || ""}`)
+          setSessionTitle(
+            `${sessionData.meeting_name || ""}${sessionData.meeting_name && sessionData.meeting_topic ? "\n" : ""}${sessionData.meeting_topic || ""}`,
+          )
         }
 
         // Format messages for display
@@ -132,10 +134,8 @@ const Chat: React.FC = () => {
       {sessionTitle && (
         <div className="p-4 pb-0">
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold">{sessionTitle.split('\n')[0]}</h2>
-            {sessionTitle.includes('\n') && (
-              <p className="text-sm text-muted-foreground">{sessionTitle.split('\n')[1]}</p>
-            )}
+            <h2 className="text-xl font-semibold">{sessionTitle.split("\n")[0]}</h2>
+            {sessionTitle.includes("\n") && <p className="text-sm text-muted-foreground">{sessionTitle.split("\n")[1]}</p>}
           </div>
         </div>
       )}

@@ -58,20 +58,10 @@ interface ActionsProps {
 
 const Actions: FC<ActionsProps> = ({ meeting, onDelete, onView }) => (
   <div className="flex gap-2">
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => onView(meeting)}
-      className="hover:bg-slate-100"
-    >
+    <Button variant="ghost" size="icon" onClick={() => onView(meeting)} className="hover:bg-slate-100">
       <Eye className="w-4 h-4" />
     </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => onDelete(meeting.id)}
-      className="hover:bg-red-100 hover:text-red-600"
-    >
+    <Button variant="ghost" size="icon" onClick={() => onDelete(meeting.id)} className="hover:bg-red-100 hover:text-red-600">
       <Trash2 className="w-4 h-4" />
     </Button>
   </div>

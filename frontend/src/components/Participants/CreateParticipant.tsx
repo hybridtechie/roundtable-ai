@@ -41,7 +41,7 @@ const CreateParticipant: React.FC = () => {
         style_preferences: encodeMarkdownContent(newParticipant.style_preferences),
         additional_info: encodeMarkdownContent(newParticipant.additional_info),
       }
-      
+
       console.log("Creating participant with encoded markdown content")
       await createParticipant(encodedParticipant)
       setNewParticipant(initialState)
@@ -59,8 +59,8 @@ const CreateParticipant: React.FC = () => {
       <h1 className="mb-4 text-3xl font-bold">Create Participant</h1>
       <div className="p-3 mb-4 rounded-md bg-muted">
         <p className="text-sm text-muted-foreground">
-          <strong>Note:</strong> All fields support markdown formatting. You can use **bold**, *italic*,
-          lists, and other markdown syntax to format your content.
+          <strong>Note:</strong> All fields support markdown formatting. You can use **bold**, *italic*, lists, and other markdown
+          syntax to format your content.
         </p>
       </div>
       <Card>

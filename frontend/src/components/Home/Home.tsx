@@ -77,7 +77,7 @@ const Home: React.FC = () => {
             <h1 className="text-3xl font-bold">Welcome, {userDetail?.display_name || "User"}</h1>
             <p className="mt-1 text-gray-500">{userDetail?.email}</p>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
             {dashboardCards.map((card, index) => (
               <Card key={index} className="overflow-hidden">

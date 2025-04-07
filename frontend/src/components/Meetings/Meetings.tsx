@@ -58,13 +58,7 @@ const Meetings: React.FC = () => {
           <DataTable columns={columns({ onDelete: handleDelete, onView: handleView })} data={meetings} />
         )}
       </div>
-      {selectedMeeting && (
-        <MeetingDetailsDialog
-          meeting={selectedMeeting}
-          open={showDetails}
-          onOpenChange={setShowDetails}
-        />
-      )}
+      {selectedMeeting && <MeetingDetailsDialog meeting={selectedMeeting} open={showDetails} onOpenChange={setShowDetails} />}
     </div>
   )
 }

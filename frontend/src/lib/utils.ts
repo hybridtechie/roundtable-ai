@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function encodeMarkdownContent(content: string): string {
   if (!content) return ""
-  
+
   // First encode the content to handle special characters
   return encodeURIComponent(content)
 }
@@ -22,7 +22,7 @@ export function encodeMarkdownContent(content: string): string {
  */
 export function decodeMarkdownContent(content: string): string {
   if (!content) return ""
-  
+
   try {
     return decodeURIComponent(content)
   } catch (error) {
