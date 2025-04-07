@@ -68,6 +68,7 @@ const Chat: React.FC = () => {
       }
 
       setIsLoading(true)
+      setMessages([]) // Clear messages while loading
       try {
         const response = await getChatSession(sessionId)
         const sessionData = response.data as ChatSessionDetails
@@ -109,10 +110,10 @@ const Chat: React.FC = () => {
         setIsLoading(false)
         return
       }
+setIsLoading(true)
+setMessages([]) // Clear messages while loading
+console.log("Starting streaming chat for meeting ID:", meetingId)
 
-      setIsLoading(true)
-      setMessages([])
-      console.log("Starting streaming chat for meeting ID:", meetingId)
 
       try {
         // Get meeting details to set title
@@ -149,11 +150,13 @@ const Chat: React.FC = () => {
           ) => {
             switch (eventType) {
               case ChatEventType.NextParticipant:
+                setIsLoading(false)
                 if ("participant_name" in data && "participant_id" in data) {
                   setThinkingParticipant(data.participant_name)
                 }
                 break
               case ChatEventType.ParticipantResponse:
+                setIsLoading(false)
                 if ("participant" in data && "question" in data && "answer" in data) {
                   setThinkingParticipant(null)
                   setMessages((prev) => [
@@ -282,14 +285,14 @@ const Chat: React.FC = () => {
         <CardContent className="flex flex-col p-0 h-[70vh] overflow-hidden">
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-4">
-              {messages.length === 0 && (
+              {isLoading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <LoadingSpinner size={24} />
+                  <span className="text-muted-foreground">Loading messages...</span>
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="text-center text-muted-foreground">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <LoadingSpinner size={24} />
-                      <span>Loading messages...</span>
-                    </div>
-                  ) : error ? (
+                  {error ? (
                     <div className="text-red-500">
                       <p className="font-semibold">Error:</p>
                       <p>{error}</p>
@@ -297,13 +300,15 @@ const Chat: React.FC = () => {
                         Try refreshing the page or creating a new meeting.
                       </p>
                     </div>
+                  ) : isStreamMode ? (
+                    "Waiting for participants to join the discussion..."
+                  ) : sessionId ? (
+                    "Start a new conversation..."
                   ) : (
-                    isStreamMode ?
-                      "Waiting for participants to join the discussion..." :
-                      sessionId ? "Start a new conversation..." : "Waiting for user input..."
+                    "Waiting for user input..."
                   )}
                 </div>
-              )}
+              ) : null}
               {messages.map((msg, index) => (
                 <ChatMessage key={index} {...msg} />
               ))}
