@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Copy } from "lucide-react"
+import { Copy, ChevronDown, ChevronUp } from "lucide-react"
 import { useState } from "react"
 interface ChatMessageProps {
   type?: string
@@ -34,8 +34,9 @@ export function ChatMessage({
         .join("")
         .toUpperCase()
     : "AI"
+const [copied, setCopied] = useState(false)
+const [isExpanded, setIsExpanded] = useState(false)
 
-  const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
     if (content) {
@@ -48,7 +49,7 @@ export function ChatMessage({
   return (
     <div className={cn("flex items-start gap-4 p-4 rounded-lg bg-secondary/50 relative group", className)}>
       <Avatar>
-        <AvatarFallback className="bg-primary/10">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-primary/5">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex-1 space-y-2">
         <div className="flex flex-col gap-1">
@@ -58,8 +59,33 @@ export function ChatMessage({
           </div>
           {role && type === "participant" && <span className="text-sm text-muted-foreground">{role}</span>}
         </div>
-        <div className={cn("text-sm whitespace-pre-wrap", type === "final" && "text-green-500")}>{content}</div>
-        <div className="text-xs text-muted-foreground">{timestamp?.toLocaleTimeString()}</div>
+        <div
+          className={cn(
+            "text-sm whitespace-pre-wrap relative",
+            type === "final" && "text-green-500",
+            !isExpanded && "max-h-[7.5rem] overflow-hidden" // ~5 lines of text
+          )}
+        >
+          {content || ""}
+          {content && !isExpanded && content.split('\n').length > 5 && (
+            <div className="absolute bottom-0 w-full h-8 bg-gradient-to-t from-secondary/50 to-transparent" />
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-muted-foreground">{timestamp?.toLocaleTimeString()}</div>
+          {content && content.split('\n').length > 5 && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"
+            >
+              {isExpanded ? (
+                <>Show Less <ChevronUp className="w-3 h-3" /></>
+              ) : (
+                <>Show More <ChevronDown className="w-3 h-3" /></>
+              )}
+            </button>
+          )}
+        </div>
       </div>
       <button
         onClick={handleCopy}
