@@ -5,6 +5,7 @@ from features.meeting import create_meeting, get_meeting, list_meetings, set_mee
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import stream_meeting_discussion, MeetingDiscussion, ChatSessionCreate, get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
 from features.llm import create_llm_account, update_llm_account, delete_llm_account, get_llm_accounts, set_default_provider, LLMAccountCreate, LLMAccountUpdate
+from features.questions import generate_questions
 from features.user import get_me, get_me_detail
 from fastapi.responses import StreamingResponse
 import uvicorn
@@ -353,30 +354,10 @@ async def set_default_provider_endpoint(provider: str, user_id: str):
 # 14 Generate Questions
 @app.get("/get-questions")
 async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
+    """Endpoint to generate questions based on topic and group context."""
     try:
-        logger.info("Generating questions for topic: %s, group: %s, user: %s", topic, group_id, user_id)
-
-        # Fetch group details with user_id
-        group = await get_group(group_id, user_id)
-        if not group:
-            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
-
-        # Initialize LLM client
-        llm_client = LLMClient(provider="azure")
-
-        # Get prompt from prompts.py
-
-        prompt = generate_questions_prompt(topic, group)
-
-        messages = [{"role": "system", "content": prompt}]
-        response, _ = llm_client.send_request(messages)
-        questions = [line.strip()[3:] for line in response.strip().split("\n") if line.strip()]
-
-        if len(questions) < 5:
-            raise HTTPException(status_code=500, detail="Failed to generate sufficient questions")
-
-        logger.info("Generated questions: %s", questions)
-        return {"questions": questions}
+        result = await generate_questions(topic, group_id, user_id)
+        return result
     except Exception as e:
         logger.error("Failed to generate questions: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
