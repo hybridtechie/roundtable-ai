@@ -88,6 +88,7 @@ export interface ChatSession {
   meeting_id?: string
   meeting_name?: string
   meeting_topic?: string
+  _ts?: number
 }
 
 export interface ChatMessage {

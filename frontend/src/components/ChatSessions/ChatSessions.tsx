@@ -29,7 +29,7 @@ const ChatSessions: React.FC = () => {
         <h3 className="text-sm font-medium">Recent Chats</h3>
       </div>
       <div className="flex flex-col space-y-1">
-        {chatSessions.map((session) => (
+        {[...chatSessions].sort((a, b) => (b._ts ?? 0) - (a._ts ?? 0)).map((session) => (
           <NavLink
             key={session.id}
             to={`/chat/${session.meeting_id}/session/${session.id}`}

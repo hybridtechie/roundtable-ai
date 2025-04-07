@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { createParticipant } from "@/lib/api"
+import { encodeMarkdownContent } from "@/lib/utils"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
 
@@ -27,8 +28,22 @@ const CreateParticipant: React.FC = () => {
   const handleCreateParticipant = async () => {
     setIsLoading(true)
     try {
-      console.log("Creating participant:", newParticipant)
-      await createParticipant(newParticipant)
+      // Encode all text fields to safely handle markdown content
+      const encodedParticipant = {
+        name: encodeMarkdownContent(newParticipant.name),
+        role: encodeMarkdownContent(newParticipant.role),
+        professional_background: encodeMarkdownContent(newParticipant.professional_background),
+        industry_experience: encodeMarkdownContent(newParticipant.industry_experience),
+        role_overview: encodeMarkdownContent(newParticipant.role_overview),
+        technical_stack: encodeMarkdownContent(newParticipant.technical_stack),
+        soft_skills: encodeMarkdownContent(newParticipant.soft_skills),
+        core_qualities: encodeMarkdownContent(newParticipant.core_qualities),
+        style_preferences: encodeMarkdownContent(newParticipant.style_preferences),
+        additional_info: encodeMarkdownContent(newParticipant.additional_info),
+      }
+      
+      console.log("Creating participant with encoded markdown content")
+      await createParticipant(encodedParticipant)
       setNewParticipant(initialState)
       toast.success("Participant created successfully!")
     } catch (error) {
@@ -42,6 +57,12 @@ const CreateParticipant: React.FC = () => {
   return (
     <div className="p-6">
       <h1 className="mb-4 text-3xl font-bold">Create Participant</h1>
+      <div className="p-3 mb-4 rounded-md bg-muted">
+        <p className="text-sm text-muted-foreground">
+          <strong>Note:</strong> All fields support markdown formatting. You can use **bold**, *italic*,
+          lists, and other markdown syntax to format your content.
+        </p>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>New Participant</CardTitle>
