@@ -42,7 +42,9 @@ const ChatSessions: React.FC = () => {
     if (!acc[key]) {
       acc[key] = {
         type: isSingleParticipant ? "participant" : "meeting",
-        name: isSingleParticipant ? session.participants[0].name : session.meeting_name || "Other Chats",
+        name: isSingleParticipant
+          ? session.participants[0].name
+          : session.group_name || session.meeting_name || "Other Chats",
         sessions: [],
       }
     }
@@ -140,7 +142,7 @@ const ChatSessions: React.FC = () => {
                         `w-full pl-4 rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
                       }>
                       <Button variant="ghost" className="justify-start w-full font-normal truncate">
-                        {session.title || session.meeting_name || session.meeting_topic || `Chat ${session.id.substring(0, 8)}`}
+                        {session.title || session.meeting_name || session.group_name || session.meeting_topic || `Chat ${session.id.substring(0, 8)}`}
                       </Button>
                     </NavLink>
                   ))}

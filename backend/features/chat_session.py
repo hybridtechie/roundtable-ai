@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from cosmos_db import cosmos_client
 from logger_config import setup_logger
 from features.meeting import get_meeting
+from features.group import get_group
 from datetime import datetime, timezone
 import uuid
 
@@ -40,6 +41,17 @@ async def get_user_chat_sessions(user_id: str) -> list:
                     session["meeting_topic"] = meeting.topic
                     session["meeting_name"] = meeting.name
                     session["participants"] = meeting.participants
+                    
+                    # Check if meeting has a group_id and get group details
+                    if meeting.group_ids and len(meeting.group_ids) > 0:
+                        group_id = meeting.group_ids[0]  # Get the first group_id
+                        try:
+                            group = await get_group(group_id, user_id)
+                            if group:
+                                session["group_name"] = group.get("name")
+                        except Exception as e:
+                            logger.warning(f"Could not fetch group details for meeting {meeting_id}: {str(e)}")
+                            # Continue even if group details can't be fetched
 
                 except Exception as e:
                     logger.warning(f"Could not fetch meeting details for chat session {session.get('id')}: {str(e)}")
@@ -78,6 +90,17 @@ async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
                 chat_session["meeting_topic"] = meeting.topic
                 chat_session["meeting_name"] = meeting.name
                 chat_session["participants"] = meeting.participants
+                
+                # Check if meeting has a group_id and get group details
+                if meeting.group_ids and len(meeting.group_ids) > 0:
+                    group_id = meeting.group_ids[0]  # Get the first group_id
+                    try:
+                        group = await get_group(group_id, user_id)
+                        if group:
+                            chat_session["group_name"] = group.get("name")
+                    except Exception as e:
+                        logger.warning(f"Could not fetch group details for meeting {meeting_id}: {str(e)}")
+                        # Continue even if group details can't be fetched
 
             except Exception as e:
                 logger.warning(f"Could not fetch meeting details for chat session {session_id}: {str(e)}")
