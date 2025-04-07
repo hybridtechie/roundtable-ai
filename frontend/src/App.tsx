@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { NavBar } from "./components/Layout/NavBar"
 import { Toaster } from "@/components/ui/sonner"
 import { ChatSessionsProvider } from "./context/ChatSessionsContext"
+import { ProtectedRoute } from "./components/Auth/ProtectedRoute"
 
 function App() {
   return (
@@ -25,14 +26,70 @@ function App() {
               <div className="flex-1 overflow-auto">
                 <Routes>
                   <Route path="/" element={<Home />} />
-                  <Route path="/participants" element={<Participants />} />
-                  <Route path="/participants/create" element={<CreateParticipant />} />
-                  <Route path="/groups" element={<Groups />} />
-                  <Route path="/meetings" element={<Meetings />} />
-                  <Route path="/meetings/new" element={<NewMeeting />} />
-                  <Route path="/chat/new" element={<NewChat />} />
-                  <Route path="/chat/:meetingId/session/:sessionId?" element={<Chat />} />
-                  <Route path="/chat/:meetingId/stream" element={<Chat />} />
+                  <Route
+                    path="/participants"
+                    element={
+                      <ProtectedRoute>
+                        <Participants />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/participants/create"
+                    element={
+                      <ProtectedRoute>
+                        <CreateParticipant />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/groups"
+                    element={
+                      <ProtectedRoute>
+                        <Groups />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/meetings"
+                    element={
+                      <ProtectedRoute>
+                        <Meetings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/meetings/new"
+                    element={
+                      <ProtectedRoute>
+                        <NewMeeting />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat/new"
+                    element={
+                      <ProtectedRoute>
+                        <NewChat />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat/:meetingId/session/:sessionId?"
+                    element={
+                      <ProtectedRoute>
+                        <Chat />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat/:meetingId/stream"
+                    element={
+                      <ProtectedRoute>
+                        <Chat />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Routes>
               </div>
             </div>

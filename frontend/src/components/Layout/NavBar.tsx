@@ -1,9 +1,9 @@
 import { ModeToggle } from "./mode-toggle"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogTrigger } from "@/components/ui/dialog"
 import { AISettings } from "./AISettings"
+import { AuthStatus } from "@/components/Auth/AuthStatus"
 
 export function NavBar() {
   return (
@@ -13,10 +13,7 @@ export function NavBar() {
           <h2 className="mb-4 text-2xl font-bold">Roundtable AI</h2>
         </div>
         <div className="flex items-center space-x-4">
-          <Avatar>
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>CN</AvatarFallback>
-          </Avatar>
+          <AuthStatus />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
