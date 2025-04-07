@@ -3,8 +3,86 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Meeting } from "@/types/types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Eye, Trash2 } from "lucide-react"
+import { FC } from "react"
 
-export const columns: ColumnDef<Meeting>[] = [
+interface MeetingDetailsDialogProps {
+  meeting: Meeting
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+const MeetingDetailsDialog: FC<MeetingDetailsDialogProps> = ({ meeting, open, onOpenChange }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>{meeting.name}</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4">
+        <div>
+          <h4 className="font-medium">Topic</h4>
+          <p className="text-sm text-gray-500">{meeting.topic}</p>
+        </div>
+        <div>
+          <h4 className="font-medium">Strategy</h4>
+          <p className="text-sm text-gray-500">{meeting.strategy}</p>
+        </div>
+        <div>
+          <h4 className="font-medium">Participants</h4>
+          <div className="space-y-2">
+            {meeting.participants.map((p) => (
+              <div key={p.id} className="flex items-center gap-2">
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium">{p.name}</p>
+                  <p className="text-xs text-gray-500">{p.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+)
+
+interface ActionsProps {
+  meeting: Meeting
+  onDelete: (id: string) => void
+  onView: (meeting: Meeting) => void
+}
+
+const Actions: FC<ActionsProps> = ({ meeting, onDelete, onView }) => (
+  <div className="flex gap-2">
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => onView(meeting)}
+      className="hover:bg-slate-100"
+    >
+      <Eye className="w-4 h-4" />
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => onDelete(meeting.id)}
+      className="hover:bg-red-100 hover:text-red-600"
+    >
+      <Trash2 className="w-4 h-4" />
+    </Button>
+  </div>
+)
+
+type ColumnProps = {
+  onDelete: (id: string) => void
+  onView: (meeting: Meeting) => void
+}
+
+export const columns = ({ onDelete, onView }: ColumnProps): ColumnDef<Meeting>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -41,4 +119,10 @@ export const columns: ColumnDef<Meeting>[] = [
       )
     },
   },
+  {
+    id: "actions",
+    cell: ({ row }) => <Actions meeting={row.original} onDelete={onDelete} onView={onView} />,
+  },
 ]
+
+export { MeetingDetailsDialog }

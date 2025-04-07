@@ -74,6 +74,7 @@ export interface Meeting {
   participant_ids: string[]
   group_ids: string[]
   topic?: string
+  strategy: string
   participants: Participant[]
 }
 

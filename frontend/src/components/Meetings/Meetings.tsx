@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react"
-import { listMeetings } from "@/lib/api"
+import { listMeetings, deleteMeeting } from "@/lib/api"
 import { Meeting } from "@/types/types"
 import { DataTable } from "@/components/ui/data-table"
-import { columns } from "./columns"
+import { columns, MeetingDetailsDialog } from "./columns"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
 
 const Meetings: React.FC = () => {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
 
-  useEffect(() => {
+  const fetchMeetings = () => {
     setIsLoading(true)
     listMeetings()
       .then((res) => {
@@ -22,7 +24,27 @@ const Meetings: React.FC = () => {
         toast.error("Failed to fetch meetings. Please try again later.")
         setIsLoading(false)
       })
+  }
+
+  useEffect(() => {
+    fetchMeetings()
   }, [])
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMeeting(id)
+      toast.success("Meeting deleted successfully")
+      fetchMeetings()
+    } catch (error) {
+      console.error("Failed to delete meeting:", error)
+      toast.error("Failed to delete meeting. Please try again later.")
+    }
+  }
+
+  const handleView = (meeting: Meeting) => {
+    setSelectedMeeting(meeting)
+    setShowDetails(true)
+  }
 
   return (
     <div className="p-6">
@@ -33,9 +55,16 @@ const Meetings: React.FC = () => {
             <LoadingSpinner size={32} />
           </div>
         ) : (
-          <DataTable columns={columns} data={meetings} />
+          <DataTable columns={columns({ onDelete: handleDelete, onView: handleView })} data={meetings} />
         )}
       </div>
+      {selectedMeeting && (
+        <MeetingDetailsDialog
+          meeting={selectedMeeting}
+          open={showDetails}
+          onOpenChange={setShowDetails}
+        />
+      )}
     </div>
   )
 }

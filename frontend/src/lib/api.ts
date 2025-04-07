@@ -90,6 +90,10 @@ export const createMeeting = (data: MeetingRequest) => api.post("/meeting", data
 
 export const listMeetings = () => api.get<{ meetings: Meeting[] }>(`/meetings?user_id=${USER_ID}`)
 
+export const getMeeting = (meetingId: string) => api.get<{ meeting: Meeting }>(`/meeting/${meetingId}?user_id=${USER_ID}`)
+
+export const deleteMeeting = (meetingId: string) => api.delete(`/meeting/${meetingId}?user_id=${USER_ID}`)
+
 export const getQuestions = (topic: string, groupId: string) =>
   api.get<{ questions: string[] }>(`/get-questions?topic=${encodeURIComponent(topic)}&group_id=${groupId}&user_id=${USER_ID}`)
 
