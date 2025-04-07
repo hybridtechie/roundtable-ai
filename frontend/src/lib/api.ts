@@ -34,6 +34,23 @@ const api = axios.create({
   baseURL: getBaseUrl(),
 })
 
+// Add a request interceptor to include the access token in headers
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken")
+    if (token) {
+      console.log("Token Found")
+      config.headers.Authorization = `Bearer ${token}`
+    }else{
+      console.log("No token found")
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
 const USER_ID = "roundtable_ai_admin"
 
 // Participants
