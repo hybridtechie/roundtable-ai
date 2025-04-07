@@ -9,3 +9,4 @@ azure-core>=1.30.0
 colorama
 gunicorn==21.2.0
 python-jose
+requests>=2.31.0

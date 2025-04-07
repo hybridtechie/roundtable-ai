@@ -3,16 +3,21 @@ import { useAuth } from "@/context/AuthContext"
 import { Navigate } from "react-router-dom"
 
 export function LoginPage() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, isInitialized } = useAuth()
 
   // If loading, show a simple loading state
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
 
-  // If already authenticated, redirect to the home page
-  if (isAuthenticated) {
+  // If authenticated and initialized, redirect to the home page
+  if (isAuthenticated && isInitialized) {
     return <Navigate to="/" replace />
+  }
+
+  // If authenticated but not initialized, show loading state
+  if (isAuthenticated) {
+    return <div className="flex items-center justify-center h-screen">Initializing user data...</div>
   }
 
   // If not authenticated and not loading, show the login page

@@ -1,5 +1,6 @@
-import { createContext, useContext, ReactNode, useEffect } from "react"
+import { createContext, useContext, ReactNode, useEffect, useState } from "react"
 import { useAuth0, User } from "@auth0/auth0-react"
+import { login } from "@/lib/api"
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -7,25 +8,40 @@ interface AuthContextType {
   user: User | undefined
   loginWithRedirect: () => void
   logout: () => void
+  isInitialized: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading, user, loginWithRedirect, logout, getAccessTokenSilently, getIdTokenClaims } = useAuth0()
+  const { isAuthenticated, isLoading, user, loginWithRedirect, logout, getIdTokenClaims } = useAuth0()
   
-  // Store access token and user details in local storage
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Initialize user data and call login endpoint
   useEffect(() => {
-    const storeUserDetails = async () => {
-      if (isAuthenticated && user) {
-        const idTokenClaims = await getIdTokenClaims()
-        const idToken = idTokenClaims?.__raw
-        localStorage.setItem("idToken", idToken || "")
-        localStorage.setItem("user", JSON.stringify(user))
+    const initializeUser = async () => {
+      if (isAuthenticated && user && !isInitialized) {
+        try {
+          // Get and store id token
+          const idTokenClaims = await getIdTokenClaims()
+          const idToken = idTokenClaims?.__raw
+          
+          if (idToken) {
+            localStorage.setItem("idToken", idToken)
+            localStorage.setItem("user", JSON.stringify(user))
+            
+            // Call login endpoint to initialize user in backend
+            await login()
+            setIsInitialized(true)
+          }
+        } catch (error) {
+          console.error("Error initializing user:", error)
+        }
       }
     }
-    storeUserDetails()
-  }, [isAuthenticated, user, getAccessTokenSilently, getIdTokenClaims])
+    initializeUser()
+  }, [isAuthenticated, user, getIdTokenClaims, isInitialized])
 
   return (
     <AuthContext.Provider
@@ -35,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loginWithRedirect,
         logout,
+        isInitialized,
       }}
     >
       {children}

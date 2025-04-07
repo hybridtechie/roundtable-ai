@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
 from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, delete_meeting, MeetingCreate, MeetingTopic
@@ -7,7 +7,7 @@ from features.chat import stream_meeting_discussion, MeetingDiscussion
 from features.chat_session import ChatSessionCreate, get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
 from features.llm import create_llm_account, update_llm_account, delete_llm_account, get_llm_accounts, set_default_provider, LLMAccountCreate, LLMAccountUpdate
 from features.questions import generate_questions
-from features.user import get_me, get_me_detail
+from features.user import get_me, get_me_detail, login_user
 from fastapi.responses import StreamingResponse
 import uvicorn
 from dotenv import load_dotenv
@@ -15,6 +15,12 @@ import os
 from logger_config import setup_logger
 from utils_llm import LLMClient
 from prompts import generate_questions_prompt
+import requests
+from typing import Annotated
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jws, jwt, ExpiredSignatureError, JWTError, JWSError
+from jose.exceptions import JWTClaimsError
+from pydantic import BaseModel
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -34,6 +40,48 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+load_dotenv()
+
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE") # Keep for potential future use with access tokens
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID") # Add Client ID for ID token validation
+
+jwks_endpoint = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+jwks = requests.get(jwks_endpoint).json()["keys"]
+
+security = HTTPBearer()
+
+class UserClaims(BaseModel):
+    sub: str
+    permissions: list[str]
+
+def find_public_key(kid):
+    for key in jwks:
+        if key["kid"] == kid:
+            return key
+
+
+def validate_token(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+):
+    try:
+        unverified_headers = jws.get_unverified_header(credentials.credentials)
+        token_payload = jwt.decode(
+            token=credentials.credentials,
+            key=find_public_key(unverified_headers["kid"]),
+            audience=AUTH0_AUDIENCE,
+            algorithms="RS256",
+        )
+        return UserClaims(
+            sub=token_payload["sub"], permissions=token_payload.get("permissions", [])
+        )
+    except (
+        ExpiredSignatureError,
+        JWTError,
+        JWTClaimsError,
+        JWSError,
+    ) as error:
+        raise HTTPException(status_code=401, detail=str(error))
 
 # Health Check endpoint
 @app.get("/")
@@ -388,12 +436,12 @@ async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
 
 # Login User
 @app.post("/login")
-async def login_endpoint(authorization: str = Header(...)):
+async def login_endpoint(token_payload: UserClaims = Depends(validate_token)):
     try:
         logger.info("Processing login request")
-        result = await login_user(authorization)
+        # result = await login_user(authorization)
         logger.info("Successfully processed login request")
-        return result
+        return token_payload
     except Exception as e:
         logger.error("Login failed: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
