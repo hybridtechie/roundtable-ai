@@ -16,8 +16,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    // Redirect to the home page if not authenticated
-    return <Navigate to="/" state={{ from: location }} replace />
+    // Redirect to the login page if not authenticated
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return <>{children}</>

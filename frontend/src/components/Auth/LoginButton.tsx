@@ -12,7 +12,7 @@ export function LoginButton() {
       className="flex items-center gap-2"
     >
       <LogIn className="w-4 h-4" />
-      Sign In
+      Login with Google
     </Button>
   )
 }
