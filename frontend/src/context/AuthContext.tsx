@@ -12,19 +12,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading, user, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0()
+  const { isAuthenticated, isLoading, user, loginWithRedirect, logout, getAccessTokenSilently, getIdTokenClaims } = useAuth0()
   
   // Store access token and user details in local storage
   useEffect(() => {
     const storeUserDetails = async () => {
       if (isAuthenticated && user) {
-        const accessToken = await getAccessTokenSilently()
-        localStorage.setItem("accessToken", accessToken)
+        const idTokenClaims = await getIdTokenClaims()
+        const idToken = idTokenClaims?.__raw
+        localStorage.setItem("idToken", idToken || "")
         localStorage.setItem("user", JSON.stringify(user))
       }
     }
     storeUserDetails()
-  }, [isAuthenticated, user, getAccessTokenSilently])
+  }, [isAuthenticated, user, getAccessTokenSilently, getIdTokenClaims])
 
   return (
     <AuthContext.Provider
