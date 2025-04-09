@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode, useEffect, useReducer, Dispatch } from "react";
 import { useAuth0, User } from "@auth0/auth0-react";
-import { login } from "@/lib/api";
-import { Participant, Group, Meeting, LLMAccountsResponse, LLMAccountCreate } from "@/types/types"; // Import necessary types
+import { login, listChatSessions } from "@/lib/api";
+import { Participant, Group, Meeting, LLMAccountsResponse, LLMAccountCreate, ChatSession } from "@/types/types"; // Import necessary types
 
 // Define the shape of the user data returned by your backend login, if any.
 // It should include a participants array if that's where the data lives.
@@ -13,6 +13,7 @@ type BackendUserData = {
   groups?: Group[];
   meetings?: Meeting[]; // Use Meeting type
   llmAccounts?: LLMAccountsResponse; // Keep this structure
+  chat_sessions?: ChatSession[]; // Add chat sessions
   [key: string]: unknown;
 };
 
@@ -44,9 +45,13 @@ type AuthAction =
   | { type: 'DELETE_MEETING'; payload: string } // Payload is meeting ID
   // LLM Account specific actions
   | { type: 'ADD_LLM_ACCOUNT'; payload: LLMAccountCreate }
-  | { type: 'UPDATE_LLM_ACCOUNT'; payload: LLMAccountCreate } // Assuming update might happen, though API uses create/delete
-  | { type: 'DELETE_LLM_ACCOUNT'; payload: string } // Payload is provider name (unique identifier)
-  | { type: 'SET_DEFAULT_LLM_ACCOUNT'; payload: string }; // Payload is provider name
+  | { type: 'UPDATE_LLM_ACCOUNT'; payload: LLMAccountCreate }
+  | { type: 'DELETE_LLM_ACCOUNT'; payload: string }
+  | { type: 'SET_DEFAULT_LLM_ACCOUNT'; payload: string }
+  // Chat Session specific actions
+  | { type: 'SET_CHAT_SESSIONS'; payload: ChatSession[] }
+  | { type: 'ADD_CHAT_SESSION'; payload: ChatSession }
+  | { type: 'DELETE_CHAT_SESSION'; payload: string }; // Payload is session ID
 
 // Initial state for the reducer
 const initialState: AuthState = {
@@ -59,6 +64,7 @@ const getParticipants = (state: AuthState): Participant[] => state.backendUser?.
 const getGroups = (state: AuthState): Group[] => state.backendUser?.groups || [];
 const getMeetings = (state: AuthState): Meeting[] => state.backendUser?.meetings || [];
 const getLLMAccounts = (state: AuthState): LLMAccountsResponse => state.backendUser?.llmAccounts || { default: "", providers: [] };
+const getChatSessions = (state: AuthState): ChatSession[] => state.backendUser?.chat_sessions || [];
 // The reducer function to handle state updates based on actions
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
@@ -72,7 +78,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
            participants: action.payload.participants || [],
            groups: action.payload.groups || [],
            meetings: action.payload.meetings || [],
-           llmAccounts: action.payload.llmAccounts || { default: "", providers: [] }, // Initialize llmAccounts
+           llmAccounts: action.payload.llmAccounts || { default: "", providers: [] },
+           chat_sessions: action.payload.chat_sessions || [], // Initialize chat_sessions
          }
        : undefined;
      return { ...state, backendUser: backendUserWithDefaults };
@@ -84,7 +91,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
      if (!updatedBackendUser.participants) updatedBackendUser.participants = [];
      if (!updatedBackendUser.groups) updatedBackendUser.groups = [];
      if (!updatedBackendUser.meetings) updatedBackendUser.meetings = [];
-     if (!updatedBackendUser.llmAccounts) updatedBackendUser.llmAccounts = { default: "", providers: [] }; // Ensure llmAccounts exists
+     if (!updatedBackendUser.llmAccounts) updatedBackendUser.llmAccounts = { default: "", providers: [] };
+     if (!updatedBackendUser.chat_sessions) updatedBackendUser.chat_sessions = []; // Ensure chat_sessions exists
      return {
        ...state,
        backendUser: updatedBackendUser as BackendUserData,
@@ -293,6 +301,40 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
        };
    }
 
+   // Chat Session Reducer Logic
+   case 'SET_CHAT_SESSIONS': {
+     if (!state.backendUser) return state;
+     return {
+       ...state,
+       backendUser: {
+         ...state.backendUser,
+         chat_sessions: action.payload,
+       },
+     };
+   }
+   case 'ADD_CHAT_SESSION': {
+     if (!state.backendUser) return state;
+     const chatSessions = getChatSessions(state);
+     return {
+       ...state,
+       backendUser: {
+         ...state.backendUser,
+         chat_sessions: [...chatSessions, action.payload],
+       },
+     };
+   }
+   case 'DELETE_CHAT_SESSION': {
+     if (!state.backendUser) return state;
+     const chatSessions = getChatSessions(state);
+     return {
+       ...state,
+       backendUser: {
+         ...state.backendUser,
+         chat_sessions: chatSessions.filter(session => session.id !== action.payload),
+       },
+     };
+   }
+
    default:
      // const _exhaustiveCheck: never = action; // Uncomment for exhaustive checks
      return state;
@@ -345,6 +387,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const response = await login(); // Get the full Axios response
             console.log("Backend login response:", response);
             const backendData: BackendUserData = response.data || {}; // Extract data
+            
+            // Fetch chat sessions
+            try {
+              const chatSessionsResponse = await listChatSessions();
+              console.log("Chat sessions response:", chatSessionsResponse);
+              // Ensure all required fields are present and use _ts for timestamp
+              backendData.chat_sessions = chatSessionsResponse.data.chat_sessions.map(session => ({
+                id: session.id,
+                meeting_id: session.meeting_id,
+                user_id: session.user_id,
+                title: session.title || '',
+                messages: session.messages || [],
+                display_messages: session.display_messages || [],
+                _ts: session._ts || Math.floor(Date.now() / 1000), // Use current timestamp if _ts is missing
+                // Optional fields
+                participants: session.participants || [],
+                meeting_name: session.meeting_name,
+                meeting_topic: session.meeting_topic,
+                group_name: session.group_name,
+                group_id: session.group_id
+              }));
+            } catch (error) {
+              console.error("Failed to fetch chat sessions:", error);
+              backendData.chat_sessions = []; // Initialize as empty array on error
+            }
+            
             localStorage.setItem("backendData", JSON.stringify(backendData))
 
            // Dispatch SET_BACKEND_USER which now handles defaults initialization

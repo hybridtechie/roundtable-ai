@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react"
+import React from "react"
 import { NavLink } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { deleteChatSession, listChatSessions } from "@/lib/api"
+import { deleteChatSession } from "@/lib/api"
 import { ChatSession } from "@/types/types"
+import { useAuth } from "@/context/AuthContext"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronRight } from "lucide-react"
 
@@ -43,44 +44,37 @@ const ChatMenu: React.FC<ChatMenuProps> = ({ onDelete }) => {
 }
 
 const ChatSessions: React.FC = () => {
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchChatSessions = async () => {
-    setLoading(true)
-    try {
-      const response = await listChatSessions()
-      // Take only the last 10 sessions, sorted by most recent
-      const sortedSessions = response.data.chat_sessions
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 30)
-      setChatSessions(sortedSessions)
-      setError(null)
-    } catch (err) {
-      setError("Failed to load chat sessions")
-      console.error("Error fetching chat sessions:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Initial fetch
-  useEffect(() => {
-    fetchChatSessions()
-  }, [])
+  const { state, dispatch } = useAuth()
+  const chatSessions = state.backendUser?.chat_sessions || []
+  // Sort sessions by most recent first and take only last 30
+  const sortedChatSessions = [...chatSessions]
+    .sort((a, b) => b._ts - a._ts) // Use _ts directly for sorting
+    .slice(0, 30)
 
   const handleDelete = async (sessionId: string) => {
     try {
-      await deleteChatSession(sessionId)
-      fetchChatSessions() // Refresh the chat sessions list
+      const response = await deleteChatSession(sessionId)
+      // Only update context if deletion was successful
+      if (response.data.deleted_id === sessionId) {
+        dispatch({ type: 'DELETE_CHAT_SESSION', payload: sessionId })
+      } else {
+        console.error("Delete response ID mismatch:", response.data.deleted_id, sessionId)
+      }
     } catch (error) {
       console.error("Failed to delete chat session:", error)
     }
   }
-  console.log("ChatSessions Length:", chatSessions.length)
-  console.log("All ChatSessions:", chatSessions)
-  if (loading) {
+  console.log("ChatSessions Length:", sortedChatSessions.length)
+  console.log("All ChatSessions:", sortedChatSessions.map(session => ({
+    id: session.id,
+    title: session.title,
+    _ts: session._ts,
+    meeting_id: session.meeting_id,
+    group_name: session.group_name,
+    participants: session.participants?.length
+  })))
+
+  if (!state.backendUser) {
     return (
       <div className="flex items-center justify-center p-4">
         <LoadingSpinner size={24} />
@@ -88,20 +82,19 @@ const ChatSessions: React.FC = () => {
     )
   }
 
-  if (error) {
-    return <div className="p-4 text-red-500">{error}</div>
-  }
-
-  if (chatSessions.length === 0) {
+  if (sortedChatSessions.length === 0) {
     return <div className="p-4 text-sm text-muted-foreground">No recent chats</div>
   }
 
-  const groupedSessions = chatSessions.reduce<GroupedSessions>((acc, session) => {
+  const groupedSessions = sortedChatSessions.reduce<GroupedSessions>((acc, session) => {
     console.log('Processing session:', {
       id: session.id,
+      _ts: session._ts,
+      timestamp: new Date(session._ts * 1000).toLocaleString(),
       participants: session.participants?.length,
       meeting_id: session.meeting_id,
-      group_name: session.group_name
+      group_name: session.group_name,
+      title: session.title
     })
     // Check if it's a single participant session
     const isSingleParticipant = session.participants?.length === 1
@@ -183,7 +176,11 @@ const ChatSessions: React.FC = () => {
                         }>
                         <div className="flex items-center w-full">
                           <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
-                            {session.title || session.meeting_name || session.meeting_topic || `Chat ${session.id.substring(0, 8)}`}
+                            {session.title ||
+                             session.meeting_name ||
+                             session.meeting_topic ||
+                             `Chat from ${new Date(session._ts * 1000).toLocaleDateString()}` ||
+                             `Chat ${session.id.substring(0, 8)}`}
                           </Button>
                           <div className="flex-shrink-0">
                             <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />
@@ -224,7 +221,12 @@ const ChatSessions: React.FC = () => {
                       }>
                       <div className="flex items-center w-full">
                         <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
-                          {session.title || session.meeting_topic || session.meeting_name || session.group_name  || `Chat ${session.id.substring(0, 8)}`}
+                          {session.title ||
+                           session.meeting_topic ||
+                           session.meeting_name ||
+                           session.group_name ||
+                           `Chat from ${new Date(session._ts * 1000).toLocaleDateString()}` ||
+                           `Chat ${session.id.substring(0, 8)}`}
                         </Button>
                         <div className="flex-shrink-0">
                           <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />

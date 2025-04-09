@@ -13,7 +13,8 @@ import {
   ChatSession,
   LLMAccountCreate,
   LLMAccountUpdate,
-  LLMAccountsResponse
+  LLMAccountsResponse,
+  DeleteResponse
 } from "@/types/types"
 
 // Determine the base URL based on environment
@@ -68,9 +69,9 @@ export const createParticipant = (data: {
   additional_info: string
 }) => api.post("/participant", { ...data, user_id: USER_ID })
 
-export const listParticipants = () => api.get<{ participants: Participant[] }>(`/participants?user_id=${USER_ID}`)
+export const listParticipants = () => api.get<{ participants: Participant[] }>(`/participants`)
 
-export const getParticipant = (participantId: string) => api.get<Participant>(`/participant/${participantId}?user_id=${USER_ID}`)
+export const getParticipant = (participantId: string) => api.get<Participant>(`/participant/${participantId}`)
 
 export const updateParticipant = (
   participantId: string,
@@ -88,39 +89,39 @@ export const updateParticipant = (
   },
 ) => api.put(`/participant/${participantId}`, { ...data, user_id: USER_ID })
 
-export const deleteParticipant = (participantId: string) => api.delete(`/participant/${participantId}?user_id=${USER_ID}`)
+export const deleteParticipant = (participantId: string) => api.delete(`/participant/${participantId}`)
 
 // Groups
 export const createGroup = (data: { name: string; description?: string; participant_ids: string[]; userId?: string }) =>
   api.post("/group", { ...data, userId: data.userId || USER_ID })
 
-export const listGroups = () => api.get<{ groups: Group[] }>(`/groups?user_id=${USER_ID}`)
+export const listGroups = () => api.get<{ groups: Group[] }>(`/groups`)
 
-export const getGroup = (groupId: string) => api.get<Group>(`/group/${groupId}?user_id=${USER_ID}`)
+export const getGroup = (groupId: string) => api.get<Group>(`/group/${groupId}`)
 
 export const updateGroup = (groupId: string, data: { name: string; participant_ids: string[] }) =>
   api.put(`/group/${groupId}`, { ...data, user_id: USER_ID })
 
-export const deleteGroup = (groupId: string) => api.delete(`/group/${groupId}?user_id=${USER_ID}`)
+export const deleteGroup = (groupId: string) => api.delete(`/group/${groupId}`)
 
 // Meetings
 export const createMeeting = (data: MeetingRequest) => api.post("/meeting", data)
 
-export const listMeetings = () => api.get<{ meetings: Meeting[] }>(`/meetings?user_id=${USER_ID}`)
+export const listMeetings = () => api.get<{ meetings: Meeting[] }>(`/meetings`)
 
-export const getMeeting = (meetingId: string) => api.get<{ meeting: Meeting }>(`/meeting/${meetingId}?user_id=${USER_ID}`)
+export const getMeeting = (meetingId: string) => api.get<{ meeting: Meeting }>(`/meeting/${meetingId}`)
 
-export const deleteMeeting = (meetingId: string) => api.delete(`/meeting/${meetingId}?user_id=${USER_ID}`)
+export const deleteMeeting = (meetingId: string) => api.delete(`/meeting/${meetingId}`)
 
 export const getQuestions = (topic: string, groupId: string) =>
   api.get<{ questions: string[] }>(`/get-questions?topic=${encodeURIComponent(topic)}&group_id=${groupId}&user_id=${USER_ID}`)
 
 // Chat Sessions
-export const listChatSessions = () => api.get<{ chat_sessions: ChatSession[] }>(`/chat-sessions?user_id=${USER_ID}`)
+export const listChatSessions = () => api.get<{ chat_sessions: ChatSession[] }>(`/chat-sessions`)
 
 export const sendChatMessage = (meetingId: string, message: string, sessionId?: string) =>
   api.post<{ session_id: string; response: string; name: string; type: string; timestap: string }>(
-    `/chat-session?user_id=${USER_ID}`,
+    `/chat-session`,
     {
       meeting_id: meetingId,
       user_message: message,
@@ -128,9 +129,9 @@ export const sendChatMessage = (meetingId: string, message: string, sessionId?: 
     },
   )
 
-export const getChatSession = (sessionId: string) => api.get(`/chat-session/${sessionId}?user_id=${USER_ID}`)
+export const getChatSession = (sessionId: string) => api.get(`/chat-session/${sessionId}`)
 
-export const deleteChatSession = (sessionId: string) => api.delete(`/chat-session/${sessionId}?user_id=${USER_ID}`)
+export const deleteChatSession = (sessionId: string) => api.delete<DeleteResponse>(`/chat-session/${sessionId}`)
 
 interface StreamCallbacks {
   onEvent: (
@@ -144,13 +145,13 @@ interface StreamCallbacks {
 
 export const createLLMAccount = (data: LLMAccountCreate) => api.post("/llm-account", data)
 
-export const listLLMAccounts = () => api.get<LLMAccountsResponse>(`/llm-accounts?user_id=${USER_ID}`)
+export const listLLMAccounts = () => api.get<LLMAccountsResponse>(`/llm-accounts`)
 
 export const updateLLMAccount = (provider: string, data: LLMAccountUpdate) => api.put(`/llm-account/${provider}`, data)
 
-export const deleteLLMAccount = (provider: string) => api.delete(`/llm-account/${provider}?user_id=${USER_ID}`)
+export const deleteLLMAccount = (provider: string) => api.delete(`/llm-account/${provider}`)
 
-export const setDefaultProvider = (provider: string) => api.put(`/llm-account/${provider}/set-default?user_id=${USER_ID}`)
+export const setDefaultProvider = (provider: string) => api.put(`/llm-account/${provider}/set-default`)
 
 // User Information
 export const login = () => api.post("/user/login")

@@ -28,7 +28,7 @@ router = APIRouter(
 # --- Chat Session CRUD Endpoints ---
 
 # List Chat Sessions for User
-@router.get("s", response_model=ListChatSessionsResponse, summary="List all chat sessions for the authenticated user") # Route is /chat-sessions
+@router.get("s", summary="List all chat sessions for the authenticated user") # Route is /chat-sessions
 async def list_chat_sessions_endpoint(current_user: UserClaims = Depends(validate_token)):
     """
     Retrieves a list of chat sessions associated with the authenticated user.
@@ -48,7 +48,7 @@ async def list_chat_sessions_endpoint(current_user: UserClaims = Depends(validat
 
 
 # Get Specific Chat Session
-@router.get("/{session_id}", response_model=ChatSessionResponse, summary="Get a specific chat session")
+@router.get("/{session_id}", summary="Get a specific chat session")
 async def get_chat_session_endpoint(session_id: str, current_user: UserClaims = Depends(validate_token)):
     """
     Retrieves details for a specific chat session by its ID, ensuring it belongs to the authenticated user.
