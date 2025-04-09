@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from logger_config import setup_logger
 from llm_providers.azure_openai import AzureOpenAIClient
 from llm_providers.openai_client import OpenAIClient
+from llm_providers.deepseek_client import DeepseekClient # Added Deepseek client
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -40,6 +41,14 @@ class LLMClient:
 
                 self.client = OpenAIClient(
                     api_key=provider_details.get("api_key"), # Pass None if not provided, 
+                    model=provider_details["model"],
+                )
+            elif self.provider.lower() == "deepseek":
+                required_fields = ["model", "api_key"]
+                self._validate_required_fields(provider_details, required_fields)
+
+                self.client = DeepseekClient(
+                    api_key=provider_details["api_key"],
                     model=provider_details["model"],
                 )
             else:
@@ -142,6 +151,34 @@ if __name__ == "__main__":
             logger.info("Single message test successful.")
         else:
             logger.warning("Skipping OpenAI tests - OPENAI_API_KEY not set.")
+
+
+        # Example Deepseek provider details (Requires DEEPSEEK_API_KEY and DEEPSEEK_MODEL_NAME env vars)
+        deepseek_provider_details = {
+            "provider": "Deepseek",
+            "model": os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat"), # Example default
+            "api_key": os.getenv("DEEPSEEK_API_KEY")
+        }
+
+        # Initialize client with Deepseek provider
+        if deepseek_provider_details["api_key"]: # Check if key is provided
+            logger.info("--- Testing Deepseek Client ---")
+            try:
+                client_deepseek = LLMClient(deepseek_provider_details)
+                logger.info("Testing LLM client with provider: %s", deepseek_provider_details["provider"])
+
+                # Test single message
+                prompt_deepseek = "What is Deepseek good at?"
+                logger.info("Testing single message prompt...")
+                response_deepseek, usage_deepseek = client_deepseek.send_request(prompt_deepseek)
+                logger.info(f"Response: {response_deepseek}")
+                logger.info(f"Usage: {usage_deepseek}")
+                logger.info("Single message test successful.")
+            except Exception as e:
+                 logger.error("Deepseek test failed during execution: %s", str(e), exc_info=True)
+        else:
+            logger.warning("Skipping Deepseek tests - DEEPSEEK_API_KEY not set.")
+
 
     except Exception as e:
         logger.error("Test failed: %s", str(e), exc_info=True)
