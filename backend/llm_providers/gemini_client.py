@@ -17,20 +17,43 @@ class GeminiClient(LLMBase):
             raise
 
     def send_request(self, prompt_or_messages, **kwargs):
-        # Gemini API prefers a simple string prompt or specific content structures.
-        # For simplicity, we'll handle string prompts directly.
-        # Handling complex message lists might require conversion to Gemini's format.
+        contents = []
         if isinstance(prompt_or_messages, list):
-             # Attempt to convert a simple user/assistant list to a single prompt string
-             # More complex conversions might be needed for multi-turn conversations
-             logger.warning("Converting message list to a single string prompt for Gemini. Multi-turn history might be simplified.")
-             prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in prompt_or_messages])
+            # Convert standard message list to Gemini's format
+            # Gemini expects roles 'user' and 'model'
+            for msg in prompt_or_messages:
+                role = msg.get("role")
+                content = msg.get("content")
+                if not role or not content:
+                    logger.warning("Skipping message with missing role or content: %s", msg)
+                    continue
+
+                # Map 'assistant' or other potential AI roles to 'model'
+                gemini_role = "user" if role.lower() == "user" else "model"
+
+                contents.append({"role": gemini_role, "parts": [content]})
+            logger.debug("Formatted message list for Gemini API.")
+
         elif isinstance(prompt_or_messages, str):
-            prompt = prompt_or_messages
+            # Handle single string prompt as a user message
+            contents = [{"role": "user", "parts": [prompt_or_messages]}]
+            logger.debug("Formatted single string prompt for Gemini API.")
         else:
-            error_msg = "Input must be a string or a list of messages"
+            error_msg = "Input must be a string or a list of messages conforming to {'role': str, 'content': str}"
             logger.error(error_msg)
             raise ValueError(error_msg)
+
+        # Ensure conversation history alternates roles if needed (Gemini requirement)
+        # Basic check: if multiple messages, ensure first is user, last is user? (May need refinement)
+        if len(contents) > 1 and contents[-1]['role'] != 'user':
+             logger.warning("Gemini API expects the last message to be from the 'user'. The request might fail.")
+             # Depending on strictness, could raise error or attempt to fix. Sticking with warning for now.
+
+        # Ensure no two consecutive messages have the same role (another Gemini requirement)
+        for i in range(len(contents) - 1):
+            if contents[i]['role'] == contents[i+1]['role']:
+                 logger.error("Gemini API requires alternating roles ('user', 'model'). Found consecutive roles: %s", contents[i]['role'])
+                 raise ValueError("Invalid message sequence: Consecutive messages have the same role.")
 
         # Gemini specific parameters (refer to google-generativeai documentation)
         generation_config = genai.types.GenerationConfig(
@@ -48,14 +71,14 @@ class GeminiClient(LLMBase):
         #     # Add other categories as needed
         # ]
 
-        logger.debug("Sending request to Gemini API with prompt: %s...", prompt[:100]) # Log truncated prompt
+        logger.debug("Sending request to Gemini API with %d content parts.", len(contents))
 
         try:
             # Use generate_content for text generation
             response = self.client.generate_content(
-                contents=prompt,
+                contents=contents, # Use the formatted contents list
                 generation_config=generation_config,
-                # safety_settings=safety_settings
+                # safety_settings=safety_settings # Uncomment and configure if needed
             )
 
             # Extract text and handle potential errors/blocks
@@ -71,7 +94,7 @@ class GeminiClient(LLMBase):
 
 
             # Gemini API (v1) doesn't directly return token counts in the standard response object.
-            # You might need to use client.count_tokens(prompt) separately if needed.
+            # You might need to use self.client.count_tokens(contents=contents) separately if needed.
             logger.info("Request successful - Received response from Gemini.")
             usage = { # Placeholder for usage, as it's not directly available
                  "request_tokens": None,
