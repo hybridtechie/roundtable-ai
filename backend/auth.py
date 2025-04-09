@@ -67,18 +67,6 @@ def find_public_key(kid: str):
 def validate_token(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> UserClaims:
-    """
-    Validates the JWT token from the Authorization header.
-
-    Args:
-        credentials: The HTTP Authorization credentials containing the token.
-
-    Returns:
-        UserClaims: The validated user claims extracted from the token.
-
-    Raises:
-        HTTPException: If the token is invalid, expired, or verification fails.
-    """
     if not AUTH0_DOMAIN or not AUTH0_CLIENT_ID:
          raise HTTPException(status_code=500, detail="Auth0 configuration missing on server.")
 

@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { listGroups, getGroup, getQuestions, createMeeting } from "@/lib/api"
+import { getQuestions, createMeeting } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
 import { toast } from "@/components/ui/sonner"
 import { X } from "lucide-react"
 import {
-  Group,
   Participant,
 } from "@/types/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core"
@@ -117,10 +117,11 @@ const SortableQuestion: React.FC<{
 const NewMeeting: React.FC = () => {
   const navigate = useNavigate()
   const [step, setStep] = useState<"group" | "participants" | "questions">("group")
+  const { state } = useAuth()
   const [selectedGroup, setSelectedGroup] = useState<string>("")
   const [discussionStrategy, setDiscussionStrategy] = useState<string>("round robin")
   const [topic, setTopic] = useState<string>("")
-  const [groups, setGroups] = useState<Group[]>([])
+  const groups = state.backendUser?.groups || []
   
   interface ExtendedParticipant extends WeightedParticipant {
     persona_description: string
@@ -143,56 +144,48 @@ const NewMeeting: React.FC = () => {
   )
 
   // Handle group selection
-  const handleGroupSelect = async (groupId: string) => {
+  const handleGroupSelect = (groupId: string) => {
     setSelectedGroup(groupId)
-    setParticipants([]) // Clear participants before fetching new ones
+    setParticipants([]) // Clear participants before setting new ones
+    
+    const selectedGroupData = groups.find(g => g.id === groupId)
+    if (!selectedGroupData) return;
 
-    try {
-      const response = await getGroup(groupId)
-      const groupParticipants = response.data.participants.map((p: Participant) => ({
+    // Create a map of all participants from state
+    const allParticipants = state.backendUser?.participants || [];
+    const participantsMap = new Map(allParticipants.map(p => [p.id, p]));
+
+    // Get participant IDs from the group
+    let participantIds: string[] = [];
+    if (Array.isArray(selectedGroupData.participant_ids)) {
+      participantIds = selectedGroupData.participant_ids;
+    } else if (Array.isArray(selectedGroupData.participants)) {
+      participantIds = selectedGroupData.participants.map(p => p?.id).filter((id): id is string => !!id);
+    }
+
+    // Look up full participant details from the map and convert to ExtendedParticipant
+    const groupParticipants = participantIds
+      .map(id => participantsMap.get(id))
+      .filter((p): p is Participant => !!p)
+      .map(p => ({
         id: p.id,
         name: p.name,
         role: p.role,
         weight: 5, // Default weight
         persona_description: p.role_overview || "Participant",
-      }))
-      setParticipants(groupParticipants)
-    } catch (error) {
-      console.error("Error fetching group participants:", error)
-      toast.error("Failed to fetch group participants")
-    }
+      }));
+
+    setParticipants(groupParticipants);
   }
 
   // Fetch groups on mount and set default group
+  // Set default group on initial render
   useEffect(() => {
-    const fetchGroupsAndSetDefault = async () => {
-      try {
-        const response = await listGroups()
-        setGroups(response.data.groups)
-
-        // If we have groups, select the first one and load its participants
-        if (response.data.groups.length > 0) {
-          const defaultGroup = response.data.groups[0]
-          setSelectedGroup(defaultGroup.id)
-
-          // Fetch participants for default group
-          const groupResponse = await getGroup(defaultGroup.id)
-          const groupParticipants = groupResponse.data.participants.map((p: Participant) => ({
-            id: p.id,
-            name: p.name,
-            role: p.role,
-            weight: 5,
-            persona_description: p.role_overview || "Participant",
-          }))
-          setParticipants(groupParticipants)
-        }
-      } catch (error) {
-        console.error("Error fetching groups:", error)
-        toast.error("Failed to fetch groups")
-      }
+    if (groups.length > 0 && !selectedGroup) {
+      const defaultGroup = groups[0]
+      handleGroupSelect(defaultGroup.id)
     }
-    fetchGroupsAndSetDefault()
-  }, [])
+  }, [groups, selectedGroup])
 
   // Fetch questions when moving to next step
   const handleNextFromGroup = async () => {
@@ -315,12 +308,15 @@ const NewMeeting: React.FC = () => {
           order: index + 1,
         })),
       })
-      const meeting_id = response.data.meeting_id
+      
+      if (!response.data.id) {
+        throw new Error('No meeting ID returned from server');
+      }
       
       toast.success("Meeting created successfully")
       
-      // Navigate to the Chat component with the meeting ID
-      navigate(`/chat/${meeting_id}/stream`)
+      // Navigate to the Chat component with the meeting ID, matching NewChat.tsx pattern
+      navigate(`/chat/${response.data.id}/stream`)
     } catch (error) {
       console.error("Error creating meeting:", error)
       toast.error("Failed to create meeting")

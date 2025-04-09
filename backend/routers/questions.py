@@ -22,7 +22,7 @@ router = APIRouter(
 
 # --- Generate Questions Endpoint ---
 
-@router.get("", response_model=QuestionsResponse, summary="Generate questions based on topic and group context") # Route is now /questions
+@router.get("", summary="Generate questions based on topic and group context") # Route is now /questions
 async def generate_questions_endpoint(
     topic: str = Query(..., description="The topic to generate questions about"),
     group_id: str = Query(..., description="The ID of the group providing context"),
@@ -41,7 +41,7 @@ async def generate_questions_endpoint(
         result = await generate_questions(topic, group_id, user_id)
 
         # Add check if result is valid (e.g., not None or empty) if necessary
-        if not result or not result.get("questions"):
+        if not result or not result.questions:
              logger.warning("Question generation returned no questions for topic '%s', group %s, user %s", topic, group_id, user_id)
              # Decide if this is an error or just an empty result. Returning empty list might be okay.
              # raise HTTPException(status_code=404, detail="Could not generate questions for the given topic and group context.")

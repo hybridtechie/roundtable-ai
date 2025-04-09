@@ -142,7 +142,7 @@ class MeetingDiscussion:
         chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
         if not self.chat_session:
             session_id = str(uuid.uuid4())
-            self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [{"role": "system", "content": prompt}], "display_messages": []}
+            self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [{"role": "system", "content": system_prompt}], "display_messages": []}
 
         # Add summary message
         self.chat_session["messages"].append({"role": "assistant", "content": response})

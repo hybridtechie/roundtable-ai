@@ -114,7 +114,7 @@ export const getMeeting = (meetingId: string) => api.get<{ meeting: Meeting }>(`
 export const deleteMeeting = (meetingId: string) => api.delete(`/meeting/${meetingId}`)
 
 export const getQuestions = (topic: string, groupId: string) =>
-  api.get<{ questions: string[] }>(`/get-questions?topic=${encodeURIComponent(topic)}&group_id=${groupId}&user_id=${USER_ID}`)
+  api.get<{ questions: string[] }>(`/questions?topic=${encodeURIComponent(topic)}&group_id=${groupId}`)
 
 // Chat Sessions
 export const listChatSessions = () => api.get<{ chat_sessions: ChatSession[] }>(`/chat-sessions`)
@@ -158,10 +158,12 @@ export const login = () => api.post("/user/login")
 
 export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() => void) => {
   console.log(`Starting chat stream for meeting ID: ${meetingId}, user ID: ${USER_ID}`)
-  const url = `${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}&user_id=${USER_ID}`
-  console.log(`EventSource URL: ${url}`)
+  const url = `${api.defaults.baseURL}/chat-stream?meeting_id=${meetingId}`
+  const token = localStorage.getItem("idToken")
+  const urlWithAuth = token ? `${url}&token=${encodeURIComponent(token)}` : url
+  console.log(`EventSource URL with auth: ${urlWithAuth}`)
   
-  const eventSource = new EventSource(url)
+  const eventSource = new EventSource(urlWithAuth)
 
   // Handle connection open
   eventSource.onopen = () => {

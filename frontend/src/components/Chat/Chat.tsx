@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ChatInput } from "@/components/ui/chat-input"
-import { getChatSession, sendChatMessage, streamChat, getMeeting } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
+import { getChatSession, sendChatMessage, streamChat } from "@/lib/api"
 import { toast } from "@/components/ui/sonner"
 import {
   ChatMessage as ChatMessageType,
@@ -40,7 +41,8 @@ const Chat: React.FC = () => {
   const { meetingId, sessionId } = useParams<{ meetingId: string; sessionId?: string }>()
   const location = useLocation()
   const isStreamMode = location.pathname.includes('/stream')
-  
+  const { state } = useAuth()
+
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(sessionId)
   const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -110,33 +112,23 @@ const Chat: React.FC = () => {
         setIsLoading(false)
         return
       }
-setIsLoading(true)
-setMessages([]) // Clear messages while loading
-console.log("Starting streaming chat for meeting ID:", meetingId)
-
+      setIsLoading(true)
+      setMessages([]) // Clear messages while loading
+      console.log("Starting streaming chat for meeting ID:", meetingId)
 
       try {
-        // Get meeting details to set title
-        const meetingResponse = await getMeeting(meetingId)
-        console.log("Meeting response:", meetingResponse.data)
+        // Get meeting details from auth context state
+        const meeting = state.backendUser?.meetings?.find(m => m.id === meetingId);
         
-        // Check if meeting data exists and has the expected structure
-        if (meetingResponse.data && meetingResponse.data.meeting) {
-          const meeting = meetingResponse.data.meeting
-          
-          // Set session title if name or topic exists
-          if (meeting && (meeting.name || meeting.topic)) {
-            setSessionTitle(
-              `${meeting.name || ""}${meeting.name && meeting.topic ? "\n" : ""}${meeting.topic || ""}`,
-            )
-          } else {
-            // Set a default title if name and topic are missing
-            setSessionTitle("Meeting Discussion")
-          }
+        // Set session title if meeting is found
+        if (meeting && (meeting.name || meeting.topic)) {
+          setSessionTitle(
+            `${meeting.name || ""}${meeting.name && meeting.topic ? "\n" : ""}${meeting.topic || ""}`,
+          )
         } else {
-          // Set a default title if meeting data is missing
+          // Set a default title if meeting not found
           setSessionTitle("Meeting Discussion")
-          console.warn("Meeting data is missing or has unexpected structure:", meetingResponse.data)
+          console.warn("Meeting not found in state:", meetingId)
         }
 
         // Cleanup any existing chat stream
@@ -219,7 +211,7 @@ console.log("Starting streaming chat for meeting ID:", meetingId)
     return () => {
       cleanupRef.current?.()
     }
-  }, [meetingId, isStreamMode])
+  }, [meetingId, isStreamMode, state.backendUser?.meetings])
 
   // Scroll to bottom when messages change
   useEffect(() => {
