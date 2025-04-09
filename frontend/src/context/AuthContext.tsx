@@ -1,13 +1,14 @@
 import { createContext, useContext, ReactNode, useEffect, useReducer, Dispatch } from "react";
 import { useAuth0, User } from "@auth0/auth0-react";
 import { login } from "@/lib/api";
-import { Participant } from "@/types/types"; // Import Participant type
+import { Participant, Group } from "@/types/types"; // Import Participant and Group types
 
 // Define the shape of the user data returned by your backend login, if any.
 // It should include a participants array if that's where the data lives.
 type BackendUserData = {
-  participants?: Participant[]; // Assuming participants are part of backendUser
-  [key: string]: unknown; // Allow other unknown properties
+  participants?: Participant[];
+  groups?: Group[]; // Add groups array
+  [key: string]: unknown;
 };
 
 // Define the state managed by the reducer
@@ -27,7 +28,11 @@ type AuthAction =
   // Participant specific actions
   | { type: 'ADD_PARTICIPANT'; payload: Participant }
   | { type: 'UPDATE_PARTICIPANT'; payload: Participant }
-  | { type: 'DELETE_PARTICIPANT'; payload: string }; // Payload is participant ID
+  | { type: 'DELETE_PARTICIPANT'; payload: string } // Payload is participant ID
+  // Group specific actions
+  | { type: 'ADD_GROUP'; payload: Group }
+  | { type: 'UPDATE_GROUP'; payload: Group }
+  | { type: 'DELETE_GROUP'; payload: string }; // Payload is group ID
 
 // Initial state for the reducer
 const initialState: AuthState = {
@@ -37,28 +42,31 @@ const initialState: AuthState = {
 };
 
 // Helper to safely get participants array from state
-const getParticipants = (state: AuthState): Participant[] => {
-  return state.backendUser?.participants || [];
-};
+const getParticipants = (state: AuthState): Participant[] => state.backendUser?.participants || [];
+const getGroups = (state: AuthState): Group[] => state.backendUser?.groups || [];
 
 // The reducer function to handle state updates based on actions
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'SET_AUTH0_USER':
       return { ...state, user: action.payload };
-    case 'SET_BACKEND_USER':
+    case 'SET_BACKEND_USER': {
       // Ensure participants array exists if backendUser is set
       const backendUserWithParticipants = action.payload
-        ? { ...action.payload, participants: action.payload.participants || [] }
+        ? {
+            ...action.payload,
+            participants: action.payload.participants || [],
+            groups: action.payload.groups || [], // Initialize groups array
+          }
         : undefined;
       return { ...state, backendUser: backendUserWithParticipants };
+    }
     case 'UPDATE_BACKEND_USER': {
       const currentBackendUser = state.backendUser || {};
       const updatedBackendUser = { ...currentBackendUser, ...action.payload };
       // Ensure participants array exists after update
-      if (!updatedBackendUser.participants) {
-        updatedBackendUser.participants = [];
-      }
+      if (!updatedBackendUser.participants) updatedBackendUser.participants = [];
+      if (!updatedBackendUser.groups) updatedBackendUser.groups = []; // Ensure groups array exists
       return {
         ...state,
         backendUser: updatedBackendUser as BackendUserData,
@@ -108,9 +116,47 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       };
     }
 
+    // Group Reducer Logic
+    case 'ADD_GROUP': {
+      if (!state.backendUser) return state;
+      const groups = getGroups(state);
+      return {
+        ...state,
+        backendUser: {
+          ...state.backendUser,
+          groups: [...groups, action.payload],
+        },
+      };
+    }
+    case 'UPDATE_GROUP': {
+      if (!state.backendUser) return state;
+      const groups = getGroups(state);
+      const updatedGroups = groups.map(g =>
+        g.id === action.payload.id ? action.payload : g
+      );
+      return {
+        ...state,
+        backendUser: {
+          ...state.backendUser,
+          groups: updatedGroups,
+        },
+      };
+    }
+    case 'DELETE_GROUP': {
+      if (!state.backendUser) return state;
+      const groups = getGroups(state);
+      const filteredGroups = groups.filter(g => g.id !== action.payload);
+      return {
+        ...state,
+        backendUser: {
+          ...state.backendUser,
+          groups: filteredGroups,
+        },
+      };
+    }
+
     default:
-      // Ensure exhaustive check if using TypeScript 4.9+
-      // const _exhaustiveCheck: never = action;
+      // const _exhaustiveCheck: never = action; // Uncomment for exhaustive checks
       return state;
   }
 };
@@ -162,9 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const backendData: BackendUserData = response.data || {}; // Extract data
 
             // Ensure participants array exists in fetched data
-            if (!backendData.participants) {
-              backendData.participants = [];
-            }
+            if (!backendData.participants) backendData.participants = [];
+            if (!backendData.groups) backendData.groups = []; // Ensure groups array exists on login
 
             // Dispatch SET_BACKEND_USER which now handles participants initialization
             dispatch({ type: 'SET_BACKEND_USER', payload: backendData });

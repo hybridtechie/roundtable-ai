@@ -79,9 +79,26 @@ async def create_group(group: GroupCreate):
         if group.context:
             group_data["context"] = group.context
 
-        await cosmos_client.add_group(group.user_id, group_data)
+        created_item = await cosmos_client.add_group(group.user_id, group_data)
         logger.info("Successfully created group: %s", group.id)
-        return {"message": f"Group '{group.name}' with ID '{group.id}' created successfully"}
+        # Return the full group data as stored/returned by cosmos_client.add_group
+        # Assuming add_group returns the created item or we fetch it again if needed.
+        # For simplicity, returning the input data + ID. Fetch if necessary.
+        # Fetch participant details for the response
+        participants_details = []
+        for p_id in group.participant_ids:
+            participant = await cosmos_client.get_participant(group.user_id, p_id)
+            if participant:
+                participants_details.append({"id": participant.get("id"), "name": participant.get("name"), "role": participant.get("role")})
+
+        return {
+            "id": group.id,
+            "name": group.name,
+            "description": group.description,
+            "user_id": group.user_id,
+            "participant_ids": group.participant_ids,
+            "participants": participants_details # Include participant details
+        }
 
     except HTTPException:
         raise
@@ -111,9 +128,24 @@ async def update_group(group_id: str, group: GroupUpdate):
         # Update group data
         group_data = {"id": group_id, "name": group.name, "description": group.description, "participant_ids": group.participant_ids, "user_id": group.user_id}
 
-        await cosmos_client.update_group(group.user_id, group_id, group_data)
+        updated_item = await cosmos_client.update_group(group.user_id, group_id, group_data)
         logger.info("Successfully updated group: %s", group_id)
-        return {"message": f"Group with ID '{group_id}' updated successfully"}
+        # Return the full updated group data
+        # Fetch participant details for the response
+        participants_details = []
+        for p_id in group.participant_ids:
+            participant = await cosmos_client.get_participant(group.user_id, p_id)
+            if participant:
+                participants_details.append({"id": participant.get("id"), "name": participant.get("name"), "role": participant.get("role")})
+
+        return {
+            "id": group_id,
+            "name": group.name,
+            "description": group.description,
+            "user_id": group.user_id,
+            "participant_ids": group.participant_ids,
+            "participants": participants_details # Include participant details
+        }
 
     except HTTPException:
         raise
@@ -135,7 +167,8 @@ async def delete_group(group_id: str, user_id: str):
 
         await cosmos_client.delete_group(user_id, group_id)
         logger.info("Successfully deleted group: %s", group_id)
-        return {"message": f"Group with ID '{group_id}' deleted successfully"}
+        # Return the ID of the deleted group, matching participant pattern
+        return {"deleted_id": group_id}
 
     except HTTPException:
         raise

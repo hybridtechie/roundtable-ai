@@ -6,7 +6,7 @@ from features.participant import (
     list_participants, ParticipantCreate, ParticipantUpdate, ParticipantResponse
 )
 from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, delete_meeting, MeetingCreate, MeetingTopic
-from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
+from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate, GroupBase # Import GroupBase
 from features.chat import stream_meeting_discussion, MeetingDiscussion
 from features.chat_session import ChatSessionCreate, get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
 from features.llm import create_llm_account, update_llm_account, delete_llm_account, get_llm_accounts, set_default_provider, LLMAccountCreate, LLMAccountUpdate
@@ -20,11 +20,13 @@ from logger_config import setup_logger
 from utils_llm import LLMClient
 from prompts import generate_questions_prompt
 import requests
-from typing import Annotated, List # Import List for list response model
+from typing import Annotated, List, Optional # Import List and Optional
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jws, jwt, ExpiredSignatureError, JWTError, JWSError
 from jose.exceptions import JWTClaimsError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field # Import BaseModel and Field
+# Import ParticipantBase if it's defined elsewhere, assuming it is for ParticipantResponse
+from features.participant import ParticipantBase
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -178,13 +180,55 @@ async def delete_participant_endpoint(participant_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete participant: {str(e)}")
 
 
-# --- Group Endpoints --- (Keep as is unless they also need updates)
+# --- Response Models (Shared) ---
+class DeleteResponse(BaseModel):
+    deleted_id: str
+
+# --- Participant Response Models ---
+# Assuming ParticipantBase is defined in features.participant
+class ParticipantResponse(ParticipantBase):
+    id: str
+    # user_id: str # Removed user_id unless strictly needed in response
+
+class ListParticipantsResponse(BaseModel):
+    participants: List[ParticipantResponse]
+
+# --- Group Response Models ---
+class ParticipantInGroupResponse(BaseModel):
+    id: str
+    name: str
+    role: str
+
+class GroupResponse(GroupBase):
+    id: str
+    participants: List[ParticipantInGroupResponse] = []
+    context: Optional[str] = None
+
+class ListGroupsResponse(BaseModel):
+    groups: List[GroupResponse]
+
+# --- User Response Models ---
+# Define User related response models if needed, e.g., for login_user
+
+# --- Meeting Response Models ---
+# Define Meeting related response models if needed
+
+# --- LLM Account Response Models ---
+# Define LLM Account related response models if needed
+
+# --- Chat Session Response Models ---
+# Define Chat Session related response models if needed
+
+
+# --- Group Endpoints ---
 
 # 06 Create Group
-@app.post("/group")
-async def create_group_endpoint(group: GroupCreate):
+@app.post("/group", response_model=GroupResponse, summary="Create a new group")
+async def create_group_endpoint(group: GroupCreate, token_payload: UserClaims = Depends(validate_token)): # Use validate_token
     try:
         logger.info("Creating new group: %s", group.name)
+        user_id = token_payload.email # Extract email as user_id
+        group.user_id = user_id # Assign user_id to the group object
         result = await create_group(group)
         logger.info("Successfully created group: %s", group.name)
         return result
@@ -194,9 +238,10 @@ async def create_group_endpoint(group: GroupCreate):
 
 
 #  07 List Groups
-@app.get("/groups")
-async def list_groups_endpoint(user_id: str):
+@app.get("/groups", response_model=ListGroupsResponse, summary="List all groups")
+async def list_groups_endpoint(token_payload: UserClaims = Depends(validate_token)): # Use validate_token
     try:
+        user_id = token_payload.email # Extract email as user_id
         logger.info("Fetching all groups for user: %s", user_id)
         result = await list_groups(user_id)
         logger.info("Successfully retrieved groups")
@@ -207,9 +252,10 @@ async def list_groups_endpoint(user_id: str):
 
 
 # 08 Get Group
-@app.get("/group/{group_id}")
-async def get_group_endpoint(group_id: str, user_id: str):
+@app.get("/group/{group_id}", response_model=GroupResponse, summary="Get a specific group")
+async def get_group_endpoint(group_id: str, token_payload: UserClaims = Depends(validate_token)): # Use validate_token
     try:
+        user_id = token_payload.email # Extract email as user_id
         logger.info("Fetching group: %s for user: %s", group_id, user_id)
         result = await get_group(group_id, user_id)
         logger.info("Successfully retrieved group: %s", group_id)
@@ -220,10 +266,12 @@ async def get_group_endpoint(group_id: str, user_id: str):
 
 
 #  09 Update Group
-@app.put("/group/{group_id}")
-async def update_group_endpoint(group_id: str, group: GroupUpdate):
+@app.put("/group/{group_id}", response_model=GroupResponse, summary="Update an existing group")
+async def update_group_endpoint(group_id: str, group: GroupUpdate, token_payload: UserClaims = Depends(validate_token)): # Use validate_token
     try:
         logger.info("Updating group: %s", group_id)
+        user_id = token_payload.email # Extract email as user_id
+        group.user_id = user_id # Assign user_id before passing to the feature function
         result = await update_group(group_id, group)
         logger.info("Successfully updated group: %s", group_id)
         return result
@@ -233,9 +281,10 @@ async def update_group_endpoint(group_id: str, group: GroupUpdate):
 
 
 #  10 Delete Group
-@app.delete("/group/{group_id}")
-async def delete_group_endpoint(group_id: str, user_id: str):
+@app.delete("/group/{group_id}", response_model=DeleteResponse, summary="Delete a group")
+async def delete_group_endpoint(group_id: str, token_payload: UserClaims = Depends(validate_token)): # Use validate_token
     try:
+        user_id = token_payload.email # Extract email as user_id
         logger.info("Deleting group: %s for user: %s", group_id, user_id)
         result = await delete_group(group_id, user_id)
         logger.info("Successfully deleted group: %s", group_id)
