@@ -16,7 +16,8 @@ export interface Group {
   id: string
   name: string
   description: string
-  participants: Participant[]
+  participants: Participant[] // Full participant objects (might be incomplete/empty from API)
+  participant_ids?: string[] // Optional: Array of participant IDs (might be present from API)
 }
 
 export interface ParticipantOrder {

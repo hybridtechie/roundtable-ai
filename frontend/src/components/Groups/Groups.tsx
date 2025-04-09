@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react"; // Removed useEffect
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { ChevronsUpDown, Edit, Trash2 } from "lucide-react";
-import { listParticipants, createGroup, updateGroup, deleteGroup } from "@/lib/api"; // Removed listGroups
+import { createGroup, updateGroup, deleteGroup } from "@/lib/api"; // Removed listParticipants
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Participant, Group } from "@/types/types"
@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/sonner"
 
 const Groups: React.FC = () => {
   // const [groups, setGroups] = useState<Group[]>([]) // Remove local state for groups
-  const [participants, setParticipants] = useState<Participant[]>([])
+  // const [participants, setParticipants] = useState<Participant[]>([]) // Removed local state
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
   const [groupName, setGroupName] = useState("")
   const [groupDescription, setGroupDescription] = useState("")
@@ -28,12 +28,7 @@ const Groups: React.FC = () => {
   // Derive groups from context state
   const groups: Group[] = (state.backendUser?.groups as Group[]) || [];
 
-  // Fetch participants (still needed for the form)
-  useEffect(() => {
-    listParticipants()
-      .then((res) => setParticipants(res.data.participants || [])) // Ensure participants is an array
-      .catch(console.error);
-  }, []);
+  // Participants are now derived from AuthContext state below
 
   const resetForm = () => {
     setSelectedParticipantIds([])
@@ -124,10 +119,14 @@ const Groups: React.FC = () => {
     }
   }
 
-  // Filter participants based on search term
-  const filteredParticipants = participants.filter((participant) =>
+  // Derive all participants from context state and create a lookup map
+  const allParticipants: Participant[] = state.backendUser?.participants || [];
+  const participantsMap = new Map(allParticipants.map(p => [p.id, p]));
+
+  // Filter participants for the creation/edit form based on search term
+  const filteredParticipantsForForm = allParticipants.filter((participant) =>
     participant.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
   // Handle loading state from AuthContext
   if (isAuthLoading || !state.isInitialized) {
@@ -194,7 +193,7 @@ const Groups: React.FC = () => {
               />
             </div>
             <div className="grid gap-2 overflow-y-auto max-h-60">
-              {filteredParticipants.map((participant) => (
+              {filteredParticipantsForForm.map((participant) => (
                 <div key={participant.id} className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -282,21 +281,43 @@ const Groups: React.FC = () => {
               </CardHeader>
               <CollapsibleContent>
                 <CardContent>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="mb-2 font-medium">Participants:</p>
-                      <ul className="pl-6 space-y-1 list-disc">
-                        {group.participants.map((participant) => (
-                          <li key={participant.id}>
-                            <span className="font-medium">{participant.name}</span>
-                            <span className="text-gray-600"> - {participant.role}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Removed duplicate CardContent tag */}
+                    <div className="space-y-2">
+                      <div>
+                        <p className="mb-2 font-medium">Participants:</p>
+                        <ul className="pl-6 space-y-1 list-disc">
+                          {(() => {
+                            // Determine participant IDs for the current group
+                            let participantIds: string[] = [];
+                            // Use updated Group type which includes optional participant_ids
+                            if (Array.isArray(group.participant_ids)) {
+                                participantIds = group.participant_ids;
+                            } else if (Array.isArray(group.participants)) {
+                                // Fallback: try to get IDs from the participants array if participant_ids doesn't exist
+                                participantIds = group.participants.map(p => p?.id).filter((id): id is string => !!id);
+                            }
+
+                            // Look up full participant details from the map
+                            const populatedParticipants = participantIds
+                              .map(id => participantsMap.get(id))
+                              .filter((p): p is Participant => !!p); // Filter out undefined results
+
+                            if (populatedParticipants.length === 0) {
+                              return <li>No participants assigned or details unavailable.</li>;
+                            }
+
+                            return populatedParticipants.map((participant) => (
+                              <li key={participant.id}>
+                                <span className="font-medium">{participant.name}</span>
+                                <span className="text-gray-600"> - {participant.role}</span>
+                              </li>
+                            ));
+                          })()}
+                        </ul>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </CollapsibleContent>
+                  </CardContent>
+                </CollapsibleContent>
             </Card>
           </Collapsible>
         ))}
