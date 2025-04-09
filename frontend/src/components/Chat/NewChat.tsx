@@ -1,48 +1,27 @@
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { listParticipants, createMeeting, listMeetings } from "@/lib/api"
-import { Participant, Meeting } from "@/types/types"
-import { useChatSessions } from "@/context/ChatSessionsContext"
+import { createMeeting } from "@/lib/api"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "sonner"
+import { useAuth } from "@/context/AuthContext"
 
-const NewChat: React.FC = () => {
+const NewChat = () => {
   const navigate = useNavigate()
-  const { refreshChatSessions } = useChatSessions()
+  const { state, dispatch } = useAuth()
+  const participants = state.backendUser?.participants || []
+  // Filter meetings to only include those without group_ids
+  const meetings = (state.backendUser?.meetings || []).filter((meeting) => !meeting.group_ids?.length)
+
   const [chatMode, setChatMode] = useState<"new" | "existing">("new")
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [meetings, setMeetings] = useState<Meeting[]>([])
   const [selectedParticipant, setSelectedParticipant] = useState("")
   const [selectedMeeting, setSelectedMeeting] = useState("")
   const [name, setName] = useState("")
   const [topic, setTopic] = useState("")
   const [loading, setLoading] = useState(false)
-  const [loadingParticipants, setLoadingParticipants] = useState(false)
-  const [loadingMeetings, setLoadingMeetings] = useState(false)
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoadingParticipants(true)
-      setLoadingMeetings(true)
-      try {
-        const [participantsRes, meetingsRes] = await Promise.all([listParticipants(), listMeetings()])
-        setParticipants(participantsRes.data.participants)
-        // Filter meetings to only include those without group_ids
-        setMeetings(meetingsRes.data.meetings.filter((meeting) => !meeting.group_ids?.length))
-      } catch (error) {
-        console.error("Error fetching data:", error)
-        toast.error("Failed to load required data")
-      } finally {
-        setLoadingParticipants(false)
-        setLoadingMeetings(false)
-      }
-    }
-    fetchData()
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,16 +30,14 @@ const NewChat: React.FC = () => {
       if (chatMode === "existing") {
         // For existing meetings, navigate directly to chat session
         navigate(`/chat/${selectedMeeting}/session`, { state: { messages: [] } })
-        // Refresh chat sessions to update the recent chats list
-        await refreshChatSessions()
         return
       }
 
       // For new meetings
       const response = await createMeeting({
         participant_id: selectedParticipant,
-        name: name,
-        topic: topic,
+        name,
+        topic,
         strategy: "chat",
         questions: [],
         participant_order: [
@@ -71,10 +48,22 @@ const NewChat: React.FC = () => {
           },
         ],
       })
+      // Add the new meeting to context
+      dispatch({
+        type: "ADD_MEETING",
+        payload: {
+          id: response.data.id,
+          name: name,
+          topic: topic,
+          strategy: "chat",
+          participant_ids: [selectedParticipant],
+          group_ids: [], // Empty array for non-group chat
+          participants: [],
+        },
+      })
+
       toast.success("Chat meeting created successfully")
-      // Refresh chat sessions to update the recent chats list
-      await refreshChatSessions()
-      navigate(`/chat/${response.data.meeting_id}/session`, { state: { messages: [] } })
+      navigate(`/chat/${response.data.id}/session`, { state: { messages: [] } })
     } catch (error) {
       console.error("Error creating chat:", error)
       toast.error("Failed to create chat meeting")
@@ -113,14 +102,10 @@ const NewChat: React.FC = () => {
                 <div className="mb-2 text-sm font-medium">Select Existing Meeting</div>
                 <Select value={selectedMeeting} onValueChange={setSelectedMeeting}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={loadingMeetings ? "Loading..." : "Select a meeting"} />
+                    <SelectValue placeholder="Select a meeting" />
                   </SelectTrigger>
                   <SelectContent>
-                    {loadingMeetings ? (
-                      <div className="flex justify-center p-2">
-                        <LoadingSpinner size={16} />
-                      </div>
-                    ) : meetings.length > 0 ? (
+                    {meetings.length > 0 ? (
                       meetings.map((meeting) => (
                         <SelectItem key={meeting.id} value={meeting.id}>
                           {meeting.name} {meeting.topic ? `- ${meeting.topic}` : ""}
@@ -138,20 +123,14 @@ const NewChat: React.FC = () => {
                   <div className="mb-2 text-sm font-medium">Select Participant</div>
                   <Select value={selectedParticipant} onValueChange={setSelectedParticipant}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder={loadingParticipants ? "Loading..." : "Select a participant"} />
+                      <SelectValue placeholder="Select a participant" />
                     </SelectTrigger>
                     <SelectContent>
-                      {loadingParticipants ? (
-                        <div className="flex justify-center p-2">
-                          <LoadingSpinner size={16} />
-                        </div>
-                      ) : (
-                        participants.map((participant) => (
-                          <SelectItem key={participant.id} value={participant.id}>
-                            {participant.name} - {participant.role}
-                          </SelectItem>
-                        ))
-                      )}
+                      {participants.map((participant) => (
+                        <SelectItem key={participant.id} value={participant.id}>
+                          {participant.name} - {participant.role}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

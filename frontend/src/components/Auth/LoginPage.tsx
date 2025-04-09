@@ -10,7 +10,6 @@ export function LoginPage() {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
 
-  // If already authenticated, redirect to the home page
   if (isAuthenticated) {
     return <Navigate to="/" replace />
   }
@@ -19,9 +18,7 @@ export function LoginPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
       <div className="p-8 border rounded-lg shadow-lg bg-card">
-        <h1 className="mb-6 text-2xl font-semibold text-center text-card-foreground">
-          Welcome to Roundtable AI
-        </h1>
+        <h1 className="mb-6 text-2xl font-semibold text-center text-card-foreground">Welcome to Roundtable AI</h1>
         <LoginButton />
       </div>
     </div>

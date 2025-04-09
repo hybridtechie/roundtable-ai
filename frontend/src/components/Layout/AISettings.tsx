@@ -5,26 +5,15 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from "@/context/AuthContext"
 import { useState } from "react"
 import { toast } from "@/components/ui/sonner"
-
-import {
-  LLMAccountCreate,
-  LLMAccountsResponse,
-  createLLMAccount,
-  deleteLLMAccount,
-  listLLMAccounts,
-  setDefaultProvider,
-} from "@/lib/api"
-import { useEffect } from "react"
 import { Star, StarOff, Trash2 } from "lucide-react"
+import { LLMAccountCreate } from "@/types/types"
 
 export function AISettings() {
-  const [accounts, setAccounts] = useState<LLMAccountsResponse>({
-    default: "",
-    providers: [],
-  })
-  const [isLoading, setIsLoading] = useState(true)
+  const { state, dispatch, isLoading: isAuthLoading } = useAuth() // Get auth context
+  const llmAccounts = state.backendUser?.llmAccounts || { default: "", providers: [] }
 
   const [newProvider, setNewProvider] = useState<LLMAccountCreate>({
     provider: "AzureOpenAI",
@@ -35,31 +24,11 @@ export function AISettings() {
     api_version: "",
   })
 
-  useEffect(() => {
-    loadAccounts()
-  }, [])
-
-  const loadAccounts = async () => {
-    setIsLoading(true)
-    try {
-      const response = await listLLMAccounts()
-      if (response.data) {
-        setAccounts({
-          default: response.data.default || "",
-          providers: response.data.providers || [],
-        })
-      }
-    } catch (error) {
-      console.error("Failed to load LLM accounts:", error)
-      toast.error("Failed to load LLM accounts")
-    }
-    setIsLoading(false)
-  }
-
   const handleAddProvider = async () => {
     try {
-      await createLLMAccount(newProvider)
-      await loadAccounts()
+      // Use the reducer directly
+      dispatch({ type: "ADD_LLM_ACCOUNT", payload: newProvider })
+
       setNewProvider({
         provider: "AzureOpenAI",
         model: "",
@@ -76,8 +45,7 @@ export function AISettings() {
 
   const handleSetDefault = async (provider: string) => {
     try {
-      await setDefaultProvider(provider)
-      await loadAccounts()
+      dispatch({ type: "SET_DEFAULT_LLM_ACCOUNT", payload: provider })
       toast.success("Default provider updated")
     } catch {
       toast.error("Failed to set default provider")
@@ -86,8 +54,7 @@ export function AISettings() {
 
   const handleDeleteProvider = async (provider: string) => {
     try {
-      await deleteLLMAccount(provider)
-      await loadAccounts()
+      dispatch({ type: "DELETE_LLM_ACCOUNT", payload: provider })
       toast.success("Provider deleted successfully")
     } catch {
       toast.error("Failed to delete provider")
@@ -113,7 +80,7 @@ export function AISettings() {
                 </SelectTrigger>
                 <SelectContent>
                   {["AzureOpenAI", "Grok", "OpenAI", "Deepseek", "OpenRouter", "Gemini"]
-                    .filter((provider) => !accounts.providers.some((p) => p.provider === provider))
+                    .filter((provider) => !llmAccounts.providers.some((p) => p.provider === provider))
                     .map((provider) => (
                       <SelectItem key={provider} value={provider}>
                         {provider.replace(/([A-Z])/g, " $1").trim()}
@@ -184,18 +151,18 @@ export function AISettings() {
 
         <div className="mt-2 space-y-2">
           <h3 className="mb-1 font-medium">Existing Providers</h3>
-          {isLoading ? (
+          {isAuthLoading ? (
             <div className="p-2 text-center">
               <LoadingSpinner />
             </div>
-          ) : accounts.providers.length === 0 ? (
+          ) : llmAccounts.providers.length === 0 ? (
             <div className="p-2 text-center text-muted-foreground">
               No LLM providers configured. Add a provider to get started.
             </div>
           ) : (
             <div className="space-y-0.5">
-              {accounts.providers.map((provider, index) => (
-                <Card key={index} className={`${accounts.default === provider.provider ? "border-2 border-primary" : ""} p-0`}>
+              {llmAccounts.providers.map((provider, index) => (
+                <Card key={index} className={`${llmAccounts.default === provider.provider ? "border-2 border-primary" : ""} p-0`}>
                   <CardContent className="flex items-center justify-between p-2">
                     <div>
                       <p className="font-medium">{provider.provider}</p>
@@ -209,8 +176,8 @@ export function AISettings() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleSetDefault(provider.provider)}
-                              disabled={accounts.default === provider.provider}>
-                              {accounts.default === provider.provider ? (
+                              disabled={llmAccounts.default === provider.provider}>
+                              {llmAccounts.default === provider.provider ? (
                                 <Star className="w-4 h-4 text-yellow-500" />
                               ) : (
                                 <StarOff className="w-4 h-4" />
@@ -218,7 +185,7 @@ export function AISettings() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            {accounts.default === provider.provider ? "Default Provider" : "Set as Default"}
+                            {llmAccounts.default === provider.provider ? "Default Provider" : "Set as Default"}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -230,13 +197,13 @@ export function AISettings() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDeleteProvider(provider.provider)}
-                              disabled={accounts.providers.length === 1}
+                              disabled={llmAccounts.providers.length === 1}
                               className="transition-colors hover:text-red-500">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            {accounts.providers.length === 1 ? "Cannot delete the only provider" : "Delete Provider"}
+                            {llmAccounts.providers.length === 1 ? "Cannot delete the only provider" : "Delete Provider"}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

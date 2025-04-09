@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ChatMessage } from "@/components/ui/chat-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ChatInput } from "@/components/ui/chat-input"
-import { getChatSession, sendChatMessage, streamChat, getMeeting } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
+import { getChatSession, sendChatMessage, streamChat } from "@/lib/api"
 import { toast } from "@/components/ui/sonner"
 import {
   ChatMessage as ChatMessageType,
@@ -13,7 +14,7 @@ import {
   ChatFinalResponse,
   QuestionsResponse,
   ChatErrorResponse,
-  NextParticipantResponse
+  NextParticipantResponse,
 } from "@/types/types"
 
 interface DisplayMessage {
@@ -39,8 +40,9 @@ interface ChatSessionDetails {
 const Chat: React.FC = () => {
   const { meetingId, sessionId } = useParams<{ meetingId: string; sessionId?: string }>()
   const location = useLocation()
-  const isStreamMode = location.pathname.includes('/stream')
-  
+  const isStreamMode = location.pathname.includes("/stream")
+  const { state, dispatch } = useAuth()
+
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(sessionId)
   const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -110,33 +112,20 @@ const Chat: React.FC = () => {
         setIsLoading(false)
         return
       }
-setIsLoading(true)
-setMessages([]) // Clear messages while loading
-console.log("Starting streaming chat for meeting ID:", meetingId)
-
+      setIsLoading(true)
+      setMessages([]) // Clear messages while loading
 
       try {
-        // Get meeting details to set title
-        const meetingResponse = await getMeeting(meetingId)
-        console.log("Meeting response:", meetingResponse.data)
-        
-        // Check if meeting data exists and has the expected structure
-        if (meetingResponse.data && meetingResponse.data.meeting) {
-          const meeting = meetingResponse.data.meeting
-          
-          // Set session title if name or topic exists
-          if (meeting && (meeting.name || meeting.topic)) {
-            setSessionTitle(
-              `${meeting.name || ""}${meeting.name && meeting.topic ? "\n" : ""}${meeting.topic || ""}`,
-            )
-          } else {
-            // Set a default title if name and topic are missing
-            setSessionTitle("Meeting Discussion")
-          }
+        // Get meeting details from auth context state
+        const meeting = state.backendUser?.meetings?.find((m) => m.id === meetingId)
+
+        // Set session title if meeting is found
+        if (meeting && (meeting.name || meeting.topic)) {
+          setSessionTitle(`${meeting.name || ""}${meeting.name && meeting.topic ? "\n" : ""}${meeting.topic || ""}`)
         } else {
-          // Set a default title if meeting data is missing
+          // Set a default title if meeting not found
           setSessionTitle("Meeting Discussion")
-          console.warn("Meeting data is missing or has unexpected structure:", meetingResponse.data)
+          console.warn("Meeting not found in state:", meetingId)
         }
 
         // Cleanup any existing chat stream
@@ -198,7 +187,6 @@ console.log("Starting streaming chat for meeting ID:", meetingId)
             }
           },
         })
-        console.log("Chat stream started successfully")
       } catch (error) {
         console.error("Error starting chat stream:", error)
         // More detailed error logging
@@ -215,11 +203,11 @@ console.log("Starting streaming chat for meeting ID:", meetingId)
     }
 
     startStreamingChat()
-    
+
     return () => {
       cleanupRef.current?.()
     }
-  }, [meetingId, isStreamMode])
+  }, [meetingId, isStreamMode, state.backendUser?.meetings])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -246,11 +234,7 @@ console.log("Starting streaming chat for meeting ID:", meetingId)
       const response = await sendChatMessage(meetingId, inputValue, currentSessionId)
 
       // If this is first message in a new chat, store the session ID
-      if (!currentSessionId && response.data.session_id) {
-        setCurrentSessionId(response.data.session_id)
-      }
-
-      // Add the user's message and the response to the messages
+      // Create the response message
       const response_message: DisplayMessage[] = [
         {
           type: response.data.type,
@@ -261,6 +245,58 @@ console.log("Starting streaming chat for meeting ID:", meetingId)
       ]
 
       setMessages((prev) => [...prev, ...response_message])
+
+      // If this is first message in a new chat, set session ID and add to context
+      if (!currentSessionId && response.data.session_id) {
+        setCurrentSessionId(response.data.session_id)
+
+        // Create a new chat session object and add it to AuthContext
+        // Create a minimal chat session with required fields
+        // Get meeting details from state
+        const meeting = state.backendUser?.meetings?.find((m) => m.id === meetingId)
+
+        // Get group details if meeting has group_ids (array)
+        const groupId = meeting?.group_ids?.[0] || undefined // Take first group if exists
+        const group = groupId ? state.backendUser?.groups?.find((g) => g.id === groupId) : undefined
+
+        //  Declare participants variable
+        let participants: { participant_id: string; name: string; role: string }[] = []
+        if (group) {
+          participants = (group?.participants || []).map((p) => ({
+            participant_id: p.id,
+            name: p.name,
+            role: p.role || "participant", // Default role if not specified
+          }))
+        } else {
+          const participant = state.backendUser?.participants?.find((m) => m.id === meeting?.participant_ids?.[0])
+          participants = [
+            {
+              participant_id: participant?.id || "",
+              name: participant?.name || "You",
+              role: participant?.role || "participant", // Default role if not specified
+            },
+          ]
+        }
+
+        const newChatSession = {
+          id: response.data.session_id,
+          meeting_id: meetingId,
+          user_id: state.backendUser?.id || "",
+          title: meeting?.name || sessionTitle?.split("\n")[0] || "Chat Session",
+          messages: [], // Empty array for messages
+          display_messages: [], // Empty array for display messages
+          _ts: Math.floor(Date.now() / 1000),
+          meeting_name: meeting?.name || sessionTitle?.split("\n")[0] || "",
+          meeting_topic: meeting?.topic || sessionTitle?.split("\n")[1] || "",
+          participants: participants,
+          group_id: groupId,
+          group_name: group?.name,
+        }
+
+        dispatch({ type: "ADD_CHAT_SESSION", payload: newChatSession })
+      }
+
+      setInputValue("")
 
       setInputValue("")
     } catch (error) {
@@ -296,9 +332,7 @@ console.log("Starting streaming chat for meeting ID:", meetingId)
                     <div className="text-red-500">
                       <p className="font-semibold">Error:</p>
                       <p>{error}</p>
-                      <p className="mt-2 text-sm">
-                        Try refreshing the page or creating a new meeting.
-                      </p>
+                      <p className="mt-2 text-sm">Try refreshing the page or creating a new meeting.</p>
                     </div>
                   ) : isStreamMode ? (
                     "Waiting for participants to join the discussion..."

@@ -83,30 +83,35 @@ class ParticipantCreate(ParticipantBase):
 
 
 class ParticipantUpdate(ParticipantBase):
+    # Inherits all fields from ParticipantBase, used for update payload validation
     pass
 
 
-async def create_participant(participant: ParticipantCreate):
-    """Create a new Participant."""
+# Define a response model that includes the ID and all other fields
+class ParticipantResponse(ParticipantBase):
+    id: str  # ID is required in the response
+
+
+async def create_participant(participant: ParticipantCreate) -> ParticipantResponse:
+    """Create a new Participant and return the created object."""
     logger.info("Creating new participant with name: %s", participant.name)
 
     # Validate all required fields
-    # Convert model to dict for validation
-    participant_dict = participant.dict()
+    participant_dict = participant.dict(exclude_unset=True)  # Exclude unset optional fields for validation if needed
     validate_participant_data(participant_dict)
 
     # Generate UUID if id not provided
-    if participant.id is None:
-        participant.id = str(uuid4())
-        logger.debug("Generated new UUID for participant: %s", participant.id)
+    generated_id = participant.id if participant.id else str(uuid4())
+    logger.debug("Using participant ID: %s", generated_id)
 
     try:
         # Generate persona description using helper function
+        # Create a temporary base object for persona generation if needed, or ensure ParticipantCreate has all fields
         persona_description = generate_persona_description(participant)
 
-        # Store the participant data in Cosmos DB
+        # Prepare the data to be stored in Cosmos DB
         participant_data = {
-            "id": participant.id,
+            "id": generated_id,
             "name": participant.name,
             "role": participant.role,
             "professional_background": participant.professional_background,
@@ -122,17 +127,18 @@ async def create_participant(participant: ParticipantCreate):
         }
 
         await cosmos_client.add_participant(participant.user_id, participant_data)
-        logger.info("Successfully created participant: %s", participant.id)
+        logger.info("Successfully created participant: %s", generated_id)
 
-        return {"message": f"Participant '{participant.name}' with ID '{participant.id}' created successfully"}
+        # Return the complete participant data matching the response model
+        return ParticipantResponse(**participant_data)
 
     except Exception as e:
-        logger.error("Error creating participant: %s - Error: %s", participant.id, str(e), exc_info=True)
+        logger.error("Error creating participant: %s - Error: %s", generated_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while creating participant")
 
 
-async def update_participant(participant_id: str, participant: ParticipantUpdate):
-    """Update a Participant."""
+async def update_participant(participant_id: str, participant: ParticipantUpdate) -> ParticipantResponse:
+    """Update a Participant and return the updated object."""
     try:
         logger.info("Updating participant with ID: %s", participant_id)
 
@@ -142,12 +148,16 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             logger.error("Participant not found with ID: %s", participant_id)
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
 
+        # Validate incoming data
+        participant_dict = participant.dict(exclude_unset=True)
+        validate_participant_data(participant_dict)  # Reuse validation
+
         # Generate persona description using helper function
         persona_description = generate_persona_description(participant)
 
-        # Update participant data
+        # Prepare the full data object for update in Cosmos DB
         participant_data = {
-            "id": participant_id,
+            "id": participant_id,  # Use the path parameter ID
             "name": participant.name,
             "role": participant.role,
             "professional_background": participant.professional_background,
@@ -158,25 +168,27 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "core_qualities": participant.core_qualities,
             "style_preferences": participant.style_preferences,
             "additional_info": participant.additional_info,
-            "user_id": participant.user_id,
+            "user_id": participant.user_id,  # Use user_id from the payload
             "persona_description": persona_description,
         }
 
         await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
         logger.info("Successfully updated participant: %s", participant_id)
-        return {"message": f"Participant with ID '{participant_id}' updated successfully"}
+
+        # Return the complete updated participant data
+        return ParticipantResponse(**participant_data)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error updating participant %s: %s", participant_id, str(e))
+        logger.error("Error updating participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
         raise HTTPException(status_code=500, detail="Internal server error while updating participant")
 
 
-async def delete_participant(participant_id: str, user_id: str):
-    """Delete a Participant."""
+async def delete_participant(participant_id: str, user_id: str) -> dict:
+    """Delete a Participant and return the deleted ID."""
     try:
-        logger.info("Deleting participant with ID: %s", participant_id)
+        logger.info("Deleting participant with ID: %s for user: %s", participant_id, user_id)
 
         # Get current participant to check existence
         current_participant = await cosmos_client.get_participant(user_id, participant_id)
@@ -186,19 +198,21 @@ async def delete_participant(participant_id: str, user_id: str):
 
         await cosmos_client.delete_participant(user_id, participant_id)
         logger.info("Successfully deleted participant: %s", participant_id)
-        return {"message": f"Participant with ID '{participant_id}' deleted successfully"}
+
+        # Return the ID of the deleted participant
+        return {"deleted_id": participant_id}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error deleting participant %s: %s", participant_id, str(e))
+        logger.error("Error deleting participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
         raise HTTPException(status_code=500, detail="Internal server error while deleting participant")
 
 
-async def get_participant(participant_id: str, user_id: str):
+async def get_participant(participant_id: str, user_id: str) -> ParticipantResponse:
     """Get a specific Participant."""
     try:
-        logger.info("Fetching participant with ID: %s", participant_id)
+        logger.info("Fetching participant with ID: %s for user: %s", participant_id, user_id)
         participant = await cosmos_client.get_participant(user_id, participant_id)
 
         if not participant:
@@ -206,24 +220,29 @@ async def get_participant(participant_id: str, user_id: str):
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
 
         logger.info("Successfully retrieved participant: %s", participant_id)
-        return participant
+        # Ensure the returned data matches the response model
+        return ParticipantResponse(**participant)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error fetching participant %s: %s", participant_id, str(e))
+        logger.error("Error fetching participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
         raise HTTPException(status_code=500, detail="Internal server error while retrieving participant")
 
 
-async def list_participants(user_id: str):
-    """List all Participants."""
+async def list_participants(user_id: str) -> dict:
+    """List all Participants for a user."""
     try:
-        logger.info("Fetching all participants")
-        participants = await cosmos_client.list_participants(user_id)
+        logger.info("Fetching all participants for user: %s", user_id)
+        participants_list = await cosmos_client.list_participants(user_id)
 
-        logger.info("Successfully retrieved %d participants", len(participants))
-        return {"participants": participants}
+        # Ensure each participant matches the response model structure if needed,
+        # though list might just return the raw list from DB.
+        # validated_participants = [ParticipantResponse(**p) for p in participants_list]
+
+        logger.info("Successfully retrieved %d participants for user: %s", len(participants_list), user_id)
+        return {"participants": participants_list}  # Return raw list as before
 
     except Exception as e:
-        logger.error("Error listing participants: %s", str(e), exc_info=True)
+        logger.error("Error listing participants for user %s: %s", user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while retrieving participants")

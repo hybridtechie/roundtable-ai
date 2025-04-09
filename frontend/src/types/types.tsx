@@ -16,7 +16,8 @@ export interface Group {
   id: string
   name: string
   description: string
-  participants: Participant[]
+  participants: Participant[] // Full participant objects (might be incomplete/empty from API)
+  participant_ids?: string[] // Optional: Array of participant IDs (might be present from API)
 }
 
 export interface ParticipantOrder {
@@ -81,17 +82,18 @@ export interface Meeting {
 export interface ChatSession {
   id: string
   title: string
-  created_at: string
   user_id: string
-  participant_id: string
   messages: ChatMessage[]
   display_messages: ChatMessage[]
+  // Required field from CosmosDB
+  _ts: number // CosmosDB timestamp, used as created_at
+  // Optional fields
+  participant_id?: string
   meeting_id?: string
   meeting_name?: string
   meeting_topic?: string
   group_name?: string
   group_id?: string
-  _ts?: number
   participants: {
     participant_id: string
     name: string
@@ -119,4 +121,30 @@ export interface UserDetailInfo extends UserInfo {
   meetings_count: number
   groups_count: number
   chat_sessions_count: number
+}
+
+export interface LLMAccountCreate {
+  provider: string
+  deployment_name?: string
+  model: string
+  endpoint?: string
+  api_version?: string
+  api_key: string
+}
+
+export interface LLMAccountUpdate {
+  model?: string
+  deployment_name?: string
+  endpoint?: string
+  api_version?: string
+  api_key?: string
+}
+
+export interface LLMAccountsResponse {
+  default: string
+  providers: LLMAccountCreate[]
+}
+
+export interface DeleteResponse {
+  deleted_id: string // Matches the backend response format
 }

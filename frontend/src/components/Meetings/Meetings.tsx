@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react"
-import { listMeetings, deleteMeeting } from "@/lib/api"
+import React, { useState } from "react" // Removed useEffect
+import { useAuth } from "@/context/AuthContext" // Import useAuth
+import { deleteMeeting } from "@/lib/api" // Keep deleteMeeting for now, but remove listMeetings
 import { Meeting } from "@/types/types"
 import { DataTable } from "@/components/ui/data-table"
 import { columns, MeetingDetailsDialog } from "./columns"
@@ -7,37 +8,38 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
 
 const Meetings: React.FC = () => {
-  const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  // const [meetings, setMeetings] = useState<Meeting[]>([]) // Remove local state
+  // const [isLoading, setIsLoading] = useState(true) // Remove local loading state
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
   const [showDetails, setShowDetails] = useState(false)
+  const { state, dispatch, isLoading: isAuthLoading } = useAuth() // Get state, dispatch, and auth loading status
+  const [isDeleting, setIsDeleting] = useState(false) // Local state for delete operation loading
 
-  const fetchMeetings = () => {
-    setIsLoading(true)
-    listMeetings()
-      .then((res) => {
-        setMeetings(res.data.meetings)
-        setIsLoading(false)
-      })
-      .catch((error: Error) => {
-        console.error("Failed to fetch Meetings:", error)
-        toast.error("Failed to fetch meetings. Please try again later.")
-        setIsLoading(false)
-      })
-  }
+  // Remove fetchMeetings and useEffect as data comes from context
+  // const fetchMeetings = () => { ... }
+  // useEffect(() => { fetchMeetings() }, [])
 
-  useEffect(() => {
-    fetchMeetings()
-  }, [])
+  // Derive meetings from context state
+  const meetings: Meeting[] = (state.backendUser?.meetings as Meeting[]) || []
 
   const handleDelete = async (id: string) => {
+    setIsDeleting(true) // Start delete loading
     try {
-      await deleteMeeting(id)
-      toast.success("Meeting deleted successfully")
-      fetchMeetings()
+      const response = await deleteMeeting(id) // Call API
+      const deletedId = response.data?.deleted_id // Assuming API returns { deleted_id: "..." }
+
+      if (deletedId) {
+        dispatch({ type: "DELETE_MEETING", payload: deletedId }) // Dispatch action to update context state
+        toast.success("Meeting deleted successfully")
+      } else {
+        console.error("Delete meeting response did not contain deleted_id:", response.data)
+        toast.error("Failed to delete meeting (invalid server response).")
+      }
     } catch (error) {
       console.error("Failed to delete meeting:", error)
       toast.error("Failed to delete meeting. Please try again later.")
+    } finally {
+      setIsDeleting(false) // Stop delete loading
     }
   }
 
@@ -50,12 +52,14 @@ const Meetings: React.FC = () => {
     <div className="p-6">
       <h1 className="mb-4 text-3xl font-bold">Meetings</h1>
       <div className="container py-10 mx-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32">
-            <LoadingSpinner size={32} />
+        {isAuthLoading || !state.isInitialized ? ( // Use auth loading state
+          <div className="flex items-center justify-center h-screen">
+            {" "}
+            {/* Make spinner centered */}
+            <LoadingSpinner size={48} />
           </div>
         ) : (
-          <DataTable columns={columns({ onDelete: handleDelete, onView: handleView })} data={meetings} />
+          <DataTable columns={columns({ onDelete: handleDelete, onView: handleView, isDeleting })} data={meetings} />
         )}
       </div>
       {selectedMeeting && <MeetingDetailsDialog meeting={selectedMeeting} open={showDetails} onOpenChange={setShowDetails} />}
