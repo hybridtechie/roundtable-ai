@@ -120,3 +120,25 @@ export interface UserDetailInfo extends UserInfo {
   groups_count: number
   chat_sessions_count: number
 }
+
+export interface LLMAccountCreate {
+  provider: string
+  deployment_name?: string
+  model: string
+  endpoint?: string
+  api_version?: string
+  api_key: string
+}
+
+export interface LLMAccountUpdate {
+  model?: string
+  deployment_name?: string
+  endpoint?: string
+  api_version?: string
+  api_key?: string
+}
+
+export interface LLMAccountsResponse {
+  default: string
+  providers: LLMAccountCreate[]
+}

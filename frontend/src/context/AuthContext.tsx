@@ -1,13 +1,18 @@
 import { createContext, useContext, ReactNode, useEffect, useReducer, Dispatch } from "react";
 import { useAuth0, User } from "@auth0/auth0-react";
 import { login } from "@/lib/api";
-import { Participant, Group } from "@/types/types"; // Import Participant and Group types
+import { Participant, Group, LLMAccountsResponse } from "@/types/types"; // Import Participant and Group types
 
 // Define the shape of the user data returned by your backend login, if any.
 // It should include a participants array if that's where the data lives.
 type BackendUserData = {
+  id: string;
+  email: string;
+  name: string;
   participants?: Participant[];
-  groups?: Group[]; // Add groups array
+  groups?: Group[];
+  meetings?: unknown[];
+  llmAccounts?: LLMAccountsResponse;
   [key: string]: unknown;
 };
 
@@ -205,7 +210,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             // Call backend login endpoint
             const response = await login(); // Get the full Axios response
+            console.log("Backend login response:", response);
             const backendData: BackendUserData = response.data || {}; // Extract data
+            localStorage.setItem("backendData", JSON.stringify(backendData))
 
             // Ensure participants array exists in fetched data
             if (!backendData.participants) backendData.participants = [];

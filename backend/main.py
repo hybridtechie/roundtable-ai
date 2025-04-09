@@ -1,6 +1,7 @@
 import os
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -30,6 +31,37 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# --- Custom Exception Handler for CORS ---
+# This ensures that even errors raised before the response is processed
+# (like in authentication dependencies) still get CORS headers.
+@app.exception_handler(HTTPException)
+async def cors_aware_exception_handler(request: Request, exc: HTTPException):
+    # Get the origin from the request headers
+    origin = request.headers.get("origin")
+
+    # Define allowed origins (should match CORSMiddleware config)
+    allowed_origins = {
+        "http://localhost:5173",
+        "https://wa-roundtableai-frontend-cefzgxbba8c4aqga.australiaeast-01.azurewebsites.net"
+    }
+
+    # Default response without CORS headers
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+    # If the origin is allowed, add CORS headers to the error response
+    if origin in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        # You might want to be more specific with methods/headers if needed
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+
+    return response
+
 
 # --- Include Routers ---
 # Entity Routers

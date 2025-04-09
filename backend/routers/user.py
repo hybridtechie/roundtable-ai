@@ -19,7 +19,7 @@ router_user = APIRouter(prefix="/user", tags=["User Profile"])
 
 # --- Authentication Endpoint ---
 
-@router_user.post("/login", response_model=UserProfileResponse, summary="Process user login via token validation")
+@router_user.post("/login", summary="Process user login via token validation")
 async def login_endpoint(current_user: UserClaims = Depends(validate_token)):
     """
     Validates the user's token and logs them in (e.g., creates/updates user record in DB).

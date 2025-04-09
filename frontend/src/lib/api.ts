@@ -11,8 +11,9 @@ import {
   ChatErrorResponse,
   NextParticipantResponse,
   ChatSession,
-  UserInfo,
-  UserDetailInfo,
+  LLMAccountCreate,
+  LLMAccountUpdate,
+  LLMAccountsResponse
 } from "@/types/types"
 
 // Determine the base URL based on environment
@@ -139,27 +140,7 @@ interface StreamCallbacks {
 }
 
 // LLM Account Management
-export interface LLMAccountCreate {
-  provider: string
-  deployment_name?: string
-  model: string
-  endpoint?: string
-  api_version?: string
-  api_key: string
-}
 
-export interface LLMAccountUpdate {
-  model?: string
-  deployment_name?: string
-  endpoint?: string
-  api_version?: string
-  api_key?: string
-}
-
-export interface LLMAccountsResponse {
-  default: string
-  providers: LLMAccountCreate[]
-}
 
 export const createLLMAccount = (data: LLMAccountCreate) => api.post("/llm-account", data)
 
@@ -173,10 +154,6 @@ export const setDefaultProvider = (provider: string) => api.put(`/llm-account/${
 
 // User Information
 export const login = () => api.post("/user/login")
-
-export const getUserInfo = () => api.get<UserInfo>(`/user/me?user_id=${USER_ID}`)
-
-export const getUserDetailInfo = () => api.get<UserDetailInfo>(`/user/me/detail?user_id=${USER_ID}`)
 
 export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() => void) => {
   console.log(`Starting chat stream for meeting ID: ${meetingId}, user ID: ${USER_ID}`)

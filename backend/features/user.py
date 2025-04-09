@@ -132,11 +132,15 @@ async def login_user(name: str, email: str) -> Dict:
             new_user["display_name"] = name
             
             # Create new user in Cosmos DB
-            await cosmos_client.create_user(new_user)
+            created_user = await cosmos_client.create_user(new_user)
             logger.info(f"New user created: {email}")
-            return user_data
-        
+            # Add 'name' field mapped from 'display_name' and return the full created user data
+            created_user['name'] = created_user.get('display_name')
+            return created_user
+
         logger.info(f"Existing user logged in: {email}")
+        # Add 'name' field mapped from 'display_name' and return the full existing user data
+        user_data['name'] = user_data.get('display_name')
         return user_data
 
     except HTTPException:
@@ -157,8 +161,12 @@ async def get_me(user_id: str) -> Dict:
             logger.error("User not found with ID: %s", user_id)
             raise HTTPException(status_code=404, detail=f"User with ID '{user_id}' not found")
 
-        # Extract basic user information
-        response = {"user_id": user_data.get("id"), "display_name": user_data.get("display_name", ""), "email": user_data.get("email", "")}
+        # Map fields for response, matching UserProfileResponse
+        response = {
+            "id": user_data.get("id"),
+            "name": user_data.get("display_name", ""),
+            "email": user_data.get("email", "")
+        }
 
         logger.info("Successfully retrieved basic user information for: %s", user_id)
         return response
@@ -182,17 +190,18 @@ async def get_me_detail(user_id: str) -> Dict:
             raise HTTPException(status_code=404, detail=f"User with ID '{user_id}' not found")
 
         # Extract basic user information
+        # Map fields for response, matching UserDetailResponse
         response = {
-            "user_id": user_data.get("id"),
-            "display_name": user_data.get("display_name", ""),
+            "id": user_data.get("id"),
+            "name": user_data.get("display_name", ""), # Map display_name to name
             "email": user_data.get("email", ""),
-            # Count various elements
+            # Include other fields expected by UserDetailResponse (or add them to the model)
+            # For now, just mapping the base fields and counts
             "llm_providers_count": len(user_data.get("llmAccounts", {}).get("providers", [])),
             "participants_count": len(user_data.get("participants", [])),
             "meetings_count": len(user_data.get("meetings", [])),
             "groups_count": len(user_data.get("groups", [])),
-            # Count chat sessions (if available)
-            "chat_sessions_count": len(user_data.get("chat_sessions", [])),
+            "chat_sessions_count": len(user_data.get("chat_sessions", [])), # Assuming this might be needed later
         }
 
         logger.info("Successfully retrieved detailed user information for: %s", user_id)
