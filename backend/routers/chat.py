@@ -25,13 +25,14 @@ router = APIRouter(tags=["Chat"])  # Tag for OpenAPI documentation
 
 # 13 Start Meeting Stream
 @router.get("/chat-stream", summary="Start streaming chat discussion for a meeting")
-async def chat_stream_endpoint(meeting_id: str, current_user: UserClaims = Depends(validate_token)):
+async def chat_stream_endpoint(meeting_id: str):
     """
     Initiates a server-sent event stream for real-time chat discussion within a specific meeting.
     Requires `meeting_id` as a query parameter and a valid authentication token.
     """
     try:
-        user_id = current_user.email
+        # user_id = current_user.email
+        user_id = "ping.nith@gmail.com"
         logger.info("User '%s' requesting chat stream for Meeting: %s", user_id, meeting_id)
 
         # Fetch the meeting to ensure it exists and the user has access

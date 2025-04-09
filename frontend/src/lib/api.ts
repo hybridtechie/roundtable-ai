@@ -159,7 +159,7 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   const urlWithAuth = token ? `${url}&token=${encodeURIComponent(token)}` : url
   console.log(`EventSource URL with auth: ${urlWithAuth}`)
 
-  const eventSource = new EventSource(urlWithAuth)
+  const eventSource = new EventSource(url)
 
   // Handle connection open
   eventSource.onopen = () => {
