@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode, useEffect, useReducer, Dispatch } from "react";
 import { useAuth0, User } from "@auth0/auth0-react";
 import { login } from "@/lib/api";
-import { Participant, Group, Meeting, LLMAccountsResponse } from "@/types/types"; // Import Participant, Group, and Meeting types
+import { Participant, Group, Meeting, LLMAccountsResponse, LLMAccountCreate } from "@/types/types"; // Import necessary types
 
 // Define the shape of the user data returned by your backend login, if any.
 // It should include a participants array if that's where the data lives.
@@ -12,14 +12,14 @@ type BackendUserData = {
   participants?: Participant[];
   groups?: Group[];
   meetings?: Meeting[]; // Use Meeting type
-  llmAccounts?: LLMAccountsResponse;
+  llmAccounts?: LLMAccountsResponse; // Keep this structure
   [key: string]: unknown;
 };
 
 // Define the state managed by the reducer
 interface AuthState {
   user: User | undefined; // User object from Auth0
-  backendUser: BackendUserData | undefined; // Data merged from your backend, including participants
+  backendUser: BackendUserData | undefined; // Data merged from your backend
   isInitialized: boolean; // Tracks if backend login/sync is complete
 }
 
@@ -41,7 +41,12 @@ type AuthAction =
   // Meeting specific actions
   | { type: 'ADD_MEETING'; payload: Meeting }
   | { type: 'UPDATE_MEETING'; payload: Meeting }
-  | { type: 'DELETE_MEETING'; payload: string }; // Payload is meeting ID
+  | { type: 'DELETE_MEETING'; payload: string } // Payload is meeting ID
+  // LLM Account specific actions
+  | { type: 'ADD_LLM_ACCOUNT'; payload: LLMAccountCreate }
+  | { type: 'UPDATE_LLM_ACCOUNT'; payload: LLMAccountCreate } // Assuming update might happen, though API uses create/delete
+  | { type: 'DELETE_LLM_ACCOUNT'; payload: string } // Payload is provider name (unique identifier)
+  | { type: 'SET_DEFAULT_LLM_ACCOUNT'; payload: string }; // Payload is provider name
 
 // Initial state for the reducer
 const initialState: AuthState = {
@@ -49,41 +54,42 @@ const initialState: AuthState = {
   backendUser: undefined,
   isInitialized: false,
 };
-
-// Helper to safely get participants array from state
+// Helper functions to safely get arrays/objects from state
 const getParticipants = (state: AuthState): Participant[] => state.backendUser?.participants || [];
 const getGroups = (state: AuthState): Group[] => state.backendUser?.groups || [];
 const getMeetings = (state: AuthState): Meeting[] => state.backendUser?.meetings || [];
-
+const getLLMAccounts = (state: AuthState): LLMAccountsResponse => state.backendUser?.llmAccounts || { default: "", providers: [] };
 // The reducer function to handle state updates based on actions
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'SET_AUTH0_USER':
       return { ...state, user: action.payload };
     case 'SET_BACKEND_USER': {
-      // Ensure participants array exists if backendUser is set
-      const backendUserWithParticipants = action.payload
-        ? {
-            ...action.payload,
-            participants: action.payload.participants || [],
-            groups: action.payload.groups || [], // Initialize groups array
-            meetings: action.payload.meetings || [], // Initialize meetings array
-          }
-        : undefined;
-      return { ...state, backendUser: backendUserWithParticipants };
-    }
+     // Ensure nested arrays/objects exist if backendUser is set
+     const backendUserWithDefaults = action.payload
+       ? {
+           ...action.payload,
+           participants: action.payload.participants || [],
+           groups: action.payload.groups || [],
+           meetings: action.payload.meetings || [],
+           llmAccounts: action.payload.llmAccounts || { default: "", providers: [] }, // Initialize llmAccounts
+         }
+       : undefined;
+     return { ...state, backendUser: backendUserWithDefaults };
+   }
     case 'UPDATE_BACKEND_USER': {
       const currentBackendUser = state.backendUser || {};
       const updatedBackendUser = { ...currentBackendUser, ...action.payload };
-      // Ensure participants array exists after update
-      if (!updatedBackendUser.participants) updatedBackendUser.participants = [];
-      if (!updatedBackendUser.groups) updatedBackendUser.groups = []; // Ensure groups array exists
-      if (!updatedBackendUser.meetings) updatedBackendUser.meetings = []; // Ensure meetings array exists
-      return {
-        ...state,
-        backendUser: updatedBackendUser as BackendUserData,
-      };
-    }
+     // Ensure nested arrays/objects exist after update
+     if (!updatedBackendUser.participants) updatedBackendUser.participants = [];
+     if (!updatedBackendUser.groups) updatedBackendUser.groups = [];
+     if (!updatedBackendUser.meetings) updatedBackendUser.meetings = [];
+     if (!updatedBackendUser.llmAccounts) updatedBackendUser.llmAccounts = { default: "", providers: [] }; // Ensure llmAccounts exists
+     return {
+       ...state,
+       backendUser: updatedBackendUser as BackendUserData,
+     };
+   }
     case 'INITIALIZE_COMPLETE':
       return { ...state, isInitialized: true };
     case 'RESET':
@@ -204,12 +210,93 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
           meetings: filteredMeetings,
         },
       };
-    }
+   }
 
-    default:
-      // const _exhaustiveCheck: never = action; // Uncomment for exhaustive checks
-      return state;
-  }
+   // LLM Account Reducer Logic
+   case 'ADD_LLM_ACCOUNT': {
+       if (!state.backendUser) return state;
+       const llmAccounts = getLLMAccounts(state);
+       // Prevent adding duplicates if provider name already exists
+       if (llmAccounts.providers.some(p => p.provider === action.payload.provider)) {
+           return state;
+       }
+       const updatedProviders = [...llmAccounts.providers, action.payload];
+       // If this is the first provider added, make it the default
+       const newDefault = updatedProviders.length === 1 ? action.payload.provider : llmAccounts.default;
+       return {
+           ...state,
+           backendUser: {
+               ...state.backendUser,
+               llmAccounts: {
+                   ...llmAccounts,
+                   default: newDefault,
+                   providers: updatedProviders,
+               },
+           },
+       };
+   }
+   case 'UPDATE_LLM_ACCOUNT': { // Note: API might not support direct update, usually delete/create
+       if (!state.backendUser) return state;
+       const llmAccounts = getLLMAccounts(state);
+       const updatedProviders = llmAccounts.providers.map(p =>
+           p.provider === action.payload.provider ? action.payload : p
+       );
+       return {
+           ...state,
+           backendUser: {
+               ...state.backendUser,
+               llmAccounts: {
+                   ...llmAccounts,
+                   providers: updatedProviders,
+               },
+           },
+       };
+   }
+   case 'DELETE_LLM_ACCOUNT': {
+       if (!state.backendUser) return state;
+       const llmAccounts = getLLMAccounts(state);
+       const filteredProviders = llmAccounts.providers.filter(p => p.provider !== action.payload);
+       // If the deleted provider was the default, and there are other providers left,
+       // set the first remaining provider as the new default. Otherwise, clear the default.
+       let newDefault = llmAccounts.default;
+       if (llmAccounts.default === action.payload) {
+           newDefault = filteredProviders.length > 0 ? filteredProviders[0].provider : "";
+       }
+       return {
+           ...state,
+           backendUser: {
+               ...state.backendUser,
+               llmAccounts: {
+                   ...llmAccounts,
+                   default: newDefault,
+                   providers: filteredProviders,
+               },
+           },
+       };
+   }
+   case 'SET_DEFAULT_LLM_ACCOUNT': {
+       if (!state.backendUser) return state;
+       const llmAccounts = getLLMAccounts(state);
+       // Ensure the provider exists before setting it as default
+       if (!llmAccounts.providers.some(p => p.provider === action.payload)) {
+           return state; // Provider doesn't exist
+       }
+       return {
+           ...state,
+           backendUser: {
+               ...state.backendUser,
+               llmAccounts: {
+                   ...llmAccounts,
+                   default: action.payload, // Set the new default
+               },
+           },
+       };
+   }
+
+   default:
+     // const _exhaustiveCheck: never = action; // Uncomment for exhaustive checks
+     return state;
+ }
 };
 
 // Define the shape of the context value
@@ -217,7 +304,7 @@ interface AuthContextType {
   state: AuthState;
   dispatch: Dispatch<AuthAction>;
   isAuthenticated: boolean; // Directly from useAuth0
-  isLoading: boolean;       // Directly from useAuth0
+  isLoading: boolean;       // Directly from useAuth0 (Auth0 loading state)
   loginWithRedirect: () => void; // Directly from useAuth0
   logout: () => void;           // Custom logout wrapping Auth0 logout
 }
@@ -229,7 +316,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const {
     isAuthenticated,
-    isLoading,
+   isLoading: isAuth0Loading, // Rename to distinguish from component loading
     user: auth0User, // Rename to avoid conflict with state.user
     loginWithRedirect,
     logout: auth0Logout, // Rename to avoid conflict
@@ -241,7 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Effect to sync Auth0 state and initialize backend session
   useEffect(() => {
     const initializeUser = async () => {
-      if (isLoading) return; // Wait until Auth0 is done loading
+     if (isAuth0Loading) return; // Wait until Auth0 is done loading
 
       if (isAuthenticated && auth0User && !state.isInitialized) {
         dispatch({ type: 'SET_AUTH0_USER', payload: auth0User });
@@ -260,13 +347,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const backendData: BackendUserData = response.data || {}; // Extract data
             localStorage.setItem("backendData", JSON.stringify(backendData))
 
-            // Ensure participants array exists in fetched data
-            if (!backendData.participants) backendData.participants = [];
-            if (!backendData.groups) backendData.groups = []; // Ensure groups array exists on login
-            if (!backendData.meetings) backendData.meetings = []; // Ensure meetings array exists on login
+           // Ensure nested structures exist in fetched data (handled by SET_BACKEND_USER reducer now)
+           // if (!backendData.participants) backendData.participants = [];
+           // if (!backendData.groups) backendData.groups = [];
+           // if (!backendData.meetings) backendData.meetings = [];
+           // if (!backendData.llmAccounts) backendData.llmAccounts = { default: "", providers: [] }; // Ensure llmAccounts exists
 
-            // Dispatch SET_BACKEND_USER which now handles participants initialization
-            dispatch({ type: 'SET_BACKEND_USER', payload: backendData });
+           // Dispatch SET_BACKEND_USER which now handles defaults initialization
+           dispatch({ type: 'SET_BACKEND_USER', payload: backendData });
             dispatch({ type: 'INITIALIZE_COMPLETE' }); // Mark initialization as complete
 
           } else {
@@ -277,22 +365,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("Error initializing user session:", error);
           // Handle initialization error, maybe logout?
         }
-      } else if (!isAuthenticated && !isLoading) {
-        // If user is not authenticated and Auth0 is not loading, reset state
-        dispatch({ type: 'RESET' });
-        localStorage.removeItem("idToken");
-        localStorage.removeItem("user");
-      }
+     } else if (!isAuthenticated && !isAuth0Loading) {
+       // If user is not authenticated and Auth0 is not loading, reset state
+       dispatch({ type: 'RESET' });
+       localStorage.removeItem("idToken");
+       localStorage.removeItem("user");
+       localStorage.removeItem("backendData"); // Clear backend data too
+     }
     };
 
     initializeUser();
-  }, [isAuthenticated, isLoading, auth0User, getIdTokenClaims, state.isInitialized, dispatch]);
+ }, [isAuthenticated, isAuth0Loading, auth0User, getIdTokenClaims, state.isInitialized, dispatch]);
 
   // Custom logout function to clear state and call Auth0 logout
   const logout = () => {
     dispatch({ type: 'RESET' });
     localStorage.removeItem("idToken");
-    localStorage.removeItem("user");
+   localStorage.removeItem("user");
+   localStorage.removeItem("backendData"); // Clear backend data on logout
     auth0Logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
@@ -302,7 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         state,
         dispatch,
         isAuthenticated,
-        isLoading,
+       isLoading: isAuth0Loading || !state.isInitialized, // Combine Auth0 loading and app initialization state
         loginWithRedirect,
         logout,
       }}

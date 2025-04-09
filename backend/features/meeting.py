@@ -272,7 +272,10 @@ async def delete_meeting(meeting_id: str, user_id: str):
         await cosmos_client.delete_meeting(user_id, meeting_id)
 
         logger.info("Successfully deleted meeting and associated chat sessions: %s", meeting_id)
-        return {"message": f"Meeting '{meeting_id}' and {len(chat_sessions)} associated chat sessions deleted successfully"}
+        return {
+            "message": f"Meeting '{meeting_id}' and {len(chat_sessions)} associated chat sessions deleted successfully",
+            "deleted_id": meeting_id
+        }
 
     except HTTPException:
         raise

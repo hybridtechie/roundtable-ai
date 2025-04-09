@@ -24,9 +24,9 @@ const Home: React.FC = () => {
   // Safely access counts from backendUser, ensuring they are numbers
   const participantsCount = getSafeCount(backendUser?.participants_count, backendUser?.participants);
   const groupsCount = getSafeCount(backendUser?.groups_count, backendUser?.groups);
-  const meetingsCount = getSafeCount(backendUser?.meetings_count);
+  const meetingsCount = getSafeCount(backendUser?.meetings_count, backendUser?.meetings);
   const chatSessionsCount = getSafeCount(backendUser?.chat_sessions_count);
-  const llmProvidersCount = getSafeCount(backendUser?.llm_providers_count);
+  const llmProvidersCount = getSafeCount(backendUser?.llmAccounts_count, backendUser?.llmAccounts?.providers);
 
   const dashboardCards = [
     {
