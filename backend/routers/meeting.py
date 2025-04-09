@@ -37,20 +37,30 @@ async def create_meeting_endpoint(meeting: MeetingCreate, current_user: UserClai
     """
     try:
         user_id = current_user.email
-        # Add user_id to the meeting data if the create_meeting function expects it
-        # meeting.user_id = user_id # Uncomment if needed by create_meeting
+        # Set user_id in the meeting object
+        meeting.user_id = user_id
         logger.info("User '%s' attempting to create new meeting for group: %s", user_id, meeting.group_id)
 
-        # Assuming create_meeting now returns a Pydantic model or dict matching MeetingResponse
-        created_meeting = await create_meeting(meeting, user_id) # Pass user_id if required
+        # Call create_meeting with the updated meeting object
+        created_meeting = await create_meeting(meeting)
 
-        # Check if creation was successful (adjust based on create_meeting return type)
-        if not created_meeting:
-             logger.error("Meeting creation failed for user '%s', group '%s'. create_meeting returned None.", user_id, meeting.group_id)
-             raise HTTPException(status_code=500, detail="Failed to create meeting record.")
+        # Check if creation was successful
+        if not created_meeting or "meeting_id" not in created_meeting:
+            logger.error("Meeting creation failed for user '%s', group '%s'. create_meeting returned None.", user_id, meeting.group_id)
+            raise HTTPException(status_code=500, detail="Failed to create meeting record.")
 
-        logger.info("Successfully created meeting with ID: %s for user '%s'", created_meeting.id, user_id)
-        return created_meeting
+        # Create response matching MeetingResponse model
+        response = {
+            "id": created_meeting["meeting_id"],
+            "group_id": meeting.group_id or "",  # If no group_id, use empty string
+            "topic": meeting.topic,
+            "status": "created",
+            "created_at": str(int(meeting._ts)) if meeting._ts else "",  # Convert timestamp to string
+            "user_id": user_id
+        }
+
+        logger.info("Successfully created meeting with ID: %s for user '%s'", response["id"], user_id)
+        return response
     except Exception as e:
         logger.error("User '%s' failed to create meeting for group '%s': %s", user_id, meeting.group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")

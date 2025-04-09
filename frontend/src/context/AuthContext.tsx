@@ -347,14 +347,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const backendData: BackendUserData = response.data || {}; // Extract data
             localStorage.setItem("backendData", JSON.stringify(backendData))
 
-           // Ensure nested structures exist in fetched data (handled by SET_BACKEND_USER reducer now)
-           // if (!backendData.participants) backendData.participants = [];
-           // if (!backendData.groups) backendData.groups = [];
-           // if (!backendData.meetings) backendData.meetings = [];
-           // if (!backendData.llmAccounts) backendData.llmAccounts = { default: "", providers: [] }; // Ensure llmAccounts exists
-
            // Dispatch SET_BACKEND_USER which now handles defaults initialization
-           dispatch({ type: 'SET_BACKEND_USER', payload: backendData });
+            dispatch({ type: 'SET_BACKEND_USER', payload: backendData });
             dispatch({ type: 'INITIALIZE_COMPLETE' }); // Mark initialization as complete
 
           } else {

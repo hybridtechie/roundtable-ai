@@ -45,7 +45,16 @@ const Groups: React.FC = () => {
     setEditingGroupId(group.id)
     setGroupName(group.name)
     setGroupDescription(group.description || "")
-    setSelectedParticipantIds(group.participants.map(p => p.id))
+    
+    // Use the same participant resolution logic as in display
+    let participantIds: string[] = []
+    if (Array.isArray(group.participant_ids)) {
+      participantIds = group.participant_ids
+    } else if (Array.isArray(group.participants)) {
+      participantIds = group.participants.map(p => p?.id).filter((id): id is string => !!id)
+    }
+    
+    setSelectedParticipantIds(participantIds)
     setIsDialogOpen(true)
   }
 
