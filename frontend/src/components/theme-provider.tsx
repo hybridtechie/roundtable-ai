@@ -28,10 +28,7 @@ export function ThemeProvider({ children, defaultTheme = "system", storageKey = 
 
     const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
 
-    console.log("Setting theme:", theme, "isDark:", isDark)
-
     root.classList.toggle("dark", isDark)
-    console.log("HTML class attribute:", root.className)
   }, [theme])
 
   const value = {

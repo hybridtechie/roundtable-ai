@@ -16,8 +16,8 @@ load_dotenv()
 logger = setup_logger(__name__)
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
-AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE") # Keep for potential future use with access tokens
-AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID") # Add Client ID for ID token validation
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")  # Keep for potential future use with access tokens
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")  # Add Client ID for ID token validation
 
 if not AUTH0_DOMAIN or not AUTH0_CLIENT_ID:
     logger.warning("Auth0 environment variables (AUTH0_DOMAIN, AUTH0_CLIENT_ID) are not fully configured.")
@@ -29,7 +29,7 @@ if AUTH0_DOMAIN:
     try:
         jwks_endpoint = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
         response = requests.get(jwks_endpoint)
-        response.raise_for_status() # Raise an exception for bad status codes
+        response.raise_for_status()  # Raise an exception for bad status codes
         jwks = response.json().get("keys", [])
         if not jwks:
             logger.error("No keys found in JWKS endpoint: %s", jwks_endpoint)
@@ -42,12 +42,15 @@ if AUTH0_DOMAIN:
 
 security = HTTPBearer()
 
+
 class UserClaims(BaseModel):
     """Pydantic model for expected user claims in the token."""
+
     name: str
     email: str
     # Add other claims you expect or need, e.g., sub (subject/user ID)
     # sub: str
+
 
 def find_public_key(kid: str):
     """Finds the appropriate public key from the JWKS based on the key ID (kid)."""
@@ -68,7 +71,7 @@ def validate_token(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> UserClaims:
     if not AUTH0_DOMAIN or not AUTH0_CLIENT_ID:
-         raise HTTPException(status_code=500, detail="Auth0 configuration missing on server.")
+        raise HTTPException(status_code=500, detail="Auth0 configuration missing on server.")
 
     token = credentials.credentials
     try:
@@ -77,21 +80,21 @@ def validate_token(
 
         token_payload = jwt.decode(
             token=token,
-            key=public_key, # Provide the JWK dictionary
-            algorithms=["RS256"], # Specify the expected algorithm
-            audience=AUTH0_CLIENT_ID, # Validate the audience (client ID for ID tokens)
-            issuer=f"https://{AUTH0_DOMAIN}/" # Validate the issuer
+            key=public_key,  # Provide the JWK dictionary
+            algorithms=["RS256"],  # Specify the expected algorithm
+            audience=AUTH0_CLIENT_ID,  # Validate the audience (client ID for ID tokens)
+            issuer=f"https://{AUTH0_DOMAIN}/",  # Validate the issuer
         )
 
         # Extract claims and return as UserClaims object
         # Ensure required claims exist
         if "name" not in token_payload or "email" not in token_payload:
-             logger.error("Token missing required claims (name, email): %s", token_payload)
-             raise HTTPException(status_code=401, detail="Token missing required claims.")
+            logger.error("Token missing required claims (name, email): %s", token_payload)
+            raise HTTPException(status_code=401, detail="Token missing required claims.")
 
         return UserClaims(
             name=token_payload["name"],
-            email=token_payload["email"]
+            email=token_payload["email"],
             # sub=token_payload.get("sub") # Example: include subject if needed
         )
     except ExpiredSignatureError:
@@ -100,17 +103,18 @@ def validate_token(
     except JWTClaimsError as error:
         logger.warning("Token validation failed: Invalid claims - %s", str(error))
         raise HTTPException(status_code=401, detail=f"Invalid token claims: {error}")
-    except JWTError as error: # Catch broader JWT errors
+    except JWTError as error:  # Catch broader JWT errors
         logger.warning("Token validation failed: JWTError - %s", str(error))
         raise HTTPException(status_code=401, detail=f"Invalid token: {error}")
-    except JWSError as error: # Catch JOSE library specific errors
+    except JWSError as error:  # Catch JOSE library specific errors
         logger.error("Token validation failed: JWSError - %s", str(error), exc_info=True)
         raise HTTPException(status_code=401, detail=f"Token validation error: {error}")
-    except HTTPException as http_exc: # Re-raise HTTPExceptions from find_public_key
+    except HTTPException as http_exc:  # Re-raise HTTPExceptions from find_public_key
         raise http_exc
-    except Exception as error: # Catch unexpected errors during validation
+    except Exception as error:  # Catch unexpected errors during validation
         logger.error("Unexpected error during token validation: %s", str(error), exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during authentication.")
+
 
 # Example of how to use the dependency in an endpoint (will be used in routers)
 # from fastapi import APIRouter

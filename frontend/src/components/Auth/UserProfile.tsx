@@ -11,7 +11,10 @@ import {
 import { LogoutButton } from "./LogoutButton"
 
 export function UserProfile() {
-  const { state: { user }, isAuthenticated } = useAuth()
+  const {
+    state: { user },
+    isAuthenticated,
+  } = useAuth()
 
   if (!isAuthenticated || !user) {
     return null

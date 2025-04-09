@@ -97,7 +97,7 @@ async def create_group(group: GroupCreate):
             "description": group.description,
             "user_id": group.user_id,
             "participant_ids": group.participant_ids,
-            "participants": participants_details # Include participant details
+            "participants": participants_details,  # Include participant details
         }
 
     except HTTPException:
@@ -144,7 +144,7 @@ async def update_group(group_id: str, group: GroupUpdate):
             "description": group.description,
             "user_id": group.user_id,
             "participant_ids": group.participant_ids,
-            "participants": participants_details # Include participant details
+            "participants": participants_details,  # Include participant details
         }
 
     except HTTPException:

@@ -3,11 +3,7 @@ from typing import List
 from logger_config import setup_logger
 
 # Feature imports
-from features.chat_session import (
-    get_user_chat_sessions,
-    get_chat_session_by_id,
-    delete_chat_session
-)
+from features.chat_session import get_user_chat_sessions, get_chat_session_by_id, delete_chat_session
 
 # Model imports
 # Use absolute import from 'backend' directory perspective
@@ -20,15 +16,13 @@ from auth import UserClaims, validate_token
 logger = setup_logger(__name__)
 
 # Create an APIRouter instance
-router = APIRouter(
-    prefix="/chat-session",    # Prefix for all routes in this router
-    tags=["Chat Sessions"]     # Tag for OpenAPI documentation
-)
+router = APIRouter(prefix="/chat-session", tags=["Chat Sessions"])  # Prefix for all routes in this router  # Tag for OpenAPI documentation
 
 # --- Chat Session CRUD Endpoints ---
 
+
 # List Chat Sessions for User
-@router.get("s", summary="List all chat sessions for the authenticated user") # Route is /chat-sessions
+@router.get("s", summary="List all chat sessions for the authenticated user")  # Route is /chat-sessions
 async def list_chat_sessions_endpoint(current_user: UserClaims = Depends(validate_token)):
     """
     Retrieves a list of chat sessions associated with the authenticated user.
@@ -64,7 +58,7 @@ async def get_chat_session_endpoint(session_id: str, current_user: UserClaims = 
             raise HTTPException(status_code=404, detail="Chat session not found or access denied")
         logger.info("Successfully retrieved chat session: %s", session_id)
         return session
-    except HTTPException as http_exc: # Re-raise 404
+    except HTTPException as http_exc:  # Re-raise 404
         raise http_exc
     except Exception as e:
         logger.error("Failed to fetch chat session %s for user %s: %s", session_id, user_id, str(e), exc_info=True)
@@ -88,8 +82,8 @@ async def delete_chat_session_endpoint(session_id: str, current_user: UserClaims
         # if result is None:
         #     raise HTTPException(status_code=404, detail="Chat session not found or cannot be deleted")
         logger.info("Successfully deleted chat session: %s by user %s", session_id, user_id)
-        return result # Should match DeleteResponse model
-    except Exception as e: # Catch potential errors
+        return result  # Should match DeleteResponse model
+    except Exception as e:  # Catch potential errors
         logger.error("Failed to delete chat session %s for user %s: %s", session_id, user_id, str(e), exc_info=True)
         # Determine if 404 or 500 is more appropriate
         raise HTTPException(status_code=500, detail=f"Failed to delete chat session: {str(e)}")

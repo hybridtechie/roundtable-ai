@@ -80,20 +80,20 @@ export interface Meeting {
 }
 
 export interface ChatSession {
-  id: string;
-  title: string;
-  user_id: string;
-  messages: ChatMessage[];
-  display_messages: ChatMessage[];
+  id: string
+  title: string
+  user_id: string
+  messages: ChatMessage[]
+  display_messages: ChatMessage[]
   // Required field from CosmosDB
-  _ts: number; // CosmosDB timestamp, used as created_at
+  _ts: number // CosmosDB timestamp, used as created_at
   // Optional fields
-  participant_id?: string;
-  meeting_id?: string;
-  meeting_name?: string;
-  meeting_topic?: string;
-  group_name?: string;
-  group_id?: string;
+  participant_id?: string
+  meeting_id?: string
+  meeting_name?: string
+  meeting_topic?: string
+  group_name?: string
+  group_id?: string
   participants: {
     participant_id: string
     name: string
@@ -146,5 +146,5 @@ export interface LLMAccountsResponse {
 }
 
 export interface DeleteResponse {
-  deleted_id: string  // Matches the backend response format
+  deleted_id: string // Matches the backend response format
 }

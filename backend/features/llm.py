@@ -222,6 +222,8 @@ async def set_default_provider(provider: str, user_id: str):
     except Exception as e:
         logger.error("Error setting default provider: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while setting default provider")
+
+
 async def get_llm_client(user_id: str):
     """Initialize and return an LLM client for the given user."""
     try:

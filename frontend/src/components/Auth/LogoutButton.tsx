@@ -10,11 +10,7 @@ export function LogoutButton() {
   }
 
   return (
-    <Button 
-      variant="ghost" 
-      onClick={handleLogout}
-      className="flex items-center gap-2"
-    >
+    <Button variant="ghost" onClick={handleLogout} className="flex items-center gap-2">
       <LogOut className="w-4 h-4" />
       Sign Out
     </Button>

@@ -1,32 +1,32 @@
-import React from "react";
-import { Card, CardTitle, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { useAuth } from "@/context/AuthContext"; // Import useAuth
-import { Users, MessageSquare, Layers, Server, UserCircle } from "lucide-react";
+import React from "react"
+import { Card, CardTitle, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
+import { useAuth } from "@/context/AuthContext" // Import useAuth
+import { Users, MessageSquare, Layers, Server, UserCircle } from "lucide-react"
 
 const Home: React.FC = () => {
-  const { state, isLoading: isAuthLoading } = useAuth(); // Use AuthContext state and loading status
-  const { user, backendUser, isInitialized } = state;
+  const { state, isLoading: isAuthLoading } = useAuth() // Use AuthContext state and loading status
+  const { user, backendUser, isInitialized } = state
 
   // Determine loading state based on Auth0 loading and backend initialization
-  const isLoading = isAuthLoading || !isInitialized;
+  const isLoading = isAuthLoading || !isInitialized
 
   // Helper function to safely get counts, ensuring a number is returned
   const getSafeCount = (countValue: unknown, arrayValue?: unknown[]): number => {
-    if (typeof countValue === 'number' && !isNaN(countValue)) {
-      return countValue;
+    if (typeof countValue === "number" && !isNaN(countValue)) {
+      return countValue
     }
     if (Array.isArray(arrayValue)) {
-      return arrayValue.length;
+      return arrayValue.length
     }
-    return 0;
-  };
+    return 0
+  }
 
   // Safely access counts from backendUser, ensuring they are numbers
-  const participantsCount = getSafeCount(backendUser?.participants_count, backendUser?.participants);
-  const groupsCount = getSafeCount(backendUser?.groups_count, backendUser?.groups);
-  const meetingsCount = getSafeCount(backendUser?.meetings_count, backendUser?.meetings);
-  const chatSessionsCount = getSafeCount(backendUser?.chat_sessions_count);
-  const llmProvidersCount = getSafeCount(backendUser?.llmAccounts_count, backendUser?.llmAccounts?.providers);
+  const participantsCount = getSafeCount(backendUser?.participants_count, backendUser?.participants)
+  const groupsCount = getSafeCount(backendUser?.groups_count, backendUser?.groups)
+  const meetingsCount = getSafeCount(backendUser?.meetings_count, backendUser?.meetings)
+  const chatSessionsCount = getSafeCount(backendUser?.chat_sessions_count)
+  const llmProvidersCount = getSafeCount(backendUser?.llmAccounts_count, backendUser?.llmAccounts?.providers)
 
   const dashboardCards = [
     {

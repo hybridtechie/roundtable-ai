@@ -18,11 +18,7 @@ logger = setup_logger(__name__)
 load_dotenv()
 
 # Initialize FastAPI app
-app = FastAPI(
-    title="Roundtable AI Backend",
-    description="API for managing AI agent discussions, participants, groups, and meetings.",
-    version="0.1.0"
-)
+app = FastAPI(title="Roundtable AI Backend", description="API for managing AI agent discussions, participants, groups, and meetings.", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,6 +27,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
 
 # --- Custom Exception Handler for CORS ---
 # This ensures that even errors raised before the response is processed
@@ -41,10 +38,7 @@ async def cors_aware_exception_handler(request: Request, exc: HTTPException):
     origin = request.headers.get("origin")
 
     # Define allowed origins (should match CORSMiddleware config)
-    allowed_origins = {
-        "http://localhost:5173",
-        "https://wa-roundtableai-frontend-cefzgxbba8c4aqga.australiaeast-01.azurewebsites.net"
-    }
+    allowed_origins = {"http://localhost:5173", "https://wa-roundtableai-frontend-cefzgxbba8c4aqga.australiaeast-01.azurewebsites.net"}
 
     # Default response without CORS headers
     response = JSONResponse(
@@ -68,11 +62,11 @@ async def cors_aware_exception_handler(request: Request, exc: HTTPException):
 app.include_router(participant.router)
 app.include_router(group.router)
 app.include_router(meeting.router)
-app.include_router(chat.router) # Includes /chat-stream and POST /chat-session
-app.include_router(chat_session.router) # Includes CRUD for /chat-session/{id} and GET /chat-sessions
+app.include_router(chat.router)  # Includes /chat-stream and POST /chat-session
+app.include_router(chat_session.router)  # Includes CRUD for /chat-session/{id} and GET /chat-sessions
 app.include_router(llm.router)
 app.include_router(questions.router)
-app.include_router(user.router_user) # Includes /user/me endpoints
+app.include_router(user.router_user)  # Includes /user/me endpoints
 
 
 # --- Health Check Endpoint ---
@@ -93,11 +87,11 @@ async def health_check():
 if __name__ == "__main__":
     try:
         port = int(os.getenv("PORT", "8000"))
-        host = os.getenv("HOST", "0.0.0.0") # Default to 0.0.0.0 to be accessible externally
+        host = os.getenv("HOST", "0.0.0.0")  # Default to 0.0.0.0 to be accessible externally
         logger.info("Starting FastAPI server on %s:%d", host, port)
         # Consider adding reload=True for development environments
         # uvicorn.run("main:app", host=host, port=port, reload=True)
         uvicorn.run(app, host=host, port=port)
     except Exception as e:
         logger.critical("Failed to start FastAPI server: %s", str(e), exc_info=True)
-        raise # Re-raise the exception to ensure the failure is visible
+        raise  # Re-raise the exception to ensure the failure is visible

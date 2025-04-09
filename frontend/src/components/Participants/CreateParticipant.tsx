@@ -55,7 +55,8 @@ const CreateParticipant: React.FC = () => {
       // The created participant object is directly in response.data
       const createdParticipant: Participant | undefined = response.data
 
-      if (createdParticipant && createdParticipant.id) { // Check if data and ID exist
+      if (createdParticipant && createdParticipant.id) {
+        // Check if data and ID exist
         // Dispatch action to add participant to global state
         dispatch({ type: "ADD_PARTICIPANT", payload: createdParticipant })
         setNewParticipant(initialState) // Reset form only on success
@@ -66,7 +67,6 @@ const CreateParticipant: React.FC = () => {
         console.error("Create participant response did not contain expected participant data:", response.data)
         toast.error("Failed to create participant (invalid server response).")
       }
-
     } catch (error) {
       console.error("Error creating participant:", error)
       toast.error("Failed to create participant. Please try again.")

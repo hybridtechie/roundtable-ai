@@ -28,7 +28,7 @@ export function AISettings() {
     try {
       // Use the reducer directly
       dispatch({ type: "ADD_LLM_ACCOUNT", payload: newProvider })
-      
+
       setNewProvider({
         provider: "AzureOpenAI",
         model: "",

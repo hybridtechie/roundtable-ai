@@ -11,6 +11,7 @@ import requests
 import json
 from cosmos_db import cosmos_client
 import copy
+
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -30,12 +31,15 @@ class UserDetailResponse(UserResponse):
     participants_count: int = 0
     meetings_count: int = 0
     groups_count: int = 0
+
+
 # Load environment variables
 load_dotenv()
 
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
-AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE") # Keep for potential future use with access tokens
-AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID") # Add Client ID for ID token validation
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")  # Keep for potential future use with access tokens
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")  # Add Client ID for ID token validation
+
 
 def fetch_jwks() -> Dict:
     """Fetch the JWKS from Auth0"""
@@ -48,6 +52,7 @@ def fetch_jwks() -> Dict:
         logger.error("Error fetching JWKS: %s", str(e))
         raise HTTPException(status_code=500, detail="Error fetching JWKS from Auth0")
 
+
 def get_key_from_jwks(jwks: Dict, kid: str) -> Dict:
     """Get the correct key from JWKS using the key ID"""
     for key in jwks.get("keys", []):
@@ -55,10 +60,11 @@ def get_key_from_jwks(jwks: Dict, kid: str) -> Dict:
             return key
     raise HTTPException(status_code=401, detail="Invalid token: Key ID not found in JWKS")
 
+
 async def validate_id_token(id_token: str) -> Dict:
     """
     Validate the ID token from Auth0 and extract claims.
-    
+
     This function verifies:
     1. Token signature using Auth0's JWKS
     2. Token audience matches our client ID
@@ -79,16 +85,16 @@ async def validate_id_token(id_token: str) -> Dict:
 
         # Fetch JWKS and find the key corresponding to the kid
         jwks = fetch_jwks()
-        key = get_key_from_jwks(jwks, kid) # This function already raises HTTPException if key not found
+        key = get_key_from_jwks(jwks, kid)  # This function already raises HTTPException if key not found
 
         # Decode and validate the token using the public key from JWKS
         # Note: python-jose requires the key in JWK format
         payload = jwt.decode(
             id_token,
             key=key,
-            algorithms=['RS256'], # Standard algorithm for Auth0 RS256 signed tokens
-            audience=AUTH0_CLIENT_ID, # Use Client ID for ID token audience validation
-            issuer=f"https://{AUTH0_DOMAIN}/" # Validate the issuer
+            algorithms=["RS256"],  # Standard algorithm for Auth0 RS256 signed tokens
+            audience=AUTH0_CLIENT_ID,  # Use Client ID for ID token audience validation
+            issuer=f"https://{AUTH0_DOMAIN}/",  # Validate the issuer
             # Standard claims like exp, iat, iss, aud are verified by default by python-jose
         )
 
@@ -97,11 +103,13 @@ async def validate_id_token(id_token: str) -> Dict:
     except JWTError as e:
         logger.error("ID Token validation failed: %s", str(e))
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
-    except HTTPException as e: # Re-raise HTTPExceptions from helpers
+    except HTTPException as e:  # Re-raise HTTPExceptions from helpers
         raise e
-    except Exception as e: # Catch other potential errors during validation
+    except Exception as e:  # Catch other potential errors during validation
         logger.error("An unexpected error occurred during token validation: %s", str(e))
         raise HTTPException(status_code=500, detail="Token validation error")
+
+
 # Removed extract_email_from_token as login_user handles payload directly
 # Removed unused chat_sessions_count variable
 async def login_user(name: str, email: str) -> Dict:
@@ -112,35 +120,35 @@ async def login_user(name: str, email: str) -> Dict:
             raise HTTPException(status_code=400, detail="Email claim not found in token")
 
         logger.info(f"User authenticated: {email}")
-        
+
         # Check if user exists in Cosmos DB
         user_data = await cosmos_client.get_user_data(email)
-        
+
         if not user_data:
             logger.info(f"Creating new user account for: {email}")
-            
+
             # Fetch admin template for new user creation
             admin_template = await cosmos_client.get_user_data("roundtable_ai_admin")
             if not admin_template:
                 logger.error("Admin template not found in database")
                 raise HTTPException(status_code=500, detail="User template not found")
-            
+
             # Clone admin template and update user-specific fields
             new_user = copy.deepcopy(admin_template)
             new_user["id"] = email
             new_user["email"] = email
             new_user["display_name"] = name
-            
+
             # Create new user in Cosmos DB
             created_user = await cosmos_client.create_user(new_user)
             logger.info(f"New user created: {email}")
             # Add 'name' field mapped from 'display_name' and return the full created user data
-            created_user['name'] = created_user.get('display_name')
+            created_user["name"] = created_user.get("display_name")
             return created_user
 
         logger.info(f"Existing user logged in: {email}")
         # Add 'name' field mapped from 'display_name' and return the full existing user data
-        user_data['name'] = user_data.get('display_name')
+        user_data["name"] = user_data.get("display_name")
         return user_data
 
     except HTTPException:
@@ -149,6 +157,7 @@ async def login_user(name: str, email: str) -> Dict:
     except Exception as e:
         logger.error("Login error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during login")
+
 
 async def get_me(user_id: str) -> Dict:
     """Get basic user information"""
@@ -162,11 +171,7 @@ async def get_me(user_id: str) -> Dict:
             raise HTTPException(status_code=404, detail=f"User with ID '{user_id}' not found")
 
         # Map fields for response, matching UserProfileResponse
-        response = {
-            "id": user_data.get("id"),
-            "name": user_data.get("display_name", ""),
-            "email": user_data.get("email", "")
-        }
+        response = {"id": user_data.get("id"), "name": user_data.get("display_name", ""), "email": user_data.get("email", "")}
 
         logger.info("Successfully retrieved basic user information for: %s", user_id)
         return response
@@ -193,7 +198,7 @@ async def get_me_detail(user_id: str) -> Dict:
         # Map fields for response, matching UserDetailResponse
         response = {
             "id": user_data.get("id"),
-            "name": user_data.get("display_name", ""), # Map display_name to name
+            "name": user_data.get("display_name", ""),  # Map display_name to name
             "email": user_data.get("email", ""),
             # Include other fields expected by UserDetailResponse (or add them to the model)
             # For now, just mapping the base fields and counts
@@ -201,7 +206,7 @@ async def get_me_detail(user_id: str) -> Dict:
             "participants_count": len(user_data.get("participants", [])),
             "meetings_count": len(user_data.get("meetings", [])),
             "groups_count": len(user_data.get("groups", [])),
-            "chat_sessions_count": len(user_data.get("chat_sessions", [])), # Assuming this might be needed later
+            "chat_sessions_count": len(user_data.get("chat_sessions", [])),  # Assuming this might be needed later
         }
 
         logger.info("Successfully retrieved detailed user information for: %s", user_id)

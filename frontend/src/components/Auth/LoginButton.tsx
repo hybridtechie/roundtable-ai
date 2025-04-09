@@ -6,11 +6,7 @@ export function LoginButton() {
   const { loginWithRedirect } = useAuth()
 
   return (
-    <Button 
-      variant="outline" 
-      onClick={() => loginWithRedirect()}
-      className="flex items-center gap-2"
-    >
+    <Button variant="outline" onClick={() => loginWithRedirect()} className="flex items-center gap-2">
       <LogIn className="w-4 h-4" />
       Login with Google
     </Button>

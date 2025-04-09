@@ -3,9 +3,9 @@ from fastapi.responses import StreamingResponse
 from logger_config import setup_logger
 
 # Feature imports
-from features.meeting import get_meeting # Needed for both endpoints
+from features.meeting import get_meeting  # Needed for both endpoints
 from features.chat import stream_meeting_discussion, MeetingDiscussion
-from features.chat_session import ChatSessionCreate # Input model for chat request
+from features.chat_session import ChatSessionCreate  # Input model for chat request
 
 # Model imports
 # Define specific response models in models.py if needed for chat operations
@@ -18,11 +18,10 @@ from auth import UserClaims, validate_token
 logger = setup_logger(__name__)
 
 # Create an APIRouter instance
-router = APIRouter(
-    tags=["Chat"] # Tag for OpenAPI documentation
-)
+router = APIRouter(tags=["Chat"])  # Tag for OpenAPI documentation
 
 # --- Chat Endpoints ---
+
 
 # 13 Start Meeting Stream
 @router.get("/chat-stream", summary="Start streaming chat discussion for a meeting")
@@ -46,7 +45,7 @@ async def chat_stream_endpoint(meeting_id: str, current_user: UserClaims = Depen
         # Ensure the function signature matches how it's called.
         return StreamingResponse(stream_meeting_discussion(meeting), media_type="text/event-stream")
 
-    except HTTPException as http_exc: # Re-raise 404
+    except HTTPException as http_exc:  # Re-raise 404
         raise http_exc
     except Exception as e:
         logger.error("Failed to start chat stream for meeting %s, user %s: %s", meeting_id, user_id, str(e), exc_info=True)
@@ -75,16 +74,16 @@ async def chat_request_endpoint(chat_request: ChatSessionCreate, current_user: U
             raise HTTPException(status_code=404, detail="Meeting not found or access denied")
 
         # Initialize the discussion handler
-        discussion = MeetingDiscussion(meeting) # Pass the fetched meeting object
+        discussion = MeetingDiscussion(meeting)  # Pass the fetched meeting object
 
         # Handle the chat request using the feature logic
-        result = await discussion.handle_chat_request(chat_request) # Pass the input request model
+        result = await discussion.handle_chat_request(chat_request)  # Pass the input request model
 
         logger.info("Successfully processed chat request for meeting %s by user %s", meeting_id, user_id)
         # The original code returned 'result' directly. Define a response model for clarity if possible.
         return result
 
-    except HTTPException as http_exc: # Re-raise 404
+    except HTTPException as http_exc:  # Re-raise 404
         raise http_exc
     except Exception as e:
         logger.error("Failed to process chat request for meeting %s, user %s: %s", meeting_id, user_id, str(e), exc_info=True)

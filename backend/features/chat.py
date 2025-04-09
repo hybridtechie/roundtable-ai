@@ -53,7 +53,7 @@ class MeetingDiscussion:
     def ask_question(self, llm_client, participant_id: str, question: str, messages_list=None):
         """Ask a question to a participant with concise, conversational response."""
         participant = self.participants[participant_id]
-        
+
         # Part 1: System Prompt
         participant_list = [f"{p['name']} ({p['role']})" for p in self.participants.values()]
         system_prompt = (
@@ -63,18 +63,15 @@ class MeetingDiscussion:
             f"Meeting participants: {', '.join(participant_list)}. "
             f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
         )
-        
+
         # Part 2: Message History
         messages = [{"role": "system", "content": system_prompt}]
         if messages_list:
             messages.extend(messages_list)
-        
+
         # Part 3: Current Question
-        messages.append({
-            "role": "user",
-            "content": f"Please provide a concise response to this question based on the meeting topic: {question}"
-        })
-        
+        messages.append({"role": "user", "content": f"Please provide a concise response to this question based on the meeting topic: {question}"})
+
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
 
@@ -101,7 +98,7 @@ class MeetingDiscussion:
         participants_info = []
         for pid, p in self.participants.items():
             participants_info.append(f"{p['name']} ({p['role']}) - Weight: {p['weight']}, Order: {p['order']}")
-        
+
         system_prompt = (
             f"You are provided with a meeting transcript of a meeting conducted for topic '{self.topic}'. "
             f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\n\n"
@@ -122,17 +119,19 @@ class MeetingDiscussion:
             messages.append({"role": "user", "content": msg})
 
         # Part 3: Final Request
-        messages.append({
-            "role": "user",
-            "content": (
-                f"Based on the above meeting transcript, please provide a comprehensive summary of the discussion on '{self.topic}'. "
-                f"Consider each participant's weight when analyzing their contributions - participants with higher weights "
-                f"should have their input weighted more heavily in the final analysis. Include the key points made by each "
-                f"participant, their perspectives based on their roles and weights, and synthesize the overall discussion "
-                f"into clear, actionable insights. When highlighting consensus or differences in viewpoints, give more "
-                f"consideration to the opinions of participants with higher weights."
-            )
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Based on the above meeting transcript, please provide a comprehensive summary of the discussion on '{self.topic}'. "
+                    f"Consider each participant's weight when analyzing their contributions - participants with higher weights "
+                    f"should have their input weighted more heavily in the final analysis. Include the key points made by each "
+                    f"participant, their perspectives based on their roles and weights, and synthesize the overall discussion "
+                    f"into clear, actionable insights. When highlighting consensus or differences in viewpoints, give more "
+                    f"consideration to the opinions of participants with higher weights."
+                ),
+            }
+        )
 
         # Get response
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
@@ -180,10 +179,7 @@ class MeetingDiscussion:
                     # Add to discussion log
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     # Add to message history
-                    self.message_history.append({
-                        "role": "assistant",
-                        "content": f"{self.participants[pid]['name']} said \"{answer}\""
-                    })
+                    self.message_history.append({"role": "assistant", "content": f"{self.participants[pid]['name']} said \"{answer}\""})
                     # Add to chat session
                     self.chat_session["messages"].append({"role": "assistant", "content": answer})
                     self.chat_session["display_messages"].append(
@@ -219,10 +215,7 @@ class MeetingDiscussion:
                         # Add to discussion log
                         self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         # Add to message history
-                        self.message_history.append({
-                            "role": "assistant",
-                            "content": f"{self.participants[pid]['name']} said \"{answer}\""
-                        })
+                        self.message_history.append({"role": "assistant", "content": f"{self.participants[pid]['name']} said \"{answer}\""})
                         # Add to chat session
                         self.chat_session["messages"].append({"role": "assistant", "content": answer})
                         self.chat_session["display_messages"].append(

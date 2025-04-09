@@ -107,11 +107,11 @@ export const columns = ({ onDelete, onView, isDeleting }: ColumnProps): ColumnDe
     header: "Participants",
     cell: ({ row }) => {
       // Ensure participants is treated as potentially undefined
-      const participants = row.getValue("participants") as Meeting["participants"] | undefined;
+      const participants = row.getValue("participants") as Meeting["participants"] | undefined
 
       // Check if participants is an array and not empty before mapping
       if (!Array.isArray(participants) || participants.length === 0) {
-        return <div className="text-xs text-gray-500">No participants</div>; // Fallback UI
+        return <div className="text-xs text-gray-500">No participants</div> // Fallback UI
       }
 
       // If it's a valid array, map over it
@@ -123,7 +123,7 @@ export const columns = ({ onDelete, onView, isDeleting }: ColumnProps): ColumnDe
             </Avatar>
           ))}
         </div>
-      );
+      )
     },
   },
   {

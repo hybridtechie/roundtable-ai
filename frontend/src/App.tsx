@@ -31,32 +31,31 @@ function App() {
   return (
     <>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-          <Routes>
-            {/* Public Login Route */}
-            <Route path="/login" element={<LoginPage />} />
+        <Routes>
+          {/* Public Login Route */}
+          <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected Routes with Main Layout */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <MainLayout />
-                </ProtectedRoute>
-              }
-            >
-              {/* Index route for the main layout */}
-              <Route index element={<Home />} />
-              <Route path="participants" element={<Participants />} />
-              <Route path="participants/create" element={<CreateParticipant />} />
-              <Route path="groups" element={<Groups />} />
-              <Route path="meetings" element={<Meetings />} />
-              <Route path="meetings/new" element={<NewMeeting />} />
-              <Route path="chat/new" element={<NewChat />} />
-              <Route path="chat/:meetingId/session/:sessionId?" element={<Chat />} />
-              <Route path="chat/:meetingId/stream" element={<Chat />} />
-              {/* Add other protected routes here as needed */}
-            </Route>
-          </Routes>
+          {/* Protected Routes with Main Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+            {/* Index route for the main layout */}
+            <Route index element={<Home />} />
+            <Route path="participants" element={<Participants />} />
+            <Route path="participants/create" element={<CreateParticipant />} />
+            <Route path="groups" element={<Groups />} />
+            <Route path="meetings" element={<Meetings />} />
+            <Route path="meetings/new" element={<NewMeeting />} />
+            <Route path="chat/new" element={<NewChat />} />
+            <Route path="chat/:meetingId/session/:sessionId?" element={<Chat />} />
+            <Route path="chat/:meetingId/stream" element={<Chat />} />
+            {/* Add other protected routes here as needed */}
+          </Route>
+        </Routes>
       </ThemeProvider>
       <Toaster />
     </>

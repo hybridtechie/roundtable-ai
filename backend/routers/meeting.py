@@ -3,10 +3,8 @@ from typing import List
 from logger_config import setup_logger
 
 # Feature imports
-from features.meeting import (
-    create_meeting, get_meeting, list_meetings, delete_meeting,
-    MeetingCreate # Assuming MeetingCreate is the input model
-)
+from features.meeting import create_meeting, get_meeting, list_meetings, delete_meeting, MeetingCreate  # Assuming MeetingCreate is the input model
+
 # Import MeetingTopic if set_meeting_topic endpoint is added later
 # from features.meeting import set_meeting_topic, MeetingTopic
 
@@ -21,12 +19,10 @@ from auth import UserClaims, validate_token
 logger = setup_logger(__name__)
 
 # Create an APIRouter instance
-router = APIRouter(
-    prefix="/meeting",  # Prefix for all routes in this router
-    tags=["Meetings"]   # Tag for OpenAPI documentation
-)
+router = APIRouter(prefix="/meeting", tags=["Meetings"])  # Prefix for all routes in this router  # Tag for OpenAPI documentation
 
 # --- Meeting Endpoints ---
+
 
 # 11 Create Meeting
 @router.post("", response_model=MeetingResponse, status_code=201, summary="Create a new meeting")
@@ -56,7 +52,7 @@ async def create_meeting_endpoint(meeting: MeetingCreate, current_user: UserClai
             "topic": meeting.topic,
             "status": "created",
             "created_at": str(int(meeting._ts)) if meeting._ts else "",  # Convert timestamp to string
-            "user_id": user_id
+            "user_id": user_id,
         }
 
         logger.info("Successfully created meeting with ID: %s for user '%s'", response["id"], user_id)
@@ -67,7 +63,7 @@ async def create_meeting_endpoint(meeting: MeetingCreate, current_user: UserClai
 
 
 # 12 List Meetings
-@router.get("s", response_model=ListMeetingsResponse, summary="List all meetings for the authenticated user") # Route is /meetings
+@router.get("s", response_model=ListMeetingsResponse, summary="List all meetings for the authenticated user")  # Route is /meetings
 async def list_meetings_endpoint(current_user: UserClaims = Depends(validate_token)):
     """
     Retrieves a list of meetings associated with the authenticated user.
@@ -102,7 +98,7 @@ async def get_meeting_endpoint(meeting_id: str, current_user: UserClaims = Depen
             raise HTTPException(status_code=404, detail="Meeting not found or access denied")
         logger.info("Successfully retrieved meeting: %s", meeting_id)
         return meeting
-    except HTTPException as http_exc: # Re-raise 404
+    except HTTPException as http_exc:  # Re-raise 404
         raise http_exc
     except Exception as e:
         logger.error("Failed to fetch meeting %s for user %s: %s", meeting_id, user_id, str(e), exc_info=True)
@@ -126,11 +122,12 @@ async def delete_meeting_endpoint(meeting_id: str, current_user: UserClaims = De
         # if result is None:
         #     raise HTTPException(status_code=404, detail="Meeting not found or cannot be deleted")
         logger.info("Successfully deleted meeting: %s by user %s", meeting_id, user_id)
-        return result # Should match DeleteResponse model
-    except Exception as e: # Catch potential errors
+        return result  # Should match DeleteResponse model
+    except Exception as e:  # Catch potential errors
         logger.error("Failed to delete meeting %s for user %s: %s", meeting_id, user_id, str(e), exc_info=True)
         # Determine if 404 or 500 is more appropriate based on expected errors
         raise HTTPException(status_code=500, detail=f"Failed to delete meeting: {str(e)}")
+
 
 # Note: The set_meeting_topic endpoint was not included in the original list to move,
 # but could be added here similarly if needed.

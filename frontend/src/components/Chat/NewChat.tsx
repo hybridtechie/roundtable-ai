@@ -11,12 +11,10 @@ import { useAuth } from "@/context/AuthContext"
 
 const NewChat = () => {
   const navigate = useNavigate()
-  const { state } = useAuth()
+  const { state, dispatch } = useAuth()
   const participants = state.backendUser?.participants || []
   // Filter meetings to only include those without group_ids
-  const meetings = (state.backendUser?.meetings || []).filter(
-    (meeting) => !meeting.group_ids?.length
-  )
+  const meetings = (state.backendUser?.meetings || []).filter((meeting) => !meeting.group_ids?.length)
 
   const [chatMode, setChatMode] = useState<"new" | "existing">("new")
   const [selectedParticipant, setSelectedParticipant] = useState("")
@@ -50,8 +48,22 @@ const NewChat = () => {
           },
         ],
       })
+      // Add the new meeting to context
+      dispatch({
+        type: "ADD_MEETING",
+        payload: {
+          id: response.data.id,
+          name: name,
+          topic: topic,
+          strategy: "chat",
+          participant_ids: [selectedParticipant],
+          group_ids: [], // Empty array for non-group chat
+          participants: [],
+        },
+      })
+
       toast.success("Chat meeting created successfully")
-      navigate(`/chat/${response.data.meeting_id}/session`, { state: { messages: [] } })
+      navigate(`/chat/${response.data.id}/session`, { state: { messages: [] } })
     } catch (error) {
       console.error("Error creating chat:", error)
       toast.error("Failed to create chat meeting")
@@ -100,9 +112,7 @@ const NewChat = () => {
                         </SelectItem>
                       ))
                     ) : (
-                      <div className="p-2 text-sm text-center text-gray-500">
-                        No available meetings found
-                      </div>
+                      <div className="p-2 text-sm text-center text-gray-500">No available meetings found</div>
                     )}
                   </SelectContent>
                 </Select>

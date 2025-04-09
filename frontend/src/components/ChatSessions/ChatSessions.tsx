@@ -32,10 +32,11 @@ const ChatMenu: React.FC<ChatMenuProps> = ({ onDelete }) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={(e) => {
-          e.preventDefault()
-          onDelete()
-        }}>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.preventDefault()
+            onDelete()
+          }}>
           Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -56,7 +57,7 @@ const ChatSessions: React.FC = () => {
       const response = await deleteChatSession(sessionId)
       // Only update context if deletion was successful
       if (response.data.deleted_id === sessionId) {
-        dispatch({ type: 'DELETE_CHAT_SESSION', payload: sessionId })
+        dispatch({ type: "DELETE_CHAT_SESSION", payload: sessionId })
       } else {
         console.error("Delete response ID mismatch:", response.data.deleted_id, sessionId)
       }
@@ -64,15 +65,6 @@ const ChatSessions: React.FC = () => {
       console.error("Failed to delete chat session:", error)
     }
   }
-  console.log("ChatSessions Length:", sortedChatSessions.length)
-  console.log("All ChatSessions:", sortedChatSessions.map(session => ({
-    id: session.id,
-    title: session.title,
-    _ts: session._ts,
-    meeting_id: session.meeting_id,
-    group_name: session.group_name,
-    participants: session.participants?.length
-  })))
 
   if (!state.backendUser) {
     return (
@@ -87,14 +79,14 @@ const ChatSessions: React.FC = () => {
   }
 
   const groupedSessions = sortedChatSessions.reduce<GroupedSessions>((acc, session) => {
-    console.log('Processing session:', {
+    console.log("Processing session:", {
       id: session.id,
       _ts: session._ts,
       timestamp: new Date(session._ts * 1000).toLocaleString(),
       participants: session.participants?.length,
       meeting_id: session.meeting_id,
       group_name: session.group_name,
-      title: session.title
+      title: session.title,
     })
     // Check if it's a single participant session
     const isSingleParticipant = session.participants?.length === 1
@@ -103,9 +95,7 @@ const ChatSessions: React.FC = () => {
     if (!acc[key]) {
       acc[key] = {
         type: isSingleParticipant ? "participant" : "meeting",
-        name: isSingleParticipant
-          ? session.participants[0].name
-          : session.group_name || session.meeting_name || "Other Chats",
+        name: isSingleParticipant ? session.participants[0].name : session.group_name || session.meeting_name || "Other Chats",
         sessions: [],
       }
     }
@@ -119,7 +109,7 @@ const ChatSessions: React.FC = () => {
   })
 
   // Separate sessions into chats and meetings
-  console.log('Before categorization - groupedSessions:', groupedSessions)
+  console.log("Before categorization - groupedSessions:", groupedSessions)
   const { chats, meetings } = Object.entries(groupedSessions).reduce(
     (acc, [key, group]) => {
       if (group.type === "participant") {
@@ -132,20 +122,20 @@ const ChatSessions: React.FC = () => {
     { chats: [], meetings: [] } as {
       chats: ((typeof groupedSessions)[string] & { key: string })[]
       meetings: ((typeof groupedSessions)[string] & { key: string })[]
-    }
+    },
   )
-  console.log('After categorization - meetings:', meetings)
+  console.log("After categorization - meetings:", meetings)
 
   // Sort by most recent timestamp
-  console.log('Before sorting - meetings:', meetings)
+  console.log("Before sorting - meetings:", meetings)
   const sortByTimestamp = (items: ((typeof groupedSessions)[string] & { key: string })[]) => {
     const sorted = items.sort((a, b) => {
       const aLatest = Math.max(...a.sessions.map((s) => s._ts ?? 0))
       const bLatest = Math.max(...b.sessions.map((s) => s._ts ?? 0))
-      console.log('Comparing timestamps:', { a: aLatest, b: bLatest })
+      console.log("Comparing timestamps:", { a: aLatest, b: bLatest })
       return bLatest - aLatest
     })
-    console.log('After sorting:', sorted)
+    console.log("After sorting:", sorted)
     return sorted
   }
 
@@ -177,10 +167,10 @@ const ChatSessions: React.FC = () => {
                         <div className="flex items-center w-full">
                           <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
                             {session.title ||
-                             session.meeting_name ||
-                             session.meeting_topic ||
-                             `Chat from ${new Date(session._ts * 1000).toLocaleDateString()}` ||
-                             `Chat ${session.id.substring(0, 8)}`}
+                              session.meeting_name ||
+                              session.meeting_topic ||
+                              `Chat from ${new Date(session._ts * 1000).toLocaleDateString()}` ||
+                              `Chat ${session.id.substring(0, 8)}`}
                           </Button>
                           <div className="flex-shrink-0">
                             <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />
@@ -203,41 +193,42 @@ const ChatSessions: React.FC = () => {
         </div>
         <div className="flex flex-col space-y-1">
           {sortByTimestamp(meetings).map((group) => {
-            console.log('Processing group:', group)
+            console.log("Processing group:", group)
             return (
-            <Collapsible key={group.key} defaultOpen={false} className="w-full">
-              <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">
-                <ChevronRight className="w-4 h-4" />
-                <span className="ml-1 text-sm font-medium truncate">{group.name}</span>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="flex flex-col mt-1 ml-4 space-y-1">
-                  {group.sessions.map((session) => (
-                    <NavLink
-                      key={session.id}
-                      to={`/chat/${session.meeting_id}/session/${session.id}`}
-                      className={({ isActive }: { isActive: boolean }) =>
-                        `w-full pl-4 rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
-                      }>
-                      <div className="flex items-center w-full">
-                        <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
-                          {session.title ||
-                           session.meeting_topic ||
-                           session.meeting_name ||
-                           session.group_name ||
-                           `Chat from ${new Date(session._ts * 1000).toLocaleDateString()}` ||
-                           `Chat ${session.id.substring(0, 8)}`}
-                        </Button>
-                        <div className="flex-shrink-0">
-                          <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />
+              <Collapsible key={group.key} defaultOpen={false} className="w-full">
+                <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">
+                  <ChevronRight className="w-4 h-4" />
+                  <span className="ml-1 text-sm font-medium truncate">{group.name}</span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="flex flex-col mt-1 ml-4 space-y-1">
+                    {group.sessions.map((session) => (
+                      <NavLink
+                        key={session.id}
+                        to={`/chat/${session.meeting_id}/session/${session.id}`}
+                        className={({ isActive }: { isActive: boolean }) =>
+                          `w-full pl-4 rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
+                        }>
+                        <div className="flex items-center w-full">
+                          <Button variant="ghost" className="justify-start flex-1 font-normal truncate">
+                            {session.title ||
+                              session.meeting_topic ||
+                              session.meeting_name ||
+                              session.group_name ||
+                              `Chat from ${new Date(session._ts * 1000).toLocaleDateString()}` ||
+                              `Chat ${session.id.substring(0, 8)}`}
+                          </Button>
+                          <div className="flex-shrink-0">
+                            <ChatMenu sessionId={session.id} onDelete={() => handleDelete(session.id)} />
+                          </div>
                         </div>
-                      </div>
-                    </NavLink>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )})}
+                      </NavLink>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )
+          })}
         </div>
       </div>
     </div>

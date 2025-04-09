@@ -12,8 +12,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <Auth0Provider
       domain={auth0Config.domain}
       clientId={auth0Config.clientId}
-      authorizationParams={auth0Config.authorizationParams}
-    >
+      authorizationParams={auth0Config.authorizationParams}>
       <BrowserRouter>
         <AuthProvider>
           <App />

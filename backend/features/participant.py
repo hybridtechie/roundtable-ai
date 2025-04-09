@@ -86,9 +86,10 @@ class ParticipantUpdate(ParticipantBase):
     # Inherits all fields from ParticipantBase, used for update payload validation
     pass
 
+
 # Define a response model that includes the ID and all other fields
 class ParticipantResponse(ParticipantBase):
-    id: str # ID is required in the response
+    id: str  # ID is required in the response
 
 
 async def create_participant(participant: ParticipantCreate) -> ParticipantResponse:
@@ -96,7 +97,7 @@ async def create_participant(participant: ParticipantCreate) -> ParticipantRespo
     logger.info("Creating new participant with name: %s", participant.name)
 
     # Validate all required fields
-    participant_dict = participant.dict(exclude_unset=True) # Exclude unset optional fields for validation if needed
+    participant_dict = participant.dict(exclude_unset=True)  # Exclude unset optional fields for validation if needed
     validate_participant_data(participant_dict)
 
     # Generate UUID if id not provided
@@ -149,14 +150,14 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
 
         # Validate incoming data
         participant_dict = participant.dict(exclude_unset=True)
-        validate_participant_data(participant_dict) # Reuse validation
+        validate_participant_data(participant_dict)  # Reuse validation
 
         # Generate persona description using helper function
         persona_description = generate_persona_description(participant)
 
         # Prepare the full data object for update in Cosmos DB
         participant_data = {
-            "id": participant_id, # Use the path parameter ID
+            "id": participant_id,  # Use the path parameter ID
             "name": participant.name,
             "role": participant.role,
             "professional_background": participant.professional_background,
@@ -167,7 +168,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "core_qualities": participant.core_qualities,
             "style_preferences": participant.style_preferences,
             "additional_info": participant.additional_info,
-            "user_id": participant.user_id, # Use user_id from the payload
+            "user_id": participant.user_id,  # Use user_id from the payload
             "persona_description": persona_description,
         }
 
@@ -180,7 +181,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error updating participant %s: %s", participant_id, str(e), exc_info=True) # Added exc_info
+        logger.error("Error updating participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
         raise HTTPException(status_code=500, detail="Internal server error while updating participant")
 
 
@@ -204,7 +205,7 @@ async def delete_participant(participant_id: str, user_id: str) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error deleting participant %s: %s", participant_id, str(e), exc_info=True) # Added exc_info
+        logger.error("Error deleting participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
         raise HTTPException(status_code=500, detail="Internal server error while deleting participant")
 
 
@@ -225,7 +226,7 @@ async def get_participant(participant_id: str, user_id: str) -> ParticipantRespo
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error fetching participant %s: %s", participant_id, str(e), exc_info=True) # Added exc_info
+        logger.error("Error fetching participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
         raise HTTPException(status_code=500, detail="Internal server error while retrieving participant")
 
 
@@ -240,7 +241,7 @@ async def list_participants(user_id: str) -> dict:
         # validated_participants = [ParticipantResponse(**p) for p in participants_list]
 
         logger.info("Successfully retrieved %d participants for user: %s", len(participants_list), user_id)
-        return {"participants": participants_list} # Return raw list as before
+        return {"participants": participants_list}  # Return raw list as before
 
     except Exception as e:
         logger.error("Error listing participants for user %s: %s", user_id, str(e), exc_info=True)

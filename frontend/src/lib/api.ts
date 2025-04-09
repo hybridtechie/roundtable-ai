@@ -14,7 +14,7 @@ import {
   LLMAccountCreate,
   LLMAccountUpdate,
   LLMAccountsResponse,
-  DeleteResponse
+  DeleteResponse,
 } from "@/types/types"
 
 // Determine the base URL based on environment
@@ -43,14 +43,14 @@ api.interceptors.request.use(
     if (token) {
       console.log("Token Found")
       config.headers.Authorization = `Bearer ${token}`
-    }else{
+    } else {
       console.log("No token found")
     }
     return config
   },
   (error) => {
     return Promise.reject(error)
-  }
+  },
 )
 
 const USER_ID = "roundtable_ai_admin"
@@ -120,14 +120,11 @@ export const getQuestions = (topic: string, groupId: string) =>
 export const listChatSessions = () => api.get<{ chat_sessions: ChatSession[] }>(`/chat-sessions`)
 
 export const sendChatMessage = (meetingId: string, message: string, sessionId?: string) =>
-  api.post<{ session_id: string; response: string; name: string; type: string; timestap: string }>(
-    `/chat-session`,
-    {
-      meeting_id: meetingId,
-      user_message: message,
-      session_id: sessionId,
-    },
-  )
+  api.post<{ session_id: string; response: string; name: string; type: string; timestap: string }>(`/chat-session`, {
+    meeting_id: meetingId,
+    user_message: message,
+    session_id: sessionId,
+  })
 
 export const getChatSession = (sessionId: string) => api.get(`/chat-session/${sessionId}`)
 
@@ -141,7 +138,6 @@ interface StreamCallbacks {
 }
 
 // LLM Account Management
-
 
 export const createLLMAccount = (data: LLMAccountCreate) => api.post("/llm-account", data)
 
@@ -162,7 +158,7 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   const token = localStorage.getItem("idToken")
   const urlWithAuth = token ? `${url}&token=${encodeURIComponent(token)}` : url
   console.log(`EventSource URL with auth: ${urlWithAuth}`)
-  
+
   const eventSource = new EventSource(urlWithAuth)
 
   // Handle connection open
@@ -171,7 +167,6 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   }
 
   eventSource.addEventListener(ChatEventType.Questions, ((event: MessageEvent) => {
-    console.log("Received questions event:", event.data)
     try {
       const data = JSON.parse(event.data) as QuestionsResponse
       callbacks.onEvent(ChatEventType.Questions, data)
@@ -181,7 +176,6 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.ParticipantResponse, ((event: MessageEvent) => {
-    console.log("Received participant response event:", event.data)
     try {
       const data = JSON.parse(event.data) as ParticipantResponse
       callbacks.onEvent(ChatEventType.ParticipantResponse, data)
@@ -191,7 +185,6 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.FinalResponse, ((event: MessageEvent) => {
-    console.log("Received final response event:", event.data)
     try {
       const data = JSON.parse(event.data) as ChatFinalResponse
       callbacks.onEvent(ChatEventType.FinalResponse, data)
@@ -201,7 +194,6 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.Error, ((event: MessageEvent) => {
-    console.log("Received error event:", event.data)
     try {
       const data = JSON.parse(event.data) as ChatErrorResponse
       callbacks.onEvent(ChatEventType.Error, data)
@@ -212,7 +204,6 @@ export const streamChat = (meetingId: string, callbacks: StreamCallbacks): (() =
   }) as EventListener)
 
   eventSource.addEventListener(ChatEventType.NextParticipant, ((event: MessageEvent) => {
-    console.log("Received next participant event:", event.data)
     try {
       const data = JSON.parse(event.data) as NextParticipantResponse
       callbacks.onEvent(ChatEventType.NextParticipant, data)

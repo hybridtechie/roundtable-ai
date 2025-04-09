@@ -1,12 +1,21 @@
-import React, { useState } from "react"; // Removed useEffect
-import { useAuth } from "@/context/AuthContext"; // Import useAuth
+import React, { useState } from "react" // Removed useEffect
+import { useAuth } from "@/context/AuthContext" // Import useAuth
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { ChevronsUpDown, Edit, Trash2 } from "lucide-react";
-import { createGroup, updateGroup, deleteGroup } from "@/lib/api"; // Removed listParticipants
+import { ChevronsUpDown, Edit, Trash2 } from "lucide-react"
+import { createGroup, updateGroup, deleteGroup } from "@/lib/api" // Removed listParticipants
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Participant, Group } from "@/types/types"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
@@ -18,15 +27,15 @@ const Groups: React.FC = () => {
   const [groupName, setGroupName] = useState("")
   const [groupDescription, setGroupDescription] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(false); // Keep for form submission loading
-  const { state, dispatch, isLoading: isAuthLoading } = useAuth(); // Get state and dispatch
+  const [isLoading, setIsLoading] = useState(false) // Keep for form submission loading
+  const { state, dispatch, isLoading: isAuthLoading } = useAuth() // Get state and dispatch
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null)
 
   // Derive groups from context state
-  const groups: Group[] = (state.backendUser?.groups as Group[]) || [];
+  const groups: Group[] = (state.backendUser?.groups as Group[]) || []
 
   // Participants are now derived from AuthContext state below
 
@@ -45,15 +54,15 @@ const Groups: React.FC = () => {
     setEditingGroupId(group.id)
     setGroupName(group.name)
     setGroupDescription(group.description || "")
-    
+
     // Use the same participant resolution logic as in display
     let participantIds: string[] = []
     if (Array.isArray(group.participant_ids)) {
       participantIds = group.participant_ids
     } else if (Array.isArray(group.participants)) {
-      participantIds = group.participants.map(p => p?.id).filter((id): id is string => !!id)
+      participantIds = group.participants.map((p) => p?.id).filter((id): id is string => !!id)
     }
-    
+
     setSelectedParticipantIds(participantIds)
     setIsDialogOpen(true)
   }
@@ -67,15 +76,15 @@ const Groups: React.FC = () => {
         const response = await updateGroup(editingGroupId, {
           name: groupName,
           participant_ids: selectedParticipantIds,
-        });
-        const updatedGroup: Group | undefined = response.data;
+        })
+        const updatedGroup: Group | undefined = response.data
         if (updatedGroup && updatedGroup.id) {
-          dispatch({ type: "UPDATE_GROUP", payload: updatedGroup });
-          toast.success("Group updated successfully!");
-          resetForm();
+          dispatch({ type: "UPDATE_GROUP", payload: updatedGroup })
+          toast.success("Group updated successfully!")
+          resetForm()
         } else {
-          console.error("Update group response did not contain group data:", response.data);
-          toast.error("Failed to update group (invalid server response).");
+          console.error("Update group response did not contain group data:", response.data)
+          toast.error("Failed to update group (invalid server response).")
         }
       } else {
         // API should return the created group object
@@ -84,15 +93,15 @@ const Groups: React.FC = () => {
           name: groupName,
           description: groupDescription,
           participant_ids: selectedParticipantIds,
-        });
-        const createdGroup: Group | undefined = response.data;
+        })
+        const createdGroup: Group | undefined = response.data
         if (createdGroup && createdGroup.id) {
-          dispatch({ type: "ADD_GROUP", payload: createdGroup });
-          toast.success("Group created successfully!");
-          resetForm();
+          dispatch({ type: "ADD_GROUP", payload: createdGroup })
+          toast.success("Group created successfully!")
+          resetForm()
         } else {
-          console.error("Create group response did not contain group data:", response.data);
-          toast.error("Failed to create group (invalid server response).");
+          console.error("Create group response did not contain group data:", response.data)
+          toast.error("Failed to create group (invalid server response).")
         }
       }
     } catch (error) {
@@ -103,39 +112,40 @@ const Groups: React.FC = () => {
     }
   }
 
-  const handleDeleteGroup = async () => { // Removed unused 'group' parameter
-    if (!groupToDelete) return; // Check if groupToDelete is set
-    setIsLoading(true); // Use isLoading for delete operation as well
+  const handleDeleteGroup = async () => {
+    // Removed unused 'group' parameter
+    if (!groupToDelete) return // Check if groupToDelete is set
+    setIsLoading(true) // Use isLoading for delete operation as well
     try {
       // API should return { deleted_id: "..." }
-      const response = await deleteGroup(groupToDelete.id);
-      const deletedId = response.data?.deleted_id;
+      const response = await deleteGroup(groupToDelete.id)
+      const deletedId = response.data?.deleted_id
 
       if (deletedId) {
-        dispatch({ type: "DELETE_GROUP", payload: deletedId });
-        toast.success(`Group "${groupToDelete.name}" deleted successfully!`);
-        setGroupToDelete(null); // Close dialog
+        dispatch({ type: "DELETE_GROUP", payload: deletedId })
+        toast.success(`Group "${groupToDelete.name}" deleted successfully!`)
+        setGroupToDelete(null) // Close dialog
       } else {
-        console.error("Delete group response did not contain deleted_id:", response.data);
-        toast.error(`Failed to delete group "${groupToDelete.name}" (invalid server response).`);
+        console.error("Delete group response did not contain deleted_id:", response.data)
+        toast.error(`Failed to delete group "${groupToDelete.name}" (invalid server response).`)
       }
     } catch (error) {
       console.error("Error deleting group:", error)
-      toast.error(`Failed to delete group "${groupToDelete.name}". Please try again.`);
-      setGroupToDelete(null); // Close dialog even on error
+      toast.error(`Failed to delete group "${groupToDelete.name}". Please try again.`)
+      setGroupToDelete(null) // Close dialog even on error
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
   // Derive all participants from context state and create a lookup map
-  const allParticipants: Participant[] = state.backendUser?.participants || [];
-  const participantsMap = new Map(allParticipants.map(p => [p.id, p]));
+  const allParticipants: Participant[] = state.backendUser?.participants || []
+  const participantsMap = new Map(allParticipants.map((p) => [p.id, p]))
 
   // Filter participants for the creation/edit form based on search term
   const filteredParticipantsForForm = allParticipants.filter((participant) =>
     participant.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  )
 
   // Handle loading state from AuthContext
   if (isAuthLoading || !state.isInitialized) {
@@ -143,17 +153,19 @@ const Groups: React.FC = () => {
       <div className="flex items-center justify-center h-screen">
         <LoadingSpinner size={48} />
       </div>
-    );
+    )
   }
 
   return (
     <div className="p-6">
       <h1 className="mb-4 text-3xl font-bold">Groups</h1>
 
-      <Dialog open={isDialogOpen} onOpenChange={(open) => {
-        if (!open) resetForm()
-        setIsDialogOpen(open)
-      }}>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) resetForm()
+          setIsDialogOpen(open)
+        }}>
         <DialogTrigger asChild>
           <Button onClick={() => setIsDialogOpen(true)}>Create New Group</Button>
         </DialogTrigger>
@@ -227,8 +239,10 @@ const Groups: React.FC = () => {
                   <LoadingSpinner className="mr-2" size={16} />
                   {isEditMode ? "Updating..." : "Creating..."}
                 </>
+              ) : isEditMode ? (
+                "Update"
               ) : (
-                isEditMode ? "Update" : "Create"
+                "Create"
               )}
             </Button>
           </DialogFooter>
@@ -240,21 +254,21 @@ const Groups: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the group
-              "{groupToDelete?.name}" and remove it from our servers.
+              This action cannot be undone. This will permanently delete the group "{groupToDelete?.name}" and remove it from our
+              servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setGroupToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (groupToDelete) { // Add null check
-                  handleDeleteGroup();
+                if (groupToDelete) {
+                  // Add null check
+                  handleDeleteGroup()
                 }
               }}
               disabled={isLoading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isLoading ? <LoadingSpinner size={16} className="mr-2" /> : null}
               Delete
             </AlertDialogAction>
@@ -291,42 +305,42 @@ const Groups: React.FC = () => {
               <CollapsibleContent>
                 <CardContent>
                   {/* Removed duplicate CardContent tag */}
-                    <div className="space-y-2">
-                      <div>
-                        <p className="mb-2 font-medium">Participants:</p>
-                        <ul className="pl-6 space-y-1 list-disc">
-                          {(() => {
-                            // Determine participant IDs for the current group
-                            let participantIds: string[] = [];
-                            // Use updated Group type which includes optional participant_ids
-                            if (Array.isArray(group.participant_ids)) {
-                                participantIds = group.participant_ids;
-                            } else if (Array.isArray(group.participants)) {
-                                // Fallback: try to get IDs from the participants array if participant_ids doesn't exist
-                                participantIds = group.participants.map(p => p?.id).filter((id): id is string => !!id);
-                            }
+                  <div className="space-y-2">
+                    <div>
+                      <p className="mb-2 font-medium">Participants:</p>
+                      <ul className="pl-6 space-y-1 list-disc">
+                        {(() => {
+                          // Determine participant IDs for the current group
+                          let participantIds: string[] = []
+                          // Use updated Group type which includes optional participant_ids
+                          if (Array.isArray(group.participant_ids)) {
+                            participantIds = group.participant_ids
+                          } else if (Array.isArray(group.participants)) {
+                            // Fallback: try to get IDs from the participants array if participant_ids doesn't exist
+                            participantIds = group.participants.map((p) => p?.id).filter((id): id is string => !!id)
+                          }
 
-                            // Look up full participant details from the map
-                            const populatedParticipants = participantIds
-                              .map(id => participantsMap.get(id))
-                              .filter((p): p is Participant => !!p); // Filter out undefined results
+                          // Look up full participant details from the map
+                          const populatedParticipants = participantIds
+                            .map((id) => participantsMap.get(id))
+                            .filter((p): p is Participant => !!p) // Filter out undefined results
 
-                            if (populatedParticipants.length === 0) {
-                              return <li>No participants assigned or details unavailable.</li>;
-                            }
+                          if (populatedParticipants.length === 0) {
+                            return <li>No participants assigned or details unavailable.</li>
+                          }
 
-                            return populatedParticipants.map((participant) => (
-                              <li key={participant.id}>
-                                <span className="font-medium">{participant.name}</span>
-                                <span className="text-gray-600"> - {participant.role}</span>
-                              </li>
-                            ));
-                          })()}
-                        </ul>
-                      </div>
+                          return populatedParticipants.map((participant) => (
+                            <li key={participant.id}>
+                              <span className="font-medium">{participant.name}</span>
+                              <span className="text-gray-600"> - {participant.role}</span>
+                            </li>
+                          ))
+                        })()}
+                      </ul>
                     </div>
-                  </CardContent>
-                </CollapsibleContent>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
             </Card>
           </Collapsible>
         ))}

@@ -61,7 +61,9 @@ const Participants: React.FC = () => {
         setParticipantToDelete(null) // Close dialog by resetting state
       } else {
         console.error("Delete participant response did not contain deleted_id:", response.data)
-        toast.error(`Failed to delete participant "${decodeMarkdownContent(participantToDelete.name)}" (invalid server response).`)
+        toast.error(
+          `Failed to delete participant "${decodeMarkdownContent(participantToDelete.name)}" (invalid server response).`,
+        )
       }
     } catch (error) {
       console.error("Error deleting participant:", error)
@@ -111,7 +113,7 @@ const Participants: React.FC = () => {
         core_qualities: encodeMarkdownContent(editedParticipant.core_qualities),
         style_preferences: encodeMarkdownContent(editedParticipant.style_preferences),
         additional_info: encodeMarkdownContent(editedParticipant.additional_info),
-      };
+      }
 
       // API now returns the full updated participant object in response.data
       const response = await updateParticipant(selectedParticipant.id, participantDataToUpdate)
@@ -125,8 +127,8 @@ const Participants: React.FC = () => {
         setEditedParticipant(null) // Clear edit state
         setSelectedParticipant(null) // Clear selected state
       } else {
-         console.error("Update participant response did not contain expected participant data:", response.data)
-         toast.error("Failed to update participant (invalid server response).")
+        console.error("Update participant response did not contain expected participant data:", response.data)
+        toast.error("Failed to update participant (invalid server response).")
       }
     } catch (error) {
       console.error("Error updating participant:", error)
@@ -135,7 +137,6 @@ const Participants: React.FC = () => {
       setIsUpdating(false)
     }
   }
-
 
   // Handle loading state
   if (isAuthLoading || !state.isInitialized) {
@@ -165,14 +166,18 @@ const Participants: React.FC = () => {
       </div>
 
       {participants.length === 0 ? (
-         <p className="text-center text-muted-foreground">No participants found. Create one!</p>
+        <p className="text-center text-muted-foreground">No participants found. Create one!</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {participants.map((participant) => (
             <Card key={participant.id}>
               <div className="flex items-center p-4">
                 <Avatar className="h-14 w-14">
-                  <AvatarFallback>{participant.name ? participant.name.charAt(0).toUpperCase() + (participant.name.length > 1 ? participant.name.charAt(1) : '') : 'P'}</AvatarFallback>
+                  <AvatarFallback>
+                    {participant.name
+                      ? participant.name.charAt(0).toUpperCase() + (participant.name.length > 1 ? participant.name.charAt(1) : "")
+                      : "P"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="ml-4">
                   <CardTitle className="text-lg">{decodeMarkdownContent(participant.name)}</CardTitle>
@@ -217,8 +222,11 @@ const Participants: React.FC = () => {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setParticipantToDelete(null)}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={executeDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            {isDeleting ? <LoadingSpinner size={16} className="mr-2"/> : null}
+                          <AlertDialogAction
+                            onClick={executeDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            {isDeleting ? <LoadingSpinner size={16} className="mr-2" /> : null}
                             Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -239,7 +247,9 @@ const Participants: React.FC = () => {
             <DialogTitle>View Participant</DialogTitle>
           </DialogHeader>
           {selectedParticipant && (
-            <div className="grid gap-4 py-4"> {/* Added py-4 */}
+            <div className="grid gap-4 py-4">
+              {" "}
+              {/* Added py-4 */}
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Name</label>
                 <p>{decodeMarkdownContent(selectedParticipant.name)}</p>
@@ -250,35 +260,51 @@ const Participants: React.FC = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Professional Background</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[60px]">{decodeMarkdownContent(selectedParticipant.professional_background)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[60px]">
+                  {decodeMarkdownContent(selectedParticipant.professional_background)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Industry Experience</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">{decodeMarkdownContent(selectedParticipant.industry_experience)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
+                  {decodeMarkdownContent(selectedParticipant.industry_experience)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Role Overview</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[50px]">{decodeMarkdownContent(selectedParticipant.role_overview)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[50px]">
+                  {decodeMarkdownContent(selectedParticipant.role_overview)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Technical Stack</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">{decodeMarkdownContent(selectedParticipant.technical_stack)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
+                  {decodeMarkdownContent(selectedParticipant.technical_stack)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Soft Skills</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">{decodeMarkdownContent(selectedParticipant.soft_skills)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
+                  {decodeMarkdownContent(selectedParticipant.soft_skills)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Core Qualities</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">{decodeMarkdownContent(selectedParticipant.core_qualities)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
+                  {decodeMarkdownContent(selectedParticipant.core_qualities)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Style Preferences</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">{decodeMarkdownContent(selectedParticipant.style_preferences)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
+                  {decodeMarkdownContent(selectedParticipant.style_preferences)}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Additional Information</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">{decodeMarkdownContent(selectedParticipant.additional_info)}</div>
+                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
+                  {decodeMarkdownContent(selectedParticipant.additional_info)}
+                </div>
               </div>
             </div>
           )}
@@ -292,7 +318,9 @@ const Participants: React.FC = () => {
             <DialogTitle>Edit Participant</DialogTitle>
           </DialogHeader>
           {editedParticipant && (
-            <div className="grid gap-4 py-4"> {/* Added py-4 */}
+            <div className="grid gap-4 py-4">
+              {" "}
+              {/* Added py-4 */}
               {/* Form fields remain largely the same, ensure they use editedParticipant state */}
               <div>
                 <label className="text-sm font-medium">Name</label>
@@ -313,15 +341,19 @@ const Participants: React.FC = () => {
                 <Textarea
                   rows={5}
                   value={editedParticipant.professional_background || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, professional_background: e.target.value } : null))}
+                  onChange={(e) =>
+                    setEditedParticipant((prev) => (prev ? { ...prev, professional_background: e.target.value } : null))
+                  }
                 />
               </div>
-               <div>
+              <div>
                 <label className="text-sm font-medium">Industry Experience</label>
                 <Textarea
                   rows={3}
                   value={editedParticipant.industry_experience || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, industry_experience: e.target.value } : null))}
+                  onChange={(e) =>
+                    setEditedParticipant((prev) => (prev ? { ...prev, industry_experience: e.target.value } : null))
+                  }
                 />
               </div>
               <div>

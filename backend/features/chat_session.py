@@ -41,7 +41,7 @@ async def get_user_chat_sessions(user_id: str) -> list:
                     session["meeting_topic"] = meeting.topic
                     session["meeting_name"] = meeting.name
                     session["participants"] = meeting.participants
-                    
+
                     # Check if meeting has a group_id and get group details
                     if meeting.group_ids and len(meeting.group_ids) > 0:
                         group_id = meeting.group_ids[0]  # Get the first group_id
@@ -57,9 +57,9 @@ async def get_user_chat_sessions(user_id: str) -> list:
                 except Exception as e:
                     logger.warning(f"Could not fetch meeting details for chat session {session.get('id')}: {str(e)}")
                     # Continue even if meeting details can't be fetched
-            session["display_messages"]=[]
-            session["messages"]=[]
-            
+            session["display_messages"] = []
+            session["messages"] = []
+
             enhanced_sessions.append(session)
 
         logger.info(f"Retrieved and enhanced {len(enhanced_sessions)} chat sessions for user {user_id}")
@@ -93,7 +93,7 @@ async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
                 chat_session["meeting_topic"] = meeting.topic
                 chat_session["meeting_name"] = meeting.name
                 chat_session["participants"] = meeting.participants
-                
+
                 # Check if meeting has a group_id and get group details
                 if meeting.group_ids and len(meeting.group_ids) > 0:
                     group_id = meeting.group_ids[0]  # Get the first group_id
