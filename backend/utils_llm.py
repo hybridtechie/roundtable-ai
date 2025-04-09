@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from logger_config import setup_logger
 from llm_providers.azure_openai import AzureOpenAIClient
 from llm_providers.openai_client import OpenAIClient
-from llm_providers.deepseek_client import DeepseekClient # Added Deepseek client
+from llm_providers.deepseek_client import DeepseekClient
+from llm_providers.gemini_client import GeminiClient # Added Gemini client
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -48,6 +49,14 @@ class LLMClient:
                 self._validate_required_fields(provider_details, required_fields)
 
                 self.client = DeepseekClient(
+                    api_key=provider_details["api_key"],
+                    model=provider_details["model"],
+                )
+            elif self.provider.lower() == "gemini":
+                required_fields = ["model", "api_key"]
+                self._validate_required_fields(provider_details, required_fields)
+
+                self.client = GeminiClient(
                     api_key=provider_details["api_key"],
                     model=provider_details["model"],
                 )
@@ -178,6 +187,34 @@ if __name__ == "__main__":
                  logger.error("Deepseek test failed during execution: %s", str(e), exc_info=True)
         else:
             logger.warning("Skipping Deepseek tests - DEEPSEEK_API_KEY not set.")
+
+
+        # Example Gemini provider details (Requires GOOGLE_API_KEY and GEMINI_MODEL_NAME env vars)
+        gemini_provider_details = {
+            "provider": "Gemini",
+            "model": os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash"), # Example default
+            "api_key": os.getenv("GOOGLE_API_KEY") # Google uses GOOGLE_API_KEY convention
+        }
+
+        # Initialize client with Gemini provider
+        if gemini_provider_details["api_key"]: # Check if key is provided
+            logger.info("--- Testing Gemini Client ---")
+            try:
+                client_gemini = LLMClient(gemini_provider_details)
+                logger.info("Testing LLM client with provider: %s", gemini_provider_details["provider"])
+
+                # Test single message
+                prompt_gemini = "Explain the concept of generative AI simply."
+                logger.info("Testing single message prompt...")
+                # Note: Gemini client currently returns None for usage details
+                response_gemini, usage_gemini = client_gemini.send_request(prompt_gemini)
+                logger.info(f"Response: {response_gemini}")
+                logger.info(f"Usage: {usage_gemini}") # Will show None values
+                logger.info("Single message test successful.")
+            except Exception as e:
+                 logger.error("Gemini test failed during execution: %s", str(e), exc_info=True)
+        else:
+            logger.warning("Skipping Gemini tests - GOOGLE_API_KEY not set.")
 
 
     except Exception as e:
