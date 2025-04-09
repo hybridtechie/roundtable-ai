@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Eye, Trash2 } from "lucide-react"
+import { LoadingSpinner } from "@/components/ui/loading-spinner" // Import LoadingSpinner
 import { FC } from "react"
 
 interface MeetingDetailsDialogProps {
@@ -54,15 +55,22 @@ interface ActionsProps {
   meeting: Meeting
   onDelete: (id: string) => void
   onView: (meeting: Meeting) => void
+  isDeleting: boolean // Add isDeleting prop
 }
 
-const Actions: FC<ActionsProps> = ({ meeting, onDelete, onView }) => (
+const Actions: FC<ActionsProps> = ({ meeting, onDelete, onView, isDeleting }) => (
   <div className="flex gap-2">
     <Button variant="ghost" size="icon" onClick={() => onView(meeting)} className="hover:bg-slate-100">
       <Eye className="w-4 h-4" />
     </Button>
-    <Button variant="ghost" size="icon" onClick={() => onDelete(meeting.id)} className="hover:bg-red-100 hover:text-red-600">
-      <Trash2 className="w-4 h-4" />
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => onDelete(meeting.id)}
+      className="hover:bg-red-100 hover:text-red-600"
+      disabled={isDeleting} // Disable button when deleting
+    >
+      {isDeleting ? <LoadingSpinner size={16} /> : <Trash2 className="w-4 h-4" />}
     </Button>
   </div>
 )
@@ -70,9 +78,10 @@ const Actions: FC<ActionsProps> = ({ meeting, onDelete, onView }) => (
 type ColumnProps = {
   onDelete: (id: string) => void
   onView: (meeting: Meeting) => void
+  isDeleting: boolean // Add isDeleting prop here too
 }
 
-export const columns = ({ onDelete, onView }: ColumnProps): ColumnDef<Meeting>[] => [
+export const columns = ({ onDelete, onView, isDeleting }: ColumnProps): ColumnDef<Meeting>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -97,7 +106,15 @@ export const columns = ({ onDelete, onView }: ColumnProps): ColumnDef<Meeting>[]
     accessorKey: "participants",
     header: "Participants",
     cell: ({ row }) => {
-      const participants = row.getValue("participants") as Meeting["participants"]
+      // Ensure participants is treated as potentially undefined
+      const participants = row.getValue("participants") as Meeting["participants"] | undefined;
+
+      // Check if participants is an array and not empty before mapping
+      if (!Array.isArray(participants) || participants.length === 0) {
+        return <div className="text-xs text-gray-500">No participants</div>; // Fallback UI
+      }
+
+      // If it's a valid array, map over it
       return (
         <div className="flex -space-x-2">
           {participants.map((participant) => (
@@ -106,12 +123,12 @@ export const columns = ({ onDelete, onView }: ColumnProps): ColumnDef<Meeting>[]
             </Avatar>
           ))}
         </div>
-      )
+      );
     },
   },
   {
     id: "actions",
-    cell: ({ row }) => <Actions meeting={row.original} onDelete={onDelete} onView={onView} />,
+    cell: ({ row }) => <Actions meeting={row.original} onDelete={onDelete} onView={onView} isDeleting={isDeleting} />, // Pass isDeleting to Actions
   },
 ]
 

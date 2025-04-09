@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode, useEffect, useReducer, Dispatch } from "react";
 import { useAuth0, User } from "@auth0/auth0-react";
 import { login } from "@/lib/api";
-import { Participant, Group, LLMAccountsResponse } from "@/types/types"; // Import Participant and Group types
+import { Participant, Group, Meeting, LLMAccountsResponse } from "@/types/types"; // Import Participant, Group, and Meeting types
 
 // Define the shape of the user data returned by your backend login, if any.
 // It should include a participants array if that's where the data lives.
@@ -11,7 +11,7 @@ type BackendUserData = {
   name: string;
   participants?: Participant[];
   groups?: Group[];
-  meetings?: unknown[];
+  meetings?: Meeting[]; // Use Meeting type
   llmAccounts?: LLMAccountsResponse;
   [key: string]: unknown;
 };
@@ -37,7 +37,11 @@ type AuthAction =
   // Group specific actions
   | { type: 'ADD_GROUP'; payload: Group }
   | { type: 'UPDATE_GROUP'; payload: Group }
-  | { type: 'DELETE_GROUP'; payload: string }; // Payload is group ID
+  | { type: 'DELETE_GROUP'; payload: string } // Payload is group ID
+  // Meeting specific actions
+  | { type: 'ADD_MEETING'; payload: Meeting }
+  | { type: 'UPDATE_MEETING'; payload: Meeting }
+  | { type: 'DELETE_MEETING'; payload: string }; // Payload is meeting ID
 
 // Initial state for the reducer
 const initialState: AuthState = {
@@ -49,6 +53,7 @@ const initialState: AuthState = {
 // Helper to safely get participants array from state
 const getParticipants = (state: AuthState): Participant[] => state.backendUser?.participants || [];
 const getGroups = (state: AuthState): Group[] => state.backendUser?.groups || [];
+const getMeetings = (state: AuthState): Meeting[] => state.backendUser?.meetings || [];
 
 // The reducer function to handle state updates based on actions
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -62,6 +67,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
             ...action.payload,
             participants: action.payload.participants || [],
             groups: action.payload.groups || [], // Initialize groups array
+            meetings: action.payload.meetings || [], // Initialize meetings array
           }
         : undefined;
       return { ...state, backendUser: backendUserWithParticipants };
@@ -72,6 +78,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       // Ensure participants array exists after update
       if (!updatedBackendUser.participants) updatedBackendUser.participants = [];
       if (!updatedBackendUser.groups) updatedBackendUser.groups = []; // Ensure groups array exists
+      if (!updatedBackendUser.meetings) updatedBackendUser.meetings = []; // Ensure meetings array exists
       return {
         ...state,
         backendUser: updatedBackendUser as BackendUserData,
@@ -160,6 +167,45 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       };
     }
 
+    // Meeting Reducer Logic
+    case 'ADD_MEETING': {
+      if (!state.backendUser) return state;
+      const meetings = getMeetings(state);
+      return {
+        ...state,
+        backendUser: {
+          ...state.backendUser,
+          meetings: [...meetings, action.payload],
+        },
+      };
+    }
+    case 'UPDATE_MEETING': {
+      if (!state.backendUser) return state;
+      const meetings = getMeetings(state);
+      const updatedMeetings = meetings.map(m =>
+        m.id === action.payload.id ? action.payload : m
+      );
+      return {
+        ...state,
+        backendUser: {
+          ...state.backendUser,
+          meetings: updatedMeetings,
+        },
+      };
+    }
+    case 'DELETE_MEETING': {
+      if (!state.backendUser) return state;
+      const meetings = getMeetings(state);
+      const filteredMeetings = meetings.filter(m => m.id !== action.payload);
+      return {
+        ...state,
+        backendUser: {
+          ...state.backendUser,
+          meetings: filteredMeetings,
+        },
+      };
+    }
+
     default:
       // const _exhaustiveCheck: never = action; // Uncomment for exhaustive checks
       return state;
@@ -217,6 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Ensure participants array exists in fetched data
             if (!backendData.participants) backendData.participants = [];
             if (!backendData.groups) backendData.groups = []; // Ensure groups array exists on login
+            if (!backendData.meetings) backendData.meetings = []; // Ensure meetings array exists on login
 
             // Dispatch SET_BACKEND_USER which now handles participants initialization
             dispatch({ type: 'SET_BACKEND_USER', payload: backendData });

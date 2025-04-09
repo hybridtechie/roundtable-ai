@@ -9,8 +9,6 @@ import { useState } from "react"
 import { toast } from "@/components/ui/sonner"
 
 import {
-  LLMAccountCreate,
-  LLMAccountsResponse,
   createLLMAccount,
   deleteLLMAccount,
   listLLMAccounts,
@@ -18,6 +16,7 @@ import {
 } from "@/lib/api"
 import { useEffect } from "react"
 import { Star, StarOff, Trash2 } from "lucide-react"
+import { LLMAccountCreate, LLMAccountsResponse } from "@/types/types"
 
 export function AISettings() {
   const [accounts, setAccounts] = useState<LLMAccountsResponse>({
