@@ -187,7 +187,6 @@ const Chat: React.FC = () => {
             }
           },
         })
-        console.log("Chat stream started successfully")
       } catch (error) {
         console.error("Error starting chat stream:", error)
         // More detailed error logging

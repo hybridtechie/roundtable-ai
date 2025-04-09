@@ -79,15 +79,6 @@ const ChatSessions: React.FC = () => {
   }
 
   const groupedSessions = sortedChatSessions.reduce<GroupedSessions>((acc, session) => {
-    console.log("Processing session:", {
-      id: session.id,
-      _ts: session._ts,
-      timestamp: new Date(session._ts * 1000).toLocaleString(),
-      participants: session.participants?.length,
-      meeting_id: session.meeting_id,
-      group_name: session.group_name,
-      title: session.title,
-    })
     // Check if it's a single participant session
     const isSingleParticipant = session.participants?.length === 1
     const key = isSingleParticipant ? session.participants[0].participant_id : session.group_id || "other"
@@ -108,8 +99,6 @@ const ChatSessions: React.FC = () => {
     group.sessions.sort((a, b) => (b._ts ?? 0) - (a._ts ?? 0))
   })
 
-  // Separate sessions into chats and meetings
-  console.log("Before categorization - groupedSessions:", groupedSessions)
   const { chats, meetings } = Object.entries(groupedSessions).reduce(
     (acc, [key, group]) => {
       if (group.type === "participant") {
@@ -124,18 +113,13 @@ const ChatSessions: React.FC = () => {
       meetings: ((typeof groupedSessions)[string] & { key: string })[]
     },
   )
-  console.log("After categorization - meetings:", meetings)
 
-  // Sort by most recent timestamp
-  console.log("Before sorting - meetings:", meetings)
   const sortByTimestamp = (items: ((typeof groupedSessions)[string] & { key: string })[]) => {
     const sorted = items.sort((a, b) => {
       const aLatest = Math.max(...a.sessions.map((s) => s._ts ?? 0))
       const bLatest = Math.max(...b.sessions.map((s) => s._ts ?? 0))
-      console.log("Comparing timestamps:", { a: aLatest, b: bLatest })
       return bLatest - aLatest
     })
-    console.log("After sorting:", sorted)
     return sorted
   }
 
