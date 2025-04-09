@@ -1,11 +1,10 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { NavLink } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { deleteChatSession } from "@/lib/api"
-import { useChatSessions } from "@/context/ChatSessionsContext"
+import { deleteChatSession, listChatSessions } from "@/lib/api"
 import { ChatSession } from "@/types/types"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronRight } from "lucide-react"
@@ -44,12 +43,37 @@ const ChatMenu: React.FC<ChatMenuProps> = ({ onDelete }) => {
 }
 
 const ChatSessions: React.FC = () => {
-  const { chatSessions, loading, error, refreshChatSessions } = useChatSessions()
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchChatSessions = async () => {
+    setLoading(true)
+    try {
+      const response = await listChatSessions()
+      // Take only the last 10 sessions, sorted by most recent
+      const sortedSessions = response.data.chat_sessions
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 30)
+      setChatSessions(sortedSessions)
+      setError(null)
+    } catch (err) {
+      setError("Failed to load chat sessions")
+      console.error("Error fetching chat sessions:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial fetch
+  useEffect(() => {
+    fetchChatSessions()
+  }, [])
 
   const handleDelete = async (sessionId: string) => {
     try {
       await deleteChatSession(sessionId)
-      refreshChatSessions() // Refresh the chat sessions list
+      fetchChatSessions() // Refresh the chat sessions list
     } catch (error) {
       console.error("Failed to delete chat session:", error)
     }

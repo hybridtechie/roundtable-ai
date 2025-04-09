@@ -7,8 +7,14 @@ import { createParticipant } from "@/lib/api"
 import { encodeMarkdownContent } from "@/lib/utils"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
+import { useAuth } from "@/context/AuthContext" // Import useAuth
+import { Participant } from "@/types/types" // Import Participant type
+import { useNavigate } from "react-router-dom" // Import useNavigate
 
 const CreateParticipant: React.FC = () => {
+  const { dispatch } = useAuth() // Get dispatch from context
+  const navigate = useNavigate() // Hook for navigation
+
   const initialState = {
     name: "",
     role: "",
@@ -29,7 +35,7 @@ const CreateParticipant: React.FC = () => {
     setIsLoading(true)
     try {
       // Encode all text fields to safely handle markdown content
-      const encodedParticipant = {
+      const encodedParticipantData = {
         name: encodeMarkdownContent(newParticipant.name),
         role: encodeMarkdownContent(newParticipant.role),
         professional_background: encodeMarkdownContent(newParticipant.professional_background),
@@ -43,9 +49,24 @@ const CreateParticipant: React.FC = () => {
       }
 
       console.log("Creating participant with encoded markdown content")
-      await createParticipant(encodedParticipant)
-      setNewParticipant(initialState)
-      toast.success("Participant created successfully!")
+      // API now returns the created participant object directly in response.data
+      const response = await createParticipant(encodedParticipantData)
+
+      // The created participant object is directly in response.data
+      const createdParticipant: Participant | undefined = response.data
+
+      if (createdParticipant && createdParticipant.id) { // Check if data and ID exist
+        // Dispatch action to add participant to global state
+        dispatch({ type: "ADD_PARTICIPANT", payload: createdParticipant })
+        setNewParticipant(initialState) // Reset form only on success
+        toast.success("Participant created successfully!")
+        navigate("/participants") // Navigate back to the list view
+      } else {
+        // Handle case where participant data is not returned as expected
+        console.error("Create participant response did not contain expected participant data:", response.data)
+        toast.error("Failed to create participant (invalid server response).")
+      }
+
     } catch (error) {
       console.error("Error creating participant:", error)
       toast.error("Failed to create participant. Please try again.")
@@ -68,6 +89,7 @@ const CreateParticipant: React.FC = () => {
           <CardTitle>New Participant</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {/* Form fields remain the same */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="name" className="block mb-2 text-sm font-medium">
@@ -99,9 +121,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="background"
-              placeholder="Professional background (e.g., 10+ years of experience across architecture, software engineering, and solution design...)"
+              placeholder="Professional background (e.g., 10+ years of experience...)"
               value={newParticipant.professional_background}
               onChange={(e) => setNewParticipant({ ...newParticipant, professional_background: e.target.value })}
+              rows={5}
             />
           </div>
 
@@ -111,9 +134,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="industry"
-              placeholder="Industry & domain experience (e.g., Government, Energy, Banking, Systems integration...)"
+              placeholder="Industry & domain experience (e.g., Government, Energy...)"
               value={newParticipant.industry_experience}
               onChange={(e) => setNewParticipant({ ...newParticipant, industry_experience: e.target.value })}
+              rows={3}
             />
           </div>
 
@@ -123,9 +147,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="overview"
-              placeholder="Role overview (e.g., Leads high-level architecture and design across large delivery teams...)"
+              placeholder="Role overview (e.g., Leads high-level architecture...)"
               value={newParticipant.role_overview}
               onChange={(e) => setNewParticipant({ ...newParticipant, role_overview: e.target.value })}
+              rows={4}
             />
           </div>
 
@@ -135,9 +160,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="tech"
-              placeholder="Technical stack & tools (e.g., .NET, Azure, ServiceNow, Neo4j, Python...)"
+              placeholder="Technical stack & tools (e.g., .NET, Azure...)"
               value={newParticipant.technical_stack}
               onChange={(e) => setNewParticipant({ ...newParticipant, technical_stack: e.target.value })}
+              rows={3}
             />
           </div>
 
@@ -147,9 +173,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="soft"
-              placeholder="Soft skills (e.g., Highly collaborative, people-first mindset, comfortable leading discussions...)"
+              placeholder="Soft skills (e.g., Highly collaborative...)"
               value={newParticipant.soft_skills}
               onChange={(e) => setNewParticipant({ ...newParticipant, soft_skills: e.target.value })}
+              rows={3}
             />
           </div>
 
@@ -159,9 +186,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="qualities"
-              placeholder="Core qualities (e.g., Technically grounded, empathetic leader, detail-oriented...)"
+              placeholder="Core qualities (e.g., Technically grounded...)"
               value={newParticipant.core_qualities}
               onChange={(e) => setNewParticipant({ ...newParticipant, core_qualities: e.target.value })}
+              rows={3}
             />
           </div>
 
@@ -171,9 +199,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="style"
-              placeholder="Communication style & preferences (e.g., Clear and structured communication, visual thinker...)"
+              placeholder="Communication style & preferences (e.g., Clear and structured...)"
               value={newParticipant.style_preferences}
               onChange={(e) => setNewParticipant({ ...newParticipant, style_preferences: e.target.value })}
+              rows={3}
             />
           </div>
 
@@ -183,9 +212,10 @@ const CreateParticipant: React.FC = () => {
             </label>
             <Textarea
               id="additional"
-              placeholder="Additional information (Optional: Any other relevant details about the participant)"
+              placeholder="Additional information (Optional)"
               value={newParticipant.additional_info}
               onChange={(e) => setNewParticipant({ ...newParticipant, additional_info: e.target.value })}
+              rows={3}
             />
           </div>
 

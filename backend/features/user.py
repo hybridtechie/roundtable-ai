@@ -104,25 +104,9 @@ async def validate_id_token(id_token: str) -> Dict:
         raise HTTPException(status_code=500, detail="Token validation error")
 # Removed extract_email_from_token as login_user handles payload directly
 # Removed unused chat_sessions_count variable
-async def login_user(authorization: str = Header(...)) -> Dict:
+async def login_user(name: str, email: str) -> Dict:
     """Handle user login with idToken validation and user creation/retrieval"""
     try:
-        # Extract token from Authorization header
-        if not authorization.startswith("Bearer "):
-            logger.warning("Invalid authorization header format")
-            raise HTTPException(status_code=401, detail="Invalid authorization header format. Expected 'Bearer <token>'")
-        
-        id_token = authorization.split(" ")[1]
-        if not id_token:
-            raise HTTPException(status_code=401, detail="Empty token provided")
-
-        # Validate token and extract user information
-        payload = await validate_id_token(id_token)
-        
-        # Extract required user information from token claims
-        email = payload.get("email")
-        name = payload.get("name", "")  # Use empty string as fallback if name not in token
-        
         if not email:
             logger.warning("Token missing email claim")
             raise HTTPException(status_code=400, detail="Email claim not found in token")
@@ -130,7 +114,7 @@ async def login_user(authorization: str = Header(...)) -> Dict:
         logger.info(f"User authenticated: {email}")
         
         # Check if user exists in Cosmos DB
-        user_data = await cosmos_client.get_user_by_email(email)
+        user_data = await cosmos_client.get_user_data(email)
         
         if not user_data:
             logger.info(f"Creating new user account for: {email}")
@@ -150,10 +134,10 @@ async def login_user(authorization: str = Header(...)) -> Dict:
             # Create new user in Cosmos DB
             await cosmos_client.create_user(new_user)
             logger.info(f"New user created: {email}")
-            return await get_me(email)
+            return user_data
         
         logger.info(f"Existing user logged in: {email}")
-        return await get_me(email)
+        return user_data
 
     except HTTPException:
         # Re-raise HTTP exceptions without modification

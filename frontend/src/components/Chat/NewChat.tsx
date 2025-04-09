@@ -6,13 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { listParticipants, createMeeting, listMeetings } from "@/lib/api"
 import { Participant, Meeting } from "@/types/types"
-import { useChatSessions } from "@/context/ChatSessionsContext"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "sonner"
 
 const NewChat: React.FC = () => {
   const navigate = useNavigate()
-  const { refreshChatSessions } = useChatSessions()
   const [chatMode, setChatMode] = useState<"new" | "existing">("new")
   const [participants, setParticipants] = useState<Participant[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
@@ -51,8 +49,6 @@ const NewChat: React.FC = () => {
       if (chatMode === "existing") {
         // For existing meetings, navigate directly to chat session
         navigate(`/chat/${selectedMeeting}/session`, { state: { messages: [] } })
-        // Refresh chat sessions to update the recent chats list
-        await refreshChatSessions()
         return
       }
 
@@ -72,8 +68,6 @@ const NewChat: React.FC = () => {
         ],
       })
       toast.success("Chat meeting created successfully")
-      // Refresh chat sessions to update the recent chats list
-      await refreshChatSessions()
       navigate(`/chat/${response.data.meeting_id}/session`, { state: { messages: [] } })
     } catch (error) {
       console.error("Error creating chat:", error)

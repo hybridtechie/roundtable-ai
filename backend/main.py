@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
-from features.participant import create_participant, get_participant, update_participant, delete_participant, list_participants, ParticipantCreate, ParticipantUpdate
+# Updated import to include ParticipantResponse
+from features.participant import (
+    create_participant, get_participant, update_participant, delete_participant,
+    list_participants, ParticipantCreate, ParticipantUpdate, ParticipantResponse
+)
 from features.meeting import create_meeting, get_meeting, list_meetings, set_meeting_topic, delete_meeting, MeetingCreate, MeetingTopic
 from features.group import create_group, get_group, update_group, delete_group, list_groups, GroupCreate, GroupUpdate
 from features.chat import stream_meeting_discussion, MeetingDiscussion
@@ -16,7 +20,7 @@ from logger_config import setup_logger
 from utils_llm import LLMClient
 from prompts import generate_questions_prompt
 import requests
-from typing import Annotated
+from typing import Annotated, List # Import List for list response model
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jws, jwt, ExpiredSignatureError, JWTError, JWSError
 from jose.exceptions import JWTClaimsError
@@ -49,16 +53,19 @@ AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID") # Add Client ID for ID token vali
 jwks_endpoint = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
 jwks = requests.get(jwks_endpoint).json()["keys"]
 
+
 security = HTTPBearer()
 
 class UserClaims(BaseModel):
-    sub: str
-    permissions: list[str]
+    name: str
+    email: str
 
 def find_public_key(kid):
     for key in jwks:
         if key["kid"] == kid:
             return key
+    # Optionally, raise an error if the key is not found
+    raise HTTPException(status_code=401, detail=f"Public key not found for kid: {kid}")
 
 
 def validate_token(
@@ -69,11 +76,11 @@ def validate_token(
         token_payload = jwt.decode(
             token=credentials.credentials,
             key=find_public_key(unverified_headers["kid"]),
-            audience=AUTH0_AUDIENCE,
+            audience=AUTH0_CLIENT_ID,
             algorithms="RS256",
         )
         return UserClaims(
-            sub=token_payload["sub"], permissions=token_payload.get("permissions", [])
+            name=token_payload["name"], email=token_payload["email"]
         )
     except (
         ExpiredSignatureError,
@@ -81,6 +88,7 @@ def validate_token(
         JWTClaimsError,
         JWSError,
     ) as error:
+        logger.error("Token validation failed: %s", str(error), exc_info=True)
         raise HTTPException(status_code=401, detail=str(error))
 
 # Health Check endpoint
@@ -94,25 +102,33 @@ async def health_check():
         raise HTTPException(status_code=500, detail="Service unhealthy")
 
 
+# --- Participant Endpoints ---
+
 # 01 Create Participant
-@app.post("/participant")
+@app.post("/participant", response_model=ParticipantResponse) # Add response model
 async def create_participant_endpoint(participant: ParticipantCreate):
     try:
         logger.info("Creating new participant: %s", participant.name)
-        result = await create_participant(participant)
-        logger.info("Successfully created participant: %s", participant.name)
-        return result
+        # The function now returns the created participant object
+        created_participant = await create_participant(participant)
+        logger.info("Successfully created participant: %s", created_participant.id)
+        # Return the full participant object directly
+        return created_participant
     except Exception as e:
         logger.error("Failed to create participant: %s - Error: %s", participant.name, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create participant: {str(e)}")
 
 
 # 02 List Participants
-@app.get("/participants")
+# Define a response model for the list endpoint
+class ListParticipantsResponse(BaseModel):
+    participants: List[ParticipantResponse]
+
+@app.get("/participants", response_model=ListParticipantsResponse) # Add response model
 async def list_participants_endpoint(user_id: str):
     try:
         logger.info("Fetching all participants for user: %s", user_id)
-        result = await list_participants(user_id)
+        result = await list_participants(user_id) # Function returns {"participants": [...]}
         logger.info("Successfully retrieved participants")
         return result
     except Exception as e:
@@ -121,36 +137,39 @@ async def list_participants_endpoint(user_id: str):
 
 
 # 03 Get Participant
-@app.get("/participant/{participant_id}")
+@app.get("/participant/{participant_id}", response_model=ParticipantResponse) # Add response model
 async def get_participant_endpoint(participant_id: str, user_id: str):
     try:
         logger.info("Fetching participant: %s for user: %s", participant_id, user_id)
-        result = await get_participant(participant_id, user_id)
+        # Function now returns the participant object directly
+        participant = await get_participant(participant_id, user_id)
         logger.info("Successfully retrieved participant: %s", participant_id)
-        return result
+        return participant
     except Exception as e:
         logger.error("Failed to fetch participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch participant: {str(e)}")
 
 
 # 04 Update Participant
-@app.put("/participant/{participant_id}")
+@app.put("/participant/{participant_id}", response_model=ParticipantResponse) # Add response model
 async def update_participant_endpoint(participant_id: str, participant: ParticipantUpdate):
     try:
         logger.info("Updating participant: %s", participant_id)
-        result = await update_participant(participant_id, participant)
+        # Function now returns the updated participant object
+        updated_participant = await update_participant(participant_id, participant)
         logger.info("Successfully updated participant: %s", participant_id)
-        return result
+        return updated_participant
     except Exception as e:
         logger.error("Failed to update participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update participant: {str(e)}")
 
 
 # 05 Delete Participant
-@app.delete("/participant/{participant_id}")
+@app.delete("/participant/{participant_id}", response_model=dict) # Add response model (dict for {"deleted_id": ...})
 async def delete_participant_endpoint(participant_id: str, user_id: str):
     try:
         logger.info("Deleting participant: %s for user: %s", participant_id, user_id)
+        # Function now returns {"deleted_id": participant_id}
         result = await delete_participant(participant_id, user_id)
         logger.info("Successfully deleted participant: %s", participant_id)
         return result
@@ -158,6 +177,8 @@ async def delete_participant_endpoint(participant_id: str, user_id: str):
         logger.error("Failed to delete participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to delete participant: {str(e)}")
 
+
+# --- Group Endpoints --- (Keep as is unless they also need updates)
 
 # 06 Create Group
 @app.post("/group")
@@ -224,6 +245,8 @@ async def delete_group_endpoint(group_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete group: {str(e)}")
 
 
+# --- Meeting Endpoints --- (Keep as is unless they also need updates)
+
 # 11 Create Meeting
 @app.post("/meeting")
 async def create_meeting_endpoint(meeting: MeetingCreate):
@@ -276,37 +299,29 @@ async def get_meeting_endpoint(meeting_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch meeting: {str(e)}")
 
 
-# 13 Start Meeting
+# 13 Start Meeting Stream
 @app.get("/chat-stream")
 async def chat_stream_endpoint(meeting_id: str, user_id: str):
     try:
         logger.info("Starting streaming chat discussion for Meeting: %s, User: %s", meeting_id, user_id)
-        # Get meeting with updated signature
         meeting = await get_meeting(meeting_id, user_id)
-        # Wrap the async generator in StreamingResponse
         return StreamingResponse(stream_meeting_discussion(meeting), media_type="text/event-stream")
     except Exception as e:
         logger.error("Failed to stream chat for meeting %s: %s", meeting_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
 
 
-# Chat Session endpoint
+# --- Chat Session Endpoints --- (Keep as is)
+
 @app.post("/chat-session")
 async def chat_session_endpoint(chat_request: ChatSessionCreate, user_id: str):
     try:
         logger.info("Processing chat request for Meeting: %s, User: %s", chat_request.meeting_id, user_id)
-
-        # Get meeting details
         meeting = await get_meeting(chat_request.meeting_id, user_id)
         if not meeting:
             raise HTTPException(status_code=404, detail="Meeting not found")
-
-        # Initialize MeetingDiscussion
         discussion = MeetingDiscussion(meeting)
-
-        # Handle the chat request
         result = await discussion.handle_chat_request(chat_request)
-
         logger.info("Successfully processed chat request")
         return result
     except Exception as e:
@@ -314,7 +329,6 @@ async def chat_session_endpoint(chat_request: ChatSessionCreate, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to process chat request: {str(e)}")
 
 
-# Chat Sessions endpoint
 @app.get("/chat-sessions")
 async def list_chat_sessions_endpoint(user_id: str):
     try:
@@ -327,7 +341,6 @@ async def list_chat_sessions_endpoint(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch chat sessions: {str(e)}")
 
 
-# Get Chat Session by ID endpoint
 @app.get("/chat-session/{session_id}")
 async def get_chat_session_endpoint(session_id: str, user_id: str):
     try:
@@ -340,7 +353,6 @@ async def get_chat_session_endpoint(session_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch chat session: {str(e)}")
 
 
-# Delete Chat Session endpoint
 @app.delete("/chat-session/{session_id}")
 async def delete_chat_session_endpoint(session_id: str, user_id: str):
     try:
@@ -353,10 +365,8 @@ async def delete_chat_session_endpoint(session_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete chat session: {str(e)}")
 
 
-# LLM Account Management Endpoints
+# --- LLM Account Management Endpoints --- (Keep as is)
 
-
-# Create LLM Account
 @app.post("/llm-account")
 async def create_llm_account_endpoint(llm: LLMAccountCreate):
     try:
@@ -369,7 +379,6 @@ async def create_llm_account_endpoint(llm: LLMAccountCreate):
         raise HTTPException(status_code=500, detail=f"Failed to create LLM account: {str(e)}")
 
 
-# List LLM Accounts
 @app.get("/llm-accounts")
 async def list_llm_accounts_endpoint(user_id: str):
     try:
@@ -382,7 +391,6 @@ async def list_llm_accounts_endpoint(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch LLM accounts: {str(e)}")
 
 
-# Update LLM Account
 @app.put("/llm-account/{provider}")
 async def update_llm_account_endpoint(provider: str, llm: LLMAccountUpdate):
     try:
@@ -395,7 +403,6 @@ async def update_llm_account_endpoint(provider: str, llm: LLMAccountUpdate):
         raise HTTPException(status_code=500, detail=f"Failed to update LLM account: {str(e)}")
 
 
-# Delete LLM Account
 @app.delete("/llm-account/{provider}")
 async def delete_llm_account_endpoint(provider: str, user_id: str):
     try:
@@ -408,7 +415,6 @@ async def delete_llm_account_endpoint(provider: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete LLM account: {str(e)}")
 
 
-# Set Default Provider
 @app.put("/llm-account/{provider}/set-default")
 async def set_default_provider_endpoint(provider: str, user_id: str):
     try:
@@ -421,7 +427,8 @@ async def set_default_provider_endpoint(provider: str, user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to set default provider: {str(e)}")
 
 
-# 14 Generate Questions
+# --- Generate Questions Endpoint --- (Keep as is)
+
 @app.get("/get-questions")
 async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
     """Endpoint to generate questions based on topic and group context."""
@@ -432,23 +439,20 @@ async def generate_questions_endpoint(topic: str, group_id: str, user_id: str):
         logger.error("Failed to generate questions: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
 
-# User Endpoints
+# --- User Endpoints --- (Keep as is)
 
-# Login User
 @app.post("/login")
 async def login_endpoint(token_payload: UserClaims = Depends(validate_token)):
     try:
         logger.info("Processing login request")
-        # result = await login_user(authorization)
+        result = await login_user(token_payload.name, token_payload.email)
         logger.info("Successfully processed login request")
-        return token_payload
+        return result
     except Exception as e:
         logger.error("Login failed: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 
-
-# Get Basic User Information
 @app.get("/user/me")
 async def get_user_info_endpoint(user_id: str):
     try:
@@ -461,7 +465,6 @@ async def get_user_info_endpoint(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch user information: {str(e)}")
 
 
-# Get Detailed User Information with Counts
 @app.get("/user/me/detail")
 async def get_user_detail_endpoint(user_id: str):
     try:

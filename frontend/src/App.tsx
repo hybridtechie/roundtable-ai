@@ -11,7 +11,6 @@ import NewChat from "./components/Chat/NewChat"
 import { ThemeProvider } from "@/components/theme-provider"
 import { NavBar } from "./components/Layout/NavBar"
 import { Toaster } from "@/components/ui/sonner"
-import { ChatSessionsProvider } from "./context/ChatSessionsContext"
 import { ProtectedRoute } from "./components/Auth/ProtectedRoute"
 import { LoginPage } from "./components/Auth/LoginPage" // Import LoginPage
 
@@ -32,7 +31,6 @@ function App() {
   return (
     <>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <ChatSessionsProvider>
           <Routes>
             {/* Public Login Route */}
             <Route path="/login" element={<LoginPage />} />
@@ -59,7 +57,6 @@ function App() {
               {/* Add other protected routes here as needed */}
             </Route>
           </Routes>
-        </ChatSessionsProvider>
       </ThemeProvider>
       <Toaster />
     </>
