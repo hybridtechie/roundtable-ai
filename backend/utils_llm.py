@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from logger_config import setup_logger
 from llm_providers.azure_openai import AzureOpenAIClient
 from llm_providers.openai_client import OpenAIClient
+from llm_providers.grok_client import GrokClient # Added GrokClient import
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -40,6 +41,14 @@ class LLMClient:
 
                 self.client = OpenAIClient(
                     api_key=provider_details.get("api_key"), # Pass None if not provided, 
+                    model=provider_details["model"],
+                )
+            elif self.provider.lower() == "grok": # Added Grok provider handling
+                required_fields = ["model", "api_key"]
+                self._validate_required_fields(provider_details, required_fields)
+
+                self.client = GrokClient(
+                    api_key=provider_details["api_key"],
                     model=provider_details["model"],
                 )
             else:
@@ -142,6 +151,32 @@ if __name__ == "__main__":
             logger.info("Single message test successful.")
         else:
             logger.warning("Skipping OpenAI tests - OPENAI_API_KEY not set.")
+
+
+        # Example Grok provider details (Added Grok example)
+        grok_provider_details = {
+            "provider": "Grok",
+            "model": os.getenv("GROK_MODEL_NAME", "grok-1"), # Example default
+            "api_key": os.getenv("GROK_API_KEY")
+        }
+
+        # Initialize client with Grok provider
+        if grok_provider_details["api_key"]: # Check if key is provided
+            logger.info("--- Testing Grok Client ---")
+            client_grok = LLMClient(grok_provider_details)
+            logger.info("Testing LLM client with provider: %s", grok_provider_details["provider"])
+
+            # Test single message
+            prompt_grok = "Explain the concept of Mixture of Experts in LLMs."
+            logger.info("Testing single message prompt...")
+            response_grok, usage_grok = client_grok.send_request(prompt_grok)
+            logger.info(f"Response: {response_grok}")
+            if usage_grok and usage_grok.get("total_tokens") is not None:
+                logger.info(f"Usage: {usage_grok}")
+            logger.info("Single message test successful.")
+        else:
+            logger.warning("Skipping Grok tests - GROK_API_KEY not set.")
+
 
     except Exception as e:
         logger.error("Test failed: %s", str(e), exc_info=True)
