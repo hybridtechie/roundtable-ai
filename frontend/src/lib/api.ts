@@ -172,7 +172,7 @@ export const deleteLLMAccount = (provider: string) => api.delete(`/llm-account/$
 export const setDefaultProvider = (provider: string) => api.put(`/llm-account/${provider}/set-default?user_id=${USER_ID}`)
 
 // User Information
-export const login = () => api.post("/login")
+export const login = () => api.post("/user/login")
 
 export const getUserInfo = () => api.get<UserInfo>(`/user/me?user_id=${USER_ID}`)
 

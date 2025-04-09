@@ -14,16 +14,12 @@ from auth import UserClaims, validate_token
 # Logger setup
 logger = setup_logger(__name__)
 
-# Create APIRouter instances
-# One for login (potentially at root or /auth prefix later)
-# One for user profile endpoints under /user prefix
-router_login = APIRouter(tags=["Authentication"])
 router_user = APIRouter(prefix="/user", tags=["User Profile"])
 
 
 # --- Authentication Endpoint ---
 
-@router_login.post("/login", response_model=UserProfileResponse, summary="Process user login via token validation")
+@router_user.post("/login", response_model=UserProfileResponse, summary="Process user login via token validation")
 async def login_endpoint(current_user: UserClaims = Depends(validate_token)):
     """
     Validates the user's token and logs them in (e.g., creates/updates user record in DB).
@@ -88,7 +84,11 @@ async def get_user_detail_endpoint(current_user: UserClaims = Depends(validate_t
             logger.warning("Detailed profile not found for user: %s", user_id)
             raise HTTPException(status_code=404, detail="User detailed profile not found.")
         logger.info("Successfully retrieved detailed user information for: %s", user_id)
-        return result # Should match UserDetailResponse
+        # Map fields from get_me_detail result to UserDetailResponse model
+        response_data = result.copy() # Create a copy to modify
+        response_data['id'] = response_data.pop('user_id', None)
+        response_data['name'] = response_data.pop('display_name', None)
+        return response_data # Return the mapped data
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:

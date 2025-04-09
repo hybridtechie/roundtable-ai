@@ -57,10 +57,11 @@ async def list_llm_accounts_endpoint(current_user: UserClaims = Depends(validate
     try:
         user_id = current_user.email
         logger.info("Fetching LLM accounts for user: %s", user_id)
-        # Assuming get_llm_accounts returns a list of account objects
-        accounts_list = await get_llm_accounts(user_id)
-        logger.info("Successfully retrieved %d LLM accounts for user: %s", len(accounts_list), user_id)
-        return {"accounts": accounts_list} # Wrap in the response model structure
+        # Assuming get_llm_accounts returns a dict like {'providers': [...], 'default': '...'}
+        llm_config = await get_llm_accounts(user_id)
+        logger.info("Successfully retrieved %d LLM accounts and default '%s' for user: %s", len(llm_config.get('providers', [])), llm_config.get('default'), user_id)
+        # Structure the response to match ListLLMAccountsResponse model
+        return {"accounts": llm_config.get('providers', []), "default": llm_config.get('default')}
     except Exception as e:
         logger.error("Failed to fetch LLM accounts for user %s: %s", user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch LLM accounts: {str(e)}")

@@ -23,31 +23,15 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Add CORS middleware
-# Define allowed origins based on environment or configuration
-allowed_origins = [
-    "http://localhost:5173", # Local development frontend
-    "https://wa-roundtableai-frontend-cefzgxbba8c4aqga.australiaeast-01.azurewebsites.net", 
-]
-# Filter out None values in case FRONTEND_URL is not set
-allowed_origins = [origin for origin in allowed_origins if origin]
-
-if not allowed_origins:
-    logger.warning("No allowed origins configured for CORS. Allowing all origins.")
-    # Default to allowing all if none are specified, or handle as an error
-    allowed_origins = ["*"] # Be cautious with "*" in production
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["http://localhost:5173", "https://wa-roundtableai-frontend-cefzgxbba8c4aqga.australiaeast-01.azurewebsites.net"],  # Local development frontend URL  # Azure deployed frontend URL
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all standard methods
+    allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
 
 # --- Include Routers ---
-# Authentication/Login Router (has no prefix in user.py)
-app.include_router(user.router_login)
 # Entity Routers
 app.include_router(participant.router)
 app.include_router(group.router)
