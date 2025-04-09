@@ -425,6 +425,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("idToken")
         localStorage.removeItem("user")
         localStorage.removeItem("backendData") // Clear backend data too
+        dispatch({ type: "INITIALIZE_COMPLETE" }) // Mark initialization complete even if not logged in
       }
     }
 
