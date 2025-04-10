@@ -94,8 +94,8 @@ if __name__ == "__main__":
         # Example Azure OpenAI provider details
         azure_provider_details = {
             "provider": "AzureOpenAI",
-            "deployment_name": os.getenv("AZURE_DEPLOYMENT_NAME", "gpt-4"), # Example default
-            "model": os.getenv("AZURE_MODEL_NAME", "gpt-4"), # Example default
+            "deployment_name": os.getenv("AZURE_DEPLOYMENT_NAME", "gpt-4o"), # Example default
+            "model": os.getenv("AZURE_MODEL_NAME", "gpt-4o"), # Example default
             "endpoint": os.getenv("AZURE_ENDPOINT"),
             "api_version": "2024-10-21", # Matches hardcoded version in client
             "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
