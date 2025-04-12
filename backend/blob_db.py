@@ -44,7 +44,7 @@ class BlobDB:
                 detail=f"File type not allowed. Allowed types: {', '.join(self.allowed_extensions)}"
             )
 
-    async def upload_file(self, file: UploadFile, user_id: str) -> Dict:
+    async def upload_file(self, file: UploadFile, user_id: str, participant_id:str) -> Dict:
         """Upload a file to Azure Blob Storage."""
         try:
             # Generate a unique ID for the file
@@ -66,7 +66,7 @@ class BlobDB:
                 container_client.create_container()
 
             # Create blob path
-            blob_path = f"{user_id}/knowledge/{clean_filename}"
+            blob_path = f"{user_id}/{participant_id}/knowledge/{clean_filename}"
             blob_client = container_client.get_blob_client(blob_path)
 
             # Set content settings based on file type
@@ -79,7 +79,11 @@ class BlobDB:
 
             return {
                 "id": file_id,
+                "participant_id": participant_id,
+                "user_id": user_id,
                 "name": original_filename,
+                "clean_name": clean_filename,
+                "user_id": user_id,
                 "path": blob_path,
                 "size": file.file.tell(),
                 "type": ext[1:]  # Remove the dot from extension
@@ -88,11 +92,11 @@ class BlobDB:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
 
-    async def delete_file(self, user_id: str, file_path: str) -> None:
+    async def delete_file(self, user_id: str, participant_id:str, file_path: str) -> None:
         """Delete a file from Azure Blob Storage."""
         try:
             container_client = self.service_client.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(f"{user_id}/knowledge/{file_path}")
+            blob_client = container_client.get_blob_client(f"{user_id}/{participant_id}/knowledge/{file_path}")
             
             # Check if blob exists before deleting
             if not await blob_client.exists():
@@ -103,14 +107,14 @@ class BlobDB:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
 
-    async def list_files(self, user_id: str) -> List[Dict]:
+    async def list_files(self, user_id: str, participant_id:str) -> List[Dict]:
         """List all files for a user."""
         try:
             container_client = self.service_client.get_container_client(self.container_name)
             files = []
             
             # List all blobs in the user's directory
-            async for blob in container_client.list_blobs(name_starts_with=f"{user_id}/knowledge/"):
+            async for blob in container_client.list_blobs(name_starts_with=f"{user_id}/{participant_id}/knowledge/"):
                 blob_name = blob.name.split('/')[-1]  # Get filename from path
                 file_id = os.path.splitext(blob_name)[0]  # Remove extension to get ID
                 

@@ -288,7 +288,7 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
         
         # Upload file to blob storage
-        doc_info = await blob_db.upload_file(file, user_id)
+        doc_info = await blob_db.upload_file(file, user_id, participant_id)
         
         # Update participant's docs array in Cosmos DB
         if 'docs' not in participant:
@@ -334,7 +334,7 @@ async def delete_participant_document(participant_id: str, user_id: str, doc_id:
             raise HTTPException(status_code=404, detail="Document not found")
             
         # Delete from blob storage
-        await blob_db.delete_file(user_id, doc_to_delete['path'])
+        await blob_db.delete_file(user_id, participant_id, doc_to_delete['path'])
         
         # Update participant in Cosmos DB
         participant['docs'] = updated_docs
