@@ -399,6 +399,94 @@ except Exception as e:
     logger.error(f"Failed to initialize Cosmos DB container: {str(e)}", exc_info=True)
     raise
 
+
+# Chat Sessions Container Operations
+async def get_chat_sessions_container(self):
+    """Get the chat sessions container."""
+    return self.client.get_database_client("roundtable").get_container_client("chat_sessions")
+
+
+async def get_user_chat_sessions(self, user_id: str) -> list:
+    """Get all chat sessions for a user."""
+    try:
+        chat_container = await self.get_chat_sessions_container()
+        parameters = [{"name": "@user_id", "value": user_id}]
+        query = "SELECT * FROM c WHERE c.user_id = @user_id"
+        return list(chat_container.query_items(query=query, parameters=parameters, partition_key=user_id))
+    except Exception as e:
+        logger.error(f"Error getting chat sessions for user {user_id}: {str(e)}")
+        raise
+
+
+async def get_chat_session(self, session_id: str, user_id: str) -> dict:
+    """Get a specific chat session."""
+    try:
+        chat_container = await self.get_chat_sessions_container()
+        return chat_container.read_item(item=session_id, partition_key=user_id)
+    except Exception as e:
+        logger.error(f"Error getting chat session {session_id}: {str(e)}")
+        raise
+
+
+async def create_chat_session(self, session_data: dict) -> dict:
+    """Create a new chat session."""
+    try:
+        chat_container = await self.get_chat_sessions_container()
+        return chat_container.upsert_item(body=session_data)
+    except Exception as e:
+        logger.error(f"Error creating chat session: {str(e)}")
+        raise
+
+
+async def update_chat_session(self, session_data: dict) -> dict:
+    """Update a chat session."""
+    try:
+        chat_container = await self.get_chat_sessions_container()
+        return chat_container.upsert_item(body=session_data)
+    except Exception as e:
+        logger.error(f"Error updating chat session: {str(e)}")
+        raise
+
+
+async def delete_chat_session(self, session_id: str, user_id: str):
+    """Delete a chat session."""
+    try:
+        chat_container = await self.get_chat_sessions_container()
+        chat_container.delete_item(item=session_id, partition_key=user_id)
+    except Exception as e:
+        logger.error(f"Error deleting chat session {session_id}: {str(e)}")
+        raise
+
+
+async def delete_meeting_chat_sessions(self, meeting_id: str, user_id: str):
+    """Delete all chat sessions for a meeting."""
+    try:
+        chat_container = await self.get_chat_sessions_container()
+        # Use parameterized query
+        parameters = [{"name": "@meeting_id", "value": meeting_id}, {"name": "@user_id", "value": user_id}]
+        query = "SELECT * FROM c WHERE c.meeting_id = @meeting_id AND c.user_id = @user_id"
+        sessions = list(chat_container.query_items(query=query, parameters=parameters, partition_key=user_id))
+
+        for session in sessions:
+            chat_container.delete_item(item=session["id"], partition_key=user_id)
+            logger.info(f"Deleted chat session {session['id']} for meeting {meeting_id}")
+    except Exception as e:
+        logger.error(f"Error deleting chat sessions for meeting {meeting_id}: {str(e)}")
+        raise
+
+
+async def get_user_llm_settings(self, user_id: str) -> dict:
+    """Get LLM settings for a user."""
+    try:
+        parameters = [{"name": "@user_id", "value": user_id}]
+        query = "SELECT c.llmAccounts FROM c WHERE c.id = @user_id"
+        result = list(self.container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True))
+        return result[0] if result else None
+    except Exception as e:
+        logger.error(f"Error getting LLM settings for user {user_id}: {str(e)}")
+        raise
+
+
 if __name__ == "__main__":
     import asyncio
 

@@ -227,21 +227,19 @@ async def set_default_provider(provider: str, user_id: str):
 async def get_llm_client(user_id: str):
     """Initialize and return an LLM client for the given user."""
     try:
-        # Fetch only LLM account details from cosmos db
-        container = cosmos_client.client.get_database_client("roundtable").get_container_client("users")
-        query = f"SELECT c.llmAccounts FROM c WHERE c.id = '{user_id}'"
-        user_data = list(container.query_items(query=query, enable_cross_partition_query=True))
+        # Get LLM settings using cosmos_db client
+        llm_settings = await cosmos_client.get_user_llm_settings(user_id)
 
-        if not user_data:
+        if not llm_settings:
             logger.error(f"User {user_id} not found in cosmos db")
             raise HTTPException(status_code=404, detail="User not found")
 
-        if not user_data or "llmAccounts" not in user_data[0]:
+        if "llmAccounts" not in llm_settings:
             logger.error(f"No LLM accounts configured for user {user_id}")
             raise HTTPException(status_code=400, detail="No LLM accounts configured")
 
         # Get default provider details
-        llm_accounts = user_data[0]["llmAccounts"]
+        llm_accounts = llm_settings["llmAccounts"]
         default_provider = llm_accounts.get("default")
         if not default_provider:
             logger.error(f"No default LLM provider set for user {user_id}")
