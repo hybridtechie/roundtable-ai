@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react" // Added useRef
+import React, { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Participant, ParticipantUpdateData } from "@/types/types"
 import { decodeMarkdownContent, encodeMarkdownContent } from "@/lib/utils"
@@ -30,7 +30,6 @@ const ParticipantViewPage: React.FC = () => {
   const [isFileDetailsOpen, setIsFileDetailsOpen] = useState(false) // State for file list collapsible
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]) // State for files staged for upload
   const [isUploading, setIsUploading] = useState(false) // State for upload process
-  const fileInputRef = useRef<HTMLInputElement>(null) // Ref for file input
 
   const loadParticipantData = useCallback(() => {
     if (!isAuthLoading && state.isInitialized && participantId) {
@@ -366,7 +365,7 @@ const ParticipantViewPage: React.FC = () => {
         {/* Files List Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Associated Files</CardTitle>
+            <CardTitle>Knowledge</CardTitle>
           </CardHeader>
           <CardContent>
             <Collapsible open={isFileDetailsOpen} onOpenChange={setIsFileDetailsOpen}>
@@ -425,7 +424,7 @@ const ParticipantViewPage: React.FC = () => {
                 "border-muted-foreground/50 hover:border-primary/50",
                 isDragActive ? "border-primary bg-primary/10" : "",
               )}>
-              <input {...getInputProps()} ref={fileInputRef} style={{ display: "none" }} />
+              <input {...getInputProps()} style={{ display: "none" }} />
               <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
               {isDragActive ? (
                 <p className="text-center text-primary">Drop the files here ...</p>
