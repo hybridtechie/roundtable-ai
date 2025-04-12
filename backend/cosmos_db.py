@@ -15,8 +15,9 @@ logger = setup_logger(__name__)
 # Azure Cosmos DB configuration
 COSMOS_ENDPOINT = "https://nithin-cosmos.documents.azure.com:443/"
 COSMOS_KEY = os.getenv("COSMOS_DB_KEY")
-DATABASE_NAME = "roundtable"
+DATABASE_NAME = "roundtable-dev"
 CONTAINER_NAME = "users"
+CHAT_CONTAINER_NAME = "chat_sessions"
 
 
 class CosmosDBClient:
@@ -380,7 +381,7 @@ class CosmosDBClient:
 
     async def get_chat_sessions_container(self):
         """Get the chat sessions container."""
-        return self.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        return self.client.get_database_client(DATABASE_NAME).get_container_client(CHAT_CONTAINER_NAME)
 
     async def get_user_chat_sessions(self, user_id: str) -> list:
         """Get all chat sessions for a user."""

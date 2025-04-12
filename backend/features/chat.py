@@ -158,7 +158,7 @@ class MeetingDiscussion:
             raise HTTPException(status_code=400, detail="Invalid strategy")
 
         # Initialize chat session
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        # Chat container is accessed via cosmos_client methods now
         session_id = str(uuid.uuid4())
         self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [], "display_messages": []}
 
@@ -192,7 +192,7 @@ class MeetingDiscussion:
                         }
                     )
                     # Save chat session
-                    chat_container.upsert_item(body=self.chat_session)
+                    await cosmos_client.update_chat_session(self.chat_session)
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     await asyncio.sleep(0.1)  # Add delay after each response
 
@@ -228,7 +228,7 @@ class MeetingDiscussion:
                             }
                         )
                         # Save chat session
-                        chat_container.upsert_item(body=self.chat_session)
+                        await cosmos_client.update_chat_session(self.chat_session)
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         await asyncio.sleep(0.1)  # Add delay after each response
 
