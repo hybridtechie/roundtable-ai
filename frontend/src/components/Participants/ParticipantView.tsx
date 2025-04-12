@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react" // Added useRef
 import { useParams, useNavigate } from "react-router-dom"
 import { Participant, ParticipantUpdateData } from "@/types/types"
 import { decodeMarkdownContent, encodeMarkdownContent } from "@/lib/utils"
@@ -7,11 +7,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronDown, ChevronUp, ArrowLeft, Save, X, Pencil } from "lucide-react"
+import { ChevronDown, ChevronUp, ArrowLeft, Save, X, Pencil, Upload, FileText, Trash2 } from "lucide-react" // Added Upload, FileText, Trash2
 import { useAuth } from "@/context/AuthContext"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
-import { updateParticipant } from "@/lib/api"
+import { updateParticipant } from "@/lib/api" // TODO: Add API call for file upload
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table" // Added Table components
+import { useDropzone, FileRejection, FileError } from "react-dropzone" // Added react-dropzone types
+import { cn } from "@/lib/utils" // Added cn for conditional classes
 
 const ParticipantViewPage: React.FC = () => {
   const { participantId } = useParams<{ participantId: string }>()
@@ -24,6 +27,10 @@ const ParticipantViewPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isFileDetailsOpen, setIsFileDetailsOpen] = useState(false) // State for file list collapsible
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]) // State for files staged for upload
+  const [isUploading, setIsUploading] = useState(false) // State for upload process
+  const fileInputRef = useRef<HTMLInputElement>(null) // Ref for file input
 
   const loadParticipantData = useCallback(() => {
     if (!isAuthLoading && state.isInitialized && participantId) {
@@ -139,6 +146,90 @@ const ParticipantViewPage: React.FC = () => {
       setIsSaving(false)
     }
   }
+
+  // --- File Upload Logic ---
+  const MAX_SIZE_BYTES = 5 * 1024 * 1024 // 5MB
+  const ACCEPTED_MIME_TYPES = {
+    "text/plain": [".txt"],
+    "text/markdown": [".md"],
+    "application/pdf": [".pdf"],
+  }
+
+  const onDrop = useCallback((acceptedFiles: File[], fileRejections: FileRejection[]) => { // Use FileRejection type
+    // Handle accepted files
+    const newFiles = acceptedFiles.filter(
+      (file) => !selectedFiles.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size),
+    )
+    setSelectedFiles((prevFiles) => [...prevFiles, ...newFiles])
+
+    // Handle rejected files
+    fileRejections.forEach(({ file, errors }: FileRejection) => { // Destructure with FileRejection type
+      errors.forEach((error: FileError) => { // Use FileError type
+        if (error.code === "file-too-large") {
+          toast.error(`File "${file.name}" is too large. Max size is 5MB.`)
+        } else if (error.code === "file-invalid-type") {
+          toast.error(`File "${file.name}" has an invalid type. Allowed types: .txt, .md, .pdf`)
+        } else {
+          toast.error(`Error with file "${file.name}": ${error.message}`)
+        }
+      })
+    })
+  }, [selectedFiles])
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop,
+    accept: ACCEPTED_MIME_TYPES,
+    maxSize: MAX_SIZE_BYTES,
+    noClick: true, // Prevent default click behavior, we'll use the button
+    noKeyboard: true,
+  })
+
+  const handleRemoveFile = (fileName: string) => {
+    setSelectedFiles((prevFiles) => prevFiles.filter((file) => file.name !== fileName))
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFiles.length || !participantId) return
+
+    setIsUploading(true)
+    toast.info(`Uploading ${selectedFiles.length} file(s)...`) // Placeholder
+
+    // --- TODO: Implement actual API call here ---
+    // Example:
+    // const formData = new FormData();
+    // selectedFiles.forEach(file => {
+    //   formData.append('files', file);
+    // });
+    // try {
+    //   await uploadParticipantFiles(participantId, formData); // Replace with your actual API function
+    //   toast.success("Files uploaded successfully!");
+    //   setSelectedFiles([]); // Clear selection on success
+    //   // Optionally: Refresh the file list in the other card
+    // } catch (error) {
+    //   console.error("Error uploading files:", error);
+    //   toast.error("Failed to upload files.");
+    // } finally {
+    //   setIsUploading(false);
+    // }
+
+    // Placeholder simulation
+    await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate network delay
+    console.log("Simulating upload for files:", selectedFiles)
+    toast.success("Files uploaded successfully! (Simulation)")
+    setSelectedFiles([]) // Clear selection
+    setIsUploading(false)
+    // --- End Placeholder ---
+  }
+
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const dm = decimals < 0 ? 0 : decimals
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+  }
+  // --- End File Upload Logic ---
 
   const renderField = (
     label: string,
@@ -269,6 +360,131 @@ const ParticipantViewPage: React.FC = () => {
           </CardFooter>
         )}
       </Card>
+
+      {/* File Management Section */}
+      <div className="mt-6 space-y-6">
+        {/* Files List Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Associated Files</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Collapsible open={isFileDetailsOpen} onOpenChange={setIsFileDetailsOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex items-center justify-start w-full p-0 text-sm hover:bg-transparent text-primary">
+                  {isFileDetailsOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
+                  {isFileDetailsOpen ? "Hide Files" : "Show Files"} ({/* Placeholder count */} 0 files)
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>File Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Uploaded</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Placeholder row - replace with actual data mapping later */}
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        No files uploaded yet.
+                      </TableCell>
+                    </TableRow>
+                    {/* Example Row Structure (commented out)
+                    <TableRow>
+                      <TableCell className="font-medium">Resume.pdf</TableCell>
+                      <TableCell>PDF</TableCell>
+                      <TableCell>2024-01-15</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm">View</Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">Delete</Button>
+                      </TableCell>
+                    </TableRow>
+                    */}
+                  </TableBody>
+                </Table>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+
+        {/* File Upload Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Upload New File</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Dropzone Area */}
+            <div
+              {...getRootProps()}
+              className={cn(
+                "flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-md cursor-pointer transition-colors",
+                "border-muted-foreground/50 hover:border-primary/50",
+                isDragActive ? "border-primary bg-primary/10" : "",
+              )}>
+              <input {...getInputProps()} ref={fileInputRef} style={{ display: "none" }} />
+              <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+              {isDragActive ? (
+                <p className="text-center text-primary">Drop the files here ...</p>
+              ) : (
+                <p className="text-center text-muted-foreground">
+                  Drag & drop files here, or click the button below
+                  <br />
+                  <span className="text-xs">(.txt, .md, .pdf up to 5MB)</span>
+                </p>
+              )}
+            </div>
+
+            {/* Browse Button */}
+            <Button variant="outline" className="w-full" onClick={open}>
+              Browse Files
+            </Button>
+
+            {/* Selected Files List */}
+            {selectedFiles.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h4 className="text-sm font-medium">Files to upload:</h4>
+                <ul className="p-2 space-y-1 overflow-y-auto border rounded-md max-h-40">
+                  {selectedFiles.map((file) => (
+                    <li key={file.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="flex-shrink-0 w-4 h-4 text-muted-foreground" />
+                        <span className="truncate" title={file.name}>{file.name}</span>
+                        <span className="flex-shrink-0 text-xs text-muted-foreground">({formatBytes(file.size)})</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveFile(file.name)}
+                        disabled={isUploading}>
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sr-only">Remove {file.name}</span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Upload Confirmation Button */}
+            <Button className="w-full" onClick={handleUpload} disabled={selectedFiles.length === 0 || isUploading}>
+              {isUploading ? (
+                <>
+                  <LoadingSpinner size={16} className="mr-2" /> Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" /> Confirm Upload ({selectedFiles.length})
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
