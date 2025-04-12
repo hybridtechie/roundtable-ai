@@ -4,6 +4,7 @@ import Home from "./components/Home/Home"
 import Groups from "./components/Groups/Groups"
 import Participants from "./components/Participants/Participants"
 import CreateParticipant from "./components/Participants/CreateParticipant"
+import ParticipantViewPage from "./components/Participants/ParticipantView" // Import the new page component
 import Meetings from "./components/Meetings/Meetings"
 import NewMeeting from "./components/Meetings/NewMeeting"
 import Chat from "./components/Chat/Chat"
@@ -47,6 +48,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="participants" element={<Participants />} />
             <Route path="participants/create" element={<CreateParticipant />} />
+            <Route path="participant/:participantId" element={<ParticipantViewPage />} /> {/* Add route for viewing a single participant */}
             <Route path="groups" element={<Groups />} />
             <Route path="meetings" element={<Meetings />} />
             <Route path="meetings/new" element={<NewMeeting />} />

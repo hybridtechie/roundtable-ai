@@ -12,6 +12,13 @@ export interface Participant {
   additional_info: string
 }
 
+// Type for updating participant data (all fields optional except maybe name/role if required by backend)
+export type ParticipantUpdateData = Partial<Omit<Participant, "id">> & {
+  // Add required fields if any, e.g.:
+  // name: string;
+  // role: string;
+}
+
 export interface Group {
   id: string
   name: string

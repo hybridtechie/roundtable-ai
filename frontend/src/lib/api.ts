@@ -15,7 +15,8 @@ import {
   LLMAccountUpdate,
   LLMAccountsResponse,
   DeleteResponse,
-} from "@/types/types"
+  ParticipantUpdateData, // Import the update type
+ } from "@/types/types"
 
 // Determine the base URL based on environment
 const getBaseUrl = () => {
@@ -75,18 +76,7 @@ export const getParticipant = (participantId: string) => api.get<Participant>(`/
 
 export const updateParticipant = (
   participantId: string,
-  data: {
-    name: string
-    role: string
-    professional_background: string
-    industry_experience: string
-    role_overview: string
-    technical_stack: string
-    soft_skills: string
-    core_qualities: string
-    style_preferences: string
-    additional_info: string
-  },
+  data: ParticipantUpdateData, // Use the imported partial type
 ) => api.put(`/participant/${participantId}`, { ...data, user_id: USER_ID })
 
 export const deleteParticipant = (participantId: string) => api.delete(`/participant/${participantId}`)
