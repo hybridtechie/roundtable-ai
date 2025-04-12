@@ -12,6 +12,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/meeting", tags=["Meetings"])
 
+
 @router.post("", response_model=MeetingResponse, status_code=201, summary="Create a new meeting")
 async def create_meeting_endpoint(meeting: MeetingCreate, current_user: UserClaims = Depends(validate_token)):
     try:
@@ -40,6 +41,7 @@ async def create_meeting_endpoint(meeting: MeetingCreate, current_user: UserClai
         logger.error("User '%s' failed to create meeting for group '%s': %s", user_id, meeting.group_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
 
+
 @router.get("s", response_model=ListMeetingsResponse, summary="List all meetings for the authenticated user")
 async def list_meetings_endpoint(current_user: UserClaims = Depends(validate_token)):
     try:
@@ -51,6 +53,7 @@ async def list_meetings_endpoint(current_user: UserClaims = Depends(validate_tok
     except Exception as e:
         logger.error("Failed to fetch meetings for user %s: %s", user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meetings: {str(e)}")
+
 
 @router.get("/{meeting_id}", response_model=MeetingResponse, summary="Get a specific meeting")
 async def get_meeting_endpoint(meeting_id: str, current_user: UserClaims = Depends(validate_token)):
@@ -68,6 +71,7 @@ async def get_meeting_endpoint(meeting_id: str, current_user: UserClaims = Depen
     except Exception as e:
         logger.error("Failed to fetch meeting %s for user %s: %s", meeting_id, user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch meeting: {str(e)}")
+
 
 @router.delete("/{meeting_id}", response_model=DeleteResponse, summary="Delete a meeting")
 async def delete_meeting_endpoint(meeting_id: str, current_user: UserClaims = Depends(validate_token)):

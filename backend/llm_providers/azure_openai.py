@@ -1,6 +1,7 @@
 from openai import AzureOpenAI
 from .base import LLMBase, logger
 
+
 class AzureOpenAIClient(LLMBase):
     def __init__(self, api_key, azure_endpoint, **kwargs):
         super().__init__(api_key=api_key, **kwargs)
@@ -29,7 +30,7 @@ class AzureOpenAIClient(LLMBase):
                 "model": kwargs.get("model", self.model),
                 "temperature": kwargs.get("temperature", 0.5),
                 "top_p": kwargs.get("top_p", 0.5),
-                "max_tokens": kwargs.get("max_tokens", 10000), # TODO: Check if this max_tokens is appropriate or should be configurable
+                "max_tokens": kwargs.get("max_tokens", 10000),  # TODO: Check if this max_tokens is appropriate or should be configurable
                 "messages": messages,
             }
             logger.debug("Sending request to Azure OpenAI with parameters: %s", parameters)

@@ -9,6 +9,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/chat-session", tags=["Chat Sessions"])
 
+
 @router.get("s", summary="List all chat sessions for the authenticated user")
 async def list_chat_sessions_endpoint(current_user: UserClaims = Depends(validate_token)):
     try:

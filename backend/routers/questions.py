@@ -8,6 +8,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/questions", tags=["Questions"])
 
+
 @router.get("", summary="Generate questions based on topic and group context")
 async def generate_questions_endpoint(
     topic: str = Query(..., description="The topic to generate questions about"),

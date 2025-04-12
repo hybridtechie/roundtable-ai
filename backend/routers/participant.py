@@ -9,6 +9,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/participant", tags=["Participants"])
 
+
 @router.post("", response_model=ParticipantResponse, status_code=201, summary="Create a new participant")
 async def create_participant_endpoint(participant: ParticipantCreate, current_user: UserClaims = Depends(validate_token)):
 
@@ -25,7 +26,7 @@ async def create_participant_endpoint(participant: ParticipantCreate, current_us
 @router.get("s", response_model=ListParticipantsResponse, summary="List participants for a specific user")
 async def list_participants_endpoint(current_user: UserClaims = Depends(validate_token)):
     try:
-        user_id= current_user.email
+        user_id = current_user.email
         logger.info("Fetching all participants for user: %s", user_id)
         result = await list_participants(user_id)
         logger.info("Successfully retrieved %d participants for user: %s", len(result.get("participants", [])), user_id)

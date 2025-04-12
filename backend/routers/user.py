@@ -11,6 +11,7 @@ logger = setup_logger(__name__)
 
 router_user = APIRouter(prefix="/user", tags=["User Profile"])
 
+
 @router_user.post("/login", summary="Process user login via token validation")
 async def login_endpoint(current_user: UserClaims = Depends(validate_token)):
     try:
@@ -26,6 +27,7 @@ async def login_endpoint(current_user: UserClaims = Depends(validate_token)):
     except Exception as e:
         logger.error("Login failed for user %s: %s", current_user.email if current_user else "Unknown", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+
 
 @router_user.get("/me", response_model=UserProfileResponse, summary="Get basic profile information for the authenticated user")
 async def get_user_info_endpoint(current_user: UserClaims = Depends(validate_token)):
@@ -43,6 +45,7 @@ async def get_user_info_endpoint(current_user: UserClaims = Depends(validate_tok
     except Exception as e:
         logger.error("Failed to fetch basic user information for %s: %s", current_user.email, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch user information: {str(e)}")
+
 
 @router_user.get("/me/detail", response_model=UserDetailResponse, summary="Get detailed profile information for the authenticated user")
 async def get_user_detail_endpoint(current_user: UserClaims = Depends(validate_token)):

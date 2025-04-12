@@ -1,6 +1,7 @@
 from openai import OpenAI
 from .base import LLMBase, logger
 
+
 class OpenAIClient(LLMBase):
     def __init__(self, api_key, **kwargs):
         super().__init__(api_key=api_key, **kwargs)
@@ -28,7 +29,7 @@ class OpenAIClient(LLMBase):
                 model=kwargs.get("model", self.model),
                 messages=messages,
                 temperature=kwargs.get("temperature", 0.5),
-                max_tokens=kwargs.get("max_tokens", 10000), # TODO: Check if this max_tokens is appropriate or should be configurable
+                max_tokens=kwargs.get("max_tokens", 10000),  # TODO: Check if this max_tokens is appropriate or should be configurable
                 top_p=kwargs.get("top_p", 0.5),
             )
             logger.info("Successfully received response from OpenAI")

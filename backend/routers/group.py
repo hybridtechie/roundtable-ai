@@ -12,6 +12,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/group", tags=["Groups"])
 
+
 @router.post("", response_model=GroupResponse, status_code=201, summary="Create a new group")
 async def create_group_endpoint(group: GroupCreate, current_user: UserClaims = Depends(validate_token)):
     """
@@ -29,6 +30,7 @@ async def create_group_endpoint(group: GroupCreate, current_user: UserClaims = D
         logger.error("User '%s' failed to create group '%s': %s", user_id, group.name, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create group: {str(e)}")
 
+
 @router.get("s", response_model=ListGroupsResponse, summary="List all groups for the authenticated user")
 async def list_groups_endpoint(current_user: UserClaims = Depends(validate_token)):
     """
@@ -44,6 +46,7 @@ async def list_groups_endpoint(current_user: UserClaims = Depends(validate_token
     except Exception as e:
         logger.error("Failed to fetch groups for user %s: %s", user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch groups: {str(e)}")
+
 
 @router.get("/{group_id}", response_model=GroupResponse, summary="Get a specific group")
 async def get_group_endpoint(group_id: str, current_user: UserClaims = Depends(validate_token)):
@@ -66,6 +69,7 @@ async def get_group_endpoint(group_id: str, current_user: UserClaims = Depends(v
         logger.error("Failed to fetch group %s for user %s: %s", group_id, user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch group: {str(e)}")
 
+
 @router.put("/{group_id}", response_model=GroupResponse, summary="Update an existing group")
 async def update_group_endpoint(group_id: str, group: GroupUpdate, current_user: UserClaims = Depends(validate_token)):
     """
@@ -87,6 +91,7 @@ async def update_group_endpoint(group_id: str, group: GroupUpdate, current_user:
     except Exception as e:
         logger.error("Failed to update group %s for user %s: %s", group_id, user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to update group: {str(e)}")
+
 
 @router.delete("/{group_id}", response_model=DeleteResponse, summary="Delete a group")
 async def delete_group_endpoint(group_id: str, current_user: UserClaims = Depends(validate_token)):

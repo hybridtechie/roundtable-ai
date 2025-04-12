@@ -114,4 +114,3 @@ def validate_token(
     except Exception as error:  # Catch unexpected errors during validation
         logger.error("Unexpected error during token validation: %s", str(error), exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during authentication.")
-

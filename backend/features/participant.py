@@ -236,10 +236,6 @@ async def list_participants(user_id: str) -> dict:
         logger.info("Fetching all participants for user: %s", user_id)
         participants_list = await cosmos_client.list_participants(user_id)
 
-        # Ensure each participant matches the response model structure if needed,
-        # though list might just return the raw list from DB.
-        # validated_participants = [ParticipantResponse(**p) for p in participants_list]
-
         logger.info("Successfully retrieved %d participants for user: %s", len(participants_list), user_id)
         return {"participants": participants_list}  # Return raw list as before
 

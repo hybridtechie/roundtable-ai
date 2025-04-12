@@ -2,14 +2,12 @@ import requests
 import json
 from .base import LLMBase, logger
 
+
 class DeepseekClient(LLMBase):
     def __init__(self, api_key, model, **kwargs):
         super().__init__(api_key=api_key, model=model, **kwargs)
         self.api_url = "https://api.deepseek.com/chat/completions"
-        self.headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         logger.info("Successfully initialized Deepseek client for model: %s", self.model)
 
     def send_request(self, prompt_or_messages, **kwargs):
@@ -26,8 +24,8 @@ class DeepseekClient(LLMBase):
             "model": self.model,
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.5),
-            "top_p": kwargs.get("top_p", 0.9), # Deepseek default might differ, using common value
-            "max_tokens": kwargs.get("max_tokens", 2048), # Adjust as needed
+            "top_p": kwargs.get("top_p", 0.9),  # Deepseek default might differ, using common value
+            "max_tokens": kwargs.get("max_tokens", 2048),  # Adjust as needed
             # Add other Deepseek specific parameters if necessary
         }
 
@@ -38,25 +36,21 @@ class DeepseekClient(LLMBase):
             response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
 
             completion = response.json()
-            content = completion['choices'][0]['message']['content'].strip()
+            content = completion["choices"][0]["message"]["content"].strip()
 
             # Extract usage info if available (structure might vary)
             usage = {}
-            if 'usage' in completion:
+            if "usage" in completion:
                 usage = {
-                    "request_tokens": completion['usage'].get('prompt_tokens'),
-                    "completion_tokens": completion['usage'].get('completion_tokens'),
-                    "total_tokens": completion['usage'].get('total_tokens'),
+                    "request_tokens": completion["usage"].get("prompt_tokens"),
+                    "completion_tokens": completion["usage"].get("completion_tokens"),
+                    "total_tokens": completion["usage"].get("total_tokens"),
                 }
                 logger.info(
-                    "Request successful - Tokens used: %s (prompt: %s, completion: %s)",
-                    usage.get("total_tokens", "N/A"),
-                    usage.get("request_tokens", "N/A"),
-                    usage.get("completion_tokens", "N/A")
+                    "Request successful - Tokens used: %s (prompt: %s, completion: %s)", usage.get("total_tokens", "N/A"), usage.get("request_tokens", "N/A"), usage.get("completion_tokens", "N/A")
                 )
             else:
-                 logger.info("Request successful - Usage info not available in response.")
-
+                logger.info("Request successful - Usage info not available in response.")
 
             return content, usage
 
@@ -67,13 +61,13 @@ class DeepseekClient(LLMBase):
             try:
                 error_details = response.text
             except Exception:
-                pass # Ignore if response text is not available
+                pass  # Ignore if response text is not available
             logger.error("Deepseek API error details: %s", error_details)
             raise ConnectionError(f"Deepseek API request failed: {e}") from e
         except (KeyError, IndexError) as e:
-             logger.error("Failed to parse Deepseek API response: %s", str(e), exc_info=True)
-             logger.error("Deepseek API raw response: %s", response.text)
-             raise ValueError(f"Invalid response format from Deepseek API: {e}") from e
+            logger.error("Failed to parse Deepseek API response: %s", str(e), exc_info=True)
+            logger.error("Deepseek API raw response: %s", response.text)
+            raise ValueError(f"Invalid response format from Deepseek API: {e}") from e
         except Exception as e:
             logger.error("An unexpected error occurred during Deepseek request: %s", str(e), exc_info=True)
             raise

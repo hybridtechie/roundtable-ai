@@ -12,6 +12,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(tags=["Chat"])
 
+
 @router.get("/chat-stream", summary="Start streaming chat discussion for a meeting")
 async def chat_stream_endpoint(meeting_id: str):
     try:
@@ -31,6 +32,7 @@ async def chat_stream_endpoint(meeting_id: str):
     except Exception as e:
         logger.error("Failed to start chat stream for meeting %s, user %s: %s", meeting_id, user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stream chat: {str(e)}")
+
 
 @router.post("/chat-session", summary="Process a chat request within a meeting")
 async def chat_request_endpoint(chat_request: ChatSessionCreate, current_user: UserClaims = Depends(validate_token)):
