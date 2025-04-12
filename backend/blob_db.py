@@ -1,3 +1,4 @@
+
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from fastapi import UploadFile, HTTPException
 import os
@@ -11,7 +12,7 @@ class BlobDB:
         if not conn_str:
             raise ValueError("Azure Storage connection string not found")
         self.service_client = BlobServiceClient.from_connection_string(conn_str)
-        self.container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME", "documents")
+        self.container_name = "roundtable"
         self.max_file_size = 5 * 1024 * 1024  # 5MB in bytes
         self.allowed_extensions = {'.txt', '.md', '.pdf'}
 
@@ -65,7 +66,7 @@ class BlobDB:
                 container_client.create_container()
 
             # Create blob path
-            blob_path = f"{user_id}/{clean_filename}"
+            blob_path = f"{user_id}/knowledge/{clean_filename}"
             blob_client = container_client.get_blob_client(blob_path)
 
             # Set content settings based on file type
@@ -91,7 +92,7 @@ class BlobDB:
         """Delete a file from Azure Blob Storage."""
         try:
             container_client = self.service_client.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(f"{user_id}/{file_path}")
+            blob_client = container_client.get_blob_client(f"{user_id}/knowledge/{file_path}")
             
             # Check if blob exists before deleting
             if not await blob_client.exists():
@@ -109,7 +110,7 @@ class BlobDB:
             files = []
             
             # List all blobs in the user's directory
-            async for blob in container_client.list_blobs(name_starts_with=f"{user_id}/"):
+            async for blob in container_client.list_blobs(name_starts_with=f"{user_id}/knowledge/"):
                 blob_name = blob.name.split('/')[-1]  # Get filename from path
                 file_id = os.path.splitext(blob_name)[0]  # Remove extension to get ID
                 
