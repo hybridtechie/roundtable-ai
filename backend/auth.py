@@ -115,10 +115,3 @@ def validate_token(
         logger.error("Unexpected error during token validation: %s", str(error), exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during authentication.")
 
-
-# Example of how to use the dependency in an endpoint (will be used in routers)
-# from fastapi import APIRouter
-# router = APIRouter()
-# @router.get("/secure-data")
-# async def get_secure_data(current_user: UserClaims = Depends(validate_token)):
-#     return {"message": f"Hello {current_user.name} ({current_user.email})", "data": "secure"}
