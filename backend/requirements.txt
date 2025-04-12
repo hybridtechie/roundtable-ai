@@ -12,3 +12,4 @@ python-jose
 requests>=2.31.0
 google-generativeai>=0.4.0 # Added for Gemini
 azure-storage-blob>=12.0.0 # Added for Azure Blob Storage
+python-multipart

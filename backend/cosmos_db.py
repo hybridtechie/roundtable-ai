@@ -15,9 +15,11 @@ logger = setup_logger(__name__)
 # Azure Cosmos DB configuration
 COSMOS_ENDPOINT = "https://nithin-cosmos.documents.azure.com:443/"
 COSMOS_KEY = os.getenv("COSMOS_DB_KEY")
-DATABASE_NAME = "roundtable-dev"
+DATABASE_NAME = "roundtable"
 CONTAINER_NAME = "users"
 CHAT_CONTAINER_NAME = "chat_sessions"
+VECTOR_DATABASE_NAME = "roundtable-vector"
+PARTICIPANT_DOCO_CONTAINER_NAME = "chat_sessions"
 
 
 class CosmosDBClient:
