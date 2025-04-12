@@ -1,9 +1,11 @@
-from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from fastapi import HTTPException, UploadFile
+from pydantic import BaseModel, Field, validator
 from uuid import uuid4
-from typing import Optional
+from typing import Optional, List, Dict
+import re
 from logger_config import setup_logger
 from cosmos_db import cosmos_client
+from blob_db import blob_db
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -76,6 +78,13 @@ class ParticipantBase(BaseModel):
     additional_info: Optional[str] = Field(default="", max_length=1000)
     user_id: str = Field(default="roundtable_ai_admin", min_length=1)
     persona_description: Optional[str] = Field(default="", max_length=5000)
+    docs: Optional[List[Dict]] = Field(default_factory=list)
+
+    @validator('docs')
+    def validate_docs(cls, v):
+        if v is None:
+            return []
+        return v
 
 
 class ParticipantCreate(ParticipantBase):
@@ -83,13 +92,11 @@ class ParticipantCreate(ParticipantBase):
 
 
 class ParticipantUpdate(ParticipantBase):
-    # Inherits all fields from ParticipantBase, used for update payload validation
     pass
 
 
-# Define a response model that includes the ID and all other fields
 class ParticipantResponse(ParticipantBase):
-    id: str  # ID is required in the response
+    id: str
 
 
 async def create_participant(participant: ParticipantCreate) -> ParticipantResponse:
@@ -97,7 +104,7 @@ async def create_participant(participant: ParticipantCreate) -> ParticipantRespo
     logger.info("Creating new participant with name: %s", participant.name)
 
     # Validate all required fields
-    participant_dict = participant.dict(exclude_unset=True)  # Exclude unset optional fields for validation if needed
+    participant_dict = participant.dict(exclude_unset=True)
     validate_participant_data(participant_dict)
 
     # Generate UUID if id not provided
@@ -105,8 +112,7 @@ async def create_participant(participant: ParticipantCreate) -> ParticipantRespo
     logger.debug("Using participant ID: %s", generated_id)
 
     try:
-        # Generate persona description using helper function
-        # Create a temporary base object for persona generation if needed, or ensure ParticipantCreate has all fields
+        # Generate persona description
         persona_description = generate_persona_description(participant)
 
         # Prepare the data to be stored in Cosmos DB
@@ -124,12 +130,12 @@ async def create_participant(participant: ParticipantCreate) -> ParticipantRespo
             "additional_info": participant.additional_info,
             "user_id": participant.user_id,
             "persona_description": persona_description,
+            "docs": []
         }
 
         await cosmos_client.add_participant(participant.user_id, participant_data)
         logger.info("Successfully created participant: %s", generated_id)
 
-        # Return the complete participant data matching the response model
         return ParticipantResponse(**participant_data)
 
     except Exception as e:
@@ -150,14 +156,14 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
 
         # Validate incoming data
         participant_dict = participant.dict(exclude_unset=True)
-        validate_participant_data(participant_dict)  # Reuse validation
+        validate_participant_data(participant_dict)
 
-        # Generate persona description using helper function
+        # Generate persona description
         persona_description = generate_persona_description(participant)
 
         # Prepare the full data object for update in Cosmos DB
         participant_data = {
-            "id": participant_id,  # Use the path parameter ID
+            "id": participant_id,
             "name": participant.name,
             "role": participant.role,
             "professional_background": participant.professional_background,
@@ -168,20 +174,20 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "core_qualities": participant.core_qualities,
             "style_preferences": participant.style_preferences,
             "additional_info": participant.additional_info,
-            "user_id": participant.user_id,  # Use user_id from the payload
+            "user_id": participant.user_id,
             "persona_description": persona_description,
+            "docs": current_participant.get("docs", [])  # Preserve existing docs
         }
 
         await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
         logger.info("Successfully updated participant: %s", participant_id)
 
-        # Return the complete updated participant data
         return ParticipantResponse(**participant_data)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error updating participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
+        logger.error("Error updating participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while updating participant")
 
 
@@ -190,22 +196,28 @@ async def delete_participant(participant_id: str, user_id: str) -> dict:
     try:
         logger.info("Deleting participant with ID: %s for user: %s", participant_id, user_id)
 
-        # Get current participant to check existence
+        # Get current participant to check existence and get documents
         current_participant = await cosmos_client.get_participant(user_id, participant_id)
         if not current_participant:
             logger.error("Participant not found with ID: %s", participant_id)
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
 
+        # Delete all associated documents from blob storage
+        for doc in current_participant.get("docs", []):
+            try:
+                await blob_db.delete_file(user_id, doc["path"])
+            except Exception as e:
+                logger.warning("Failed to delete document %s: %s", doc.get("id"), str(e))
+
         await cosmos_client.delete_participant(user_id, participant_id)
         logger.info("Successfully deleted participant: %s", participant_id)
 
-        # Return the ID of the deleted participant
         return {"deleted_id": participant_id}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error deleting participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
+        logger.error("Error deleting participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while deleting participant")
 
 
@@ -220,13 +232,12 @@ async def get_participant(participant_id: str, user_id: str) -> ParticipantRespo
             raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
 
         logger.info("Successfully retrieved participant: %s", participant_id)
-        # Ensure the returned data matches the response model
         return ParticipantResponse(**participant)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error fetching participant %s: %s", participant_id, str(e), exc_info=True)  # Added exc_info
+        logger.error("Error fetching participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while retrieving participant")
 
 
@@ -237,8 +248,103 @@ async def list_participants(user_id: str) -> dict:
         participants_list = await cosmos_client.list_participants(user_id)
 
         logger.info("Successfully retrieved %d participants for user: %s", len(participants_list), user_id)
-        return {"participants": participants_list}  # Return raw list as before
+        return {"participants": participants_list}
 
     except Exception as e:
         logger.error("Error listing participants for user %s: %s", user_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while retrieving participants")
+
+
+async def list_participant_documents(participant_id: str, user_id: str) -> dict:
+    """List all documents for a participant."""
+    try:
+        logger.info("Fetching documents for participant ID: %s", participant_id)
+        participant = await cosmos_client.get_participant(user_id, participant_id)
+        
+        if not participant:
+            logger.error("Participant not found with ID: %s", participant_id)
+            raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+        
+        docs = participant.get('docs', [])
+        logger.info("Successfully retrieved %d documents for participant: %s", len(docs), participant_id)
+        return {"documents": docs}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error listing documents for participant %s: %s", participant_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error while retrieving documents")
+
+
+async def upload_participant_document(participant_id: str, user_id: str, file: UploadFile) -> dict:
+    """Upload a document for a participant."""
+    try:
+        logger.info("Uploading document for participant ID: %s", participant_id)
+        
+        # Get current participant to check existence
+        participant = await cosmos_client.get_participant(user_id, participant_id)
+        if not participant:
+            logger.error("Participant not found with ID: %s", participant_id)
+            raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+        
+        # Upload file to blob storage
+        doc_info = await blob_db.upload_file(file, user_id, participant_id)
+        
+        # Update participant's docs array in Cosmos DB
+        if 'docs' not in participant:
+            participant['docs'] = []
+            
+        participant['docs'].append(doc_info)
+        await cosmos_client.update_participant(user_id, participant_id, participant)
+        
+        logger.info("Successfully uploaded document for participant: %s", participant_id)
+        return doc_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error uploading document for participant %s: %s", participant_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error while uploading document")
+
+
+async def delete_participant_document(participant_id: str, user_id: str, doc_id: str) -> dict:
+    """Delete a document from a participant."""
+    try:
+        logger.info("Deleting document %s for participant ID: %s", doc_id, participant_id)
+        
+        # Get current participant to check existence
+        participant = await cosmos_client.get_participant(user_id, participant_id)
+        if not participant:
+            logger.error("Participant not found with ID: %s", participant_id)
+            raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+        
+        # Find and remove the document from the docs array
+        docs = participant.get('docs', [])
+        doc_to_delete = None
+        updated_docs = []
+        
+        for doc in docs:
+            if doc.get('id') == doc_id:
+                doc_to_delete = doc
+            else:
+                updated_docs.append(doc)
+                
+        if not doc_to_delete:
+            logger.error("Document %s not found for participant %s", doc_id, participant_id)
+            raise HTTPException(status_code=404, detail="Document not found")
+            
+        # Delete from blob storage
+        await blob_db.delete_file(user_id, participant_id, doc_to_delete['path'])
+        
+        # Update participant in Cosmos DB
+        participant['docs'] = updated_docs
+        await cosmos_client.update_participant(user_id, participant_id, participant)
+        
+        logger.info("Successfully deleted document %s for participant: %s", doc_id, participant_id)
+        return {"deleted_id": doc_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error deleting document for participant %s: %s", participant_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error while deleting document")
