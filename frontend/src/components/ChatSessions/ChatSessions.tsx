@@ -74,9 +74,9 @@ const ChatSessions: React.FC = () => {
     )
   }
 
-  if (sortedChatSessions.length === 0) {
-    return <div className="p-4 text-sm text-muted-foreground">No recent chats</div>
-  }
+  // if (sortedChatSessions.length === 0) {
+  //   return <div className="p-4 text-sm text-muted-foreground">No recent chats</div>
+  // }
 
   const groupedSessions = sortedChatSessions.reduce<GroupedSessions>((acc, session) => {
     // Check if it's a single participant session

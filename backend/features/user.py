@@ -135,12 +135,24 @@ async def login_user(name: str, email: str) -> Dict:
 
             # Clone admin template and update user-specific fields
             new_user = copy.deepcopy(admin_template)
+
+            # Update user_id in cloned groups and meetings to the new user's email
+            for group in new_user.get("groups", []):
+                group["user_id"] = email
+            for meeting in new_user.get("meetings", []):
+                meeting["user_id"] = email
+
             new_user["id"] = email
             new_user["email"] = email
             new_user["display_name"] = name
+            new_user["_rid"] = None
+            new_user["_self"] = None
+            new_user["_etag"] = None
+            new_user["_attachments"] = None
+            new_user["_ts"] = None
 
-            # Create new user in Cosmos DB
-            created_user = await cosmos_client.create_user(new_user)
+            # Create new user in Cosmos DB using upsert_item with the full new_user object
+            created_user = cosmos_client.container.upsert_item(body=new_user) # Use upsert_item directly
             logger.info(f"New user created: {email}")
             # Add 'name' field mapped from 'display_name' and return the full created user data
             created_user["name"] = created_user.get("display_name")
