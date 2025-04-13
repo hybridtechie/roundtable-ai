@@ -7,6 +7,8 @@ import { ChatInput } from "@/components/ui/chat-input"
 import { useAuth } from "@/context/AuthContext"
 import { getChatSession, sendChatMessage, streamChat } from "@/lib/api"
 import { toast } from "@/components/ui/sonner"
+import { Button } from "@/components/ui/button" // Added Button import
+import { Download } from "lucide-react" // Added Download icon import
 import {
   ChatMessage as ChatMessageType,
   ChatEventType,
@@ -308,14 +310,38 @@ const Chat: React.FC = () => {
     }
   }
 
+  const handleExportMessages = () => {
+    if (messages.length === 0) {
+      toast.info("No messages to export.")
+      return
+    }
+
+    const jsonString = JSON.stringify(messages, null, 2) // Pretty print JSON
+    const blob = new Blob([jsonString], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+    const meetingName = sessionTitle.split("\n")[0] || "chat"
+    link.download = `${meetingName.replace(/\s+/g, "_")}_${timestamp}.json` // Filename: meeting_name_timestamp.json
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url) // Clean up the object URL
+    toast.success("Messages exported successfully.")
+  }
+
   return (
     <div className="flex flex-col h-full">
       {sessionTitle && (
-        <div className="p-4 pb-0">
+        <div className="flex items-center justify-between p-4 pb-2"> {/* Use flex for layout */}
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">{sessionTitle.split("\n")[0]}</h2>
             {sessionTitle.includes("\n") && <p className="text-sm text-muted-foreground">{sessionTitle.split("\n")[1]}</p>}
           </div>
+          <Button variant="ghost" size="icon" onClick={handleExportMessages} title="Export Chat">
+            <Download className="w-5 h-5" />
+          </Button>
         </div>
       )}
       <Card className="flex flex-col flex-1 border-none">
