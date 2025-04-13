@@ -63,7 +63,7 @@ const Sidebar: React.FC = () => {
           Meetings
         </Button>
       </NavLink>
-      <NavLink
+      {/* <NavLink
         to="/meetings/new"
         className={({ isActive }: { isActive: boolean }) =>
           `w-full rounded-md ${isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 transition-colors"}`
@@ -82,7 +82,7 @@ const Sidebar: React.FC = () => {
           <TiMessages className="w-4 h-4 mr-2" />
           New Chat
         </Button>
-      </NavLink>
+      </NavLink> */}
       <hr className="my-2 border-gray-200" />
       <div>
         <ChatSessions />

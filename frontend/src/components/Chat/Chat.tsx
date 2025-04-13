@@ -436,7 +436,7 @@ const Chat: React.FC = () => {
             </div>
           </div>
         </CardContent>
-        {meetingStrategy === 'chat' && !isStreamMode && (
+        {(!meetingStrategy || meetingStrategy === 'chat') && !isStreamMode && (
           <ChatInput
             value={inputValue}
             onChange={setInputValue}

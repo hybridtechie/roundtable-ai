@@ -10,9 +10,41 @@ from datetime import datetime, timezone
 import uuid
 from features.llm import get_llm_client
 from features.participant import search_participant_knowledge # Added import
+from features.user import get_me
+from typing import List, Dict, Any # Added for type hinting
 
 # Set up logger
 logger = setup_logger(__name__)
+
+# Helper function to fetch and filter knowledge
+async def _fetch_and_filter_knowledge(
+    user_id: str,
+    participant_id: str,
+    search_text: str,
+    top_k: int = 3,
+    score_threshold: float = 0.80
+) -> List[Dict[str, Any]]:
+    """Fetches knowledge for a participant and filters by similarity score."""
+    knowledge = []
+    try:
+        knowledge = await search_participant_knowledge(
+            user_id=user_id,
+            participant_id=participant_id,
+            search_text=search_text,
+            top_k=top_k
+        )
+        # Filter knowledge based on the score threshold
+        filtered_knowledge = [
+            item for item in knowledge
+            if item.get('similarityScore', 0) >= score_threshold
+        ]
+        logger.info(f"Fetched {len(knowledge)} items, kept {len(filtered_knowledge)} after filtering (threshold: {score_threshold}) for participant {participant_id} based on '{search_text[:30]}...'")
+        return filtered_knowledge
+    except HTTPException as e:
+        logger.warning(f"Could not fetch knowledge for participant {participant_id} (HTTP {e.status_code}): {e.detail}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching knowledge for participant {participant_id}: {str(e)}", exc_info=True)
+    return [] # Return empty list on error or if no items meet threshold
 
 
 # SSE event formatting
@@ -175,42 +207,32 @@ class MeetingDiscussion:
         session_id = str(uuid.uuid4())
         self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [], "display_messages": []}
 
-        # Fetch related knowledge for each participant based on the topic
-        logger.info(f"Fetching related knowledge for participants based on topic: '{self.topic}'")
+        # Fetch and filter related knowledge for each participant based on the topic
+        logger.info(f"Fetching and filtering related knowledge for participants based on topic: '{self.topic}'")
         knowledge_fetch_tasks = []
         participant_ids_for_knowledge = list(self.participants.keys()) # Get IDs before async operations
 
         for pid in participant_ids_for_knowledge:
-            # Define a coroutine for each participant's knowledge search
-            async def fetch_knowledge(participant_id):
-                try:
-                    knowledge = await search_participant_knowledge(
-                        user_id=self.user_id,
-                        participant_id=participant_id,
-                        search_text=self.topic,
-                        top_k=3 # Fetch top 3 relevant chunks
-                    )
-                    # Ensure participant still exists in the dictionary before updating
-                    if participant_id in self.participants:
-                        self.participants[participant_id]['related_knowledge'] = knowledge
-                        logger.info(f"Fetched {len(knowledge)} knowledge items for participant {participant_id}")
-                    else:
-                         logger.warning(f"Participant {participant_id} no longer in participants dict after knowledge fetch.")
+            # Define a coroutine using the helper function
+            async def fetch_and_assign_knowledge(participant_id):
+                filtered_knowledge = await _fetch_and_filter_knowledge(
+                    user_id=self.user_id,
+                    participant_id=participant_id,
+                    search_text=self.topic,
+                    top_k=3,
+                    score_threshold=0.80 # Explicitly pass threshold
+                )
+                # Ensure participant still exists in the dictionary before updating
+                if participant_id in self.participants:
+                    self.participants[participant_id]['related_knowledge'] = filtered_knowledge
+                else:
+                    logger.warning(f"Participant {participant_id} no longer in participants dict after knowledge fetch.")
 
-                except HTTPException as e:
-                    logger.warning(f"Could not fetch knowledge for participant {participant_id} (HTTP {e.status_code}): {e.detail}")
-                    if participant_id in self.participants:
-                         self.participants[participant_id]['related_knowledge'] = [] # Ensure it's an empty list on error
-                except Exception as e:
-                    logger.error(f"Unexpected error fetching knowledge for participant {participant_id}: {str(e)}", exc_info=True)
-                    if participant_id in self.participants:
-                        self.participants[participant_id]['related_knowledge'] = [] # Ensure it's an empty list on error
-
-            knowledge_fetch_tasks.append(fetch_knowledge(pid))
+            knowledge_fetch_tasks.append(fetch_and_assign_knowledge(pid))
 
         # Run all knowledge fetch tasks concurrently
         await asyncio.gather(*knowledge_fetch_tasks)
-        logger.info("Finished fetching related knowledge for all participants.")
+        logger.info("Finished fetching and filtering related knowledge for all participants.")
 
         if self.strategy in ["round robin", "opinionated"]:
             yield format_sse_event("questions", {"questions": self.questions})
@@ -319,23 +341,78 @@ class MeetingDiscussion:
             participant_id = next(iter(self.participants.keys()))
             participant_info = self.participants[participant_id]
 
-            # Get full participant details for context
-            participant = await cosmos_client.get_participant(self.user_id, participant_id)
-            if not participant:
-                raise HTTPException(status_code=404, detail="Participant not found")
+            # Get LLM client (moved earlier)
+            llm_client = await get_llm_client(self.user_id)
+
+            # --- Generate Summary for Knowledge Search ---
+            search_text = chat_request.user_message # Default search text
+            if chat_session["messages"]: # Only summarize if there's history
+                # Prepare messages for summarization (use existing history before adding current user message)
+                messages_for_summary = list(chat_session["messages"]) # Create a copy
+                # Add the current user message temporarily for context in summary
+                messages_for_summary.append({"role": "user", "content": chat_request.user_message})
+
+                summary_prompt = (
+                    "Summarize the following conversation history concisely. Focus specifically on the main topic and the *last user message* provided. "
+                    "The summary will be used to search a knowledge base for relevant information to help answer the last user message. "
+                    "Output only the summary text."
+                )
+                summary_messages = [{"role": "system", "content": summary_prompt}]
+                # Add conversation history as user messages for the summarizer LLM
+                for msg in messages_for_summary:
+                     # Simple concatenation, might need refinement based on LLM input format needs
+                     summary_messages.append({"role": "user", "content": f"{msg['role']}: {msg['content']}"})
+
+                try:
+                    summary_response, _ = llm_client.send_request(summary_messages)
+                    search_text = summary_response.strip()
+                    logger.info(f"Generated summary for knowledge search: '{search_text[:100]}...'")
+                except Exception as e:
+                    logger.error(f"Failed to generate summary for knowledge search: {str(e)}. Falling back to user message.")
+                    search_text = chat_request.user_message # Fallback to original message
+
+            # Fetch related knowledge based on the generated summary or user message
+            related_knowledge = await _fetch_and_filter_knowledge(
+                user_id=self.user_id,
+                participant_id=participant_id,
+                search_text=search_text, # Use summary or fallback
+                top_k=3,
+                score_threshold=0.80
+            )
+            
+            user_info = await get_me(self.user_id)
 
             # Create system prompt from participant details
-            system_prompt = (
+            system_prompt_base = (
                 f"You are {participant_info['persona_description']}. "
                 f"Your role is {participant_info['role']}. "
-                f"Respond to this question in a brief, conversational way, as you would in a slack chat. "
-                f"Keep it concise, to the point, and reflective of your persona. No extra fluff. Everyone except you in the slack chat is human."
-                f"Provide response in a conversational manner, as you(human) would in a slack chat. You can also refer to others conversationally if you know their name and agree or disagree with them rather than repeating their points."
+                f"You are chatting with a human user named {user_info['name']}.  "
+                f"Respond to the user's message in a brief, conversational way, like in a Slack chat done by your persona."
+                f"Keep it concise, to the point, and reflective of your persona. No extra fluff. The user you are chatting with is human."
+                f"For the first response, say Hi to the user like Hi {user_info['name']} and introducing yourself briefly along with the response "
             )
 
-            # If this is a new chat session, add the system prompt as first message
-            if not chat_session["messages"]:
-                chat_session["messages"].append({"role": "system", "content": system_prompt})
+            # Add related knowledge to the system prompt if available
+            system_prompt = system_prompt_base
+            if related_knowledge:
+                knowledge_context = "\n\nRelevant background information for you based on your knowledge base. Base your response on the knowledge found below if relevant:\n"
+                knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')}" for item in related_knowledge])
+                system_prompt += knowledge_context
+
+            # If this is a new chat session or the system prompt has changed, update/add it
+            # We check if the first message is a system message and if its content differs
+            update_system_prompt = True
+            if chat_session["messages"] and chat_session["messages"][0]["role"] == "system":
+                if chat_session["messages"][0]["content"] == system_prompt:
+                    update_system_prompt = False
+                else:
+                    # Update existing system prompt
+                    chat_session["messages"][0]["content"] = system_prompt
+                    update_system_prompt = False # Already updated
+
+            if update_system_prompt:
+                 # Prepend the system prompt if it's new or wasn't the first message
+                 chat_session["messages"].insert(0, {"role": "system", "content": system_prompt})
 
             # Add user message to history
             chat_session["messages"].append({"role": "user", "content": chat_request.user_message})
@@ -344,8 +421,7 @@ class MeetingDiscussion:
                 {"role": "user", "content": chat_request.user_message, "type": "user", "name": "You", "step": "", "timestamp": datetime.now(timezone.utc).isoformat()}
             )
 
-            # Get LLM client
-            llm_client = await get_llm_client(self.user_id)
+            # LLM client already initialized earlier for summary/knowledge search
 
             # Send complete history to LLM
             messages = chat_session["messages"]
