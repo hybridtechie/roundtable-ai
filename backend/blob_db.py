@@ -29,12 +29,12 @@ class BlobDB:
                 detail=f"File size exceeds maximum limit of {self.max_file_size/1024/1024}MB"
             )
 
-        # Validate filename - only alphanumeric characters, hyphens, and underscores
-        if not re.match(r'^[\w\-\.]+$', filename):
-            raise HTTPException(
-                status_code=400,
-                detail="Filename contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed."
-            )
+        # # Validate filename - only alphanumeric characters, hyphens, and underscores
+        # if not re.match(r'^[\w\-\. ]+$', filename):
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail="Filename contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed."
+        #     )
 
         # Check file extension
         ext = os.path.splitext(filename)[1].lower()
@@ -78,7 +78,7 @@ class BlobDB:
             await blob_client.upload_blob(file.file, content_settings=content_settings)
 
             return {
-                "id": file_id,
+                "file_id": file_id,
                 "participant_id": participant_id,
                 "user_id": user_id,
                 "name": original_filename,
