@@ -10,6 +10,7 @@ interface ChatMessageProps {
   content?: string
   timestamp?: Date
   className?: string
+  forceExpand?: boolean // New prop to control expansion externally
 }
 
 const defaultProps: Partial<ChatMessageProps> = {
@@ -26,6 +27,7 @@ export function ChatMessage({
   content = defaultProps.content,
   timestamp = defaultProps.timestamp,
   className,
+  forceExpand, // Destructure the new prop
 }: ChatMessageProps) {
   const initials = name
     ? name
@@ -35,7 +37,8 @@ export function ChatMessage({
         .toUpperCase()
     : "AI"
   const [copied, setCopied] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false) // Internal state for individual toggle
+  const showFullContent = forceExpand !== undefined ? forceExpand : isExpanded // Prioritize forceExpand prop
 
   const handleCopy = async () => {
     if (content) {
@@ -61,17 +64,20 @@ export function ChatMessage({
         <div
           className={cn(
             "text-sm whitespace-pre-wrap relative",
-            type === "final" && "text-green-500",
-            !isExpanded && "max-h-[7.5rem] overflow-hidden", // ~5 lines of text
+            type === "final" || (type === "summary" && "text-green-500"),
+            !showFullContent && "max-h-[7.5rem] overflow-hidden", // Use combined state
           )}>
           {content || ""}
-          {content && !isExpanded && content.split("\n").length > 5 && (
-            <div className="absolute bottom-0 w-full h-8 bg-gradient-to-t from-secondary/50 to-transparent" />
-          )}
+          {content &&
+            !showFullContent &&
+            content.split("\n").length > 5 && ( // Use combined state
+              <div className="absolute bottom-0 w-full h-8 bg-gradient-to-t from-secondary/50 to-transparent" />
+            )}
         </div>
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">{timestamp?.toLocaleTimeString()}</div>
-          {content && content.split("\n").length > 5 && (
+          {/* Only show individual toggle if forceExpand is not set */}
+          {forceExpand === undefined && content && content.split("\n").length > 5 && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">

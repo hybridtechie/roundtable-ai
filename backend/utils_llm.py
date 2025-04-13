@@ -101,8 +101,8 @@ class LLMClient:
 
     def send_request_w_structured_response(self, prompt_or_messages, response_format, **kwargs):
         """Sends a request expecting a structured response using the initialized provider client."""
-        return self.client.send_request_w_structured_response(prompt_or_messages, response_format, **kwargs)    
-    
+        return self.client.send_request_w_structured_response(prompt_or_messages, response_format, **kwargs)
+
     def generate_embeddings(self, text: str) -> list[float]:
         """Sends a request expecting a structured response using the initialized provider client."""
         return self.client.generate_embeddings(text)

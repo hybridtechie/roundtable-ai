@@ -35,6 +35,7 @@ async def get_user_chat_sessions(user_id: str) -> list:
                     # Add meeting details to the session
                     session["meeting_topic"] = meeting.topic
                     session["meeting_name"] = meeting.name
+                    session["meeting_strategy"] = meeting.strategy
                     session["participants"] = meeting.participants
 
                     # Check if meeting has a group_id and get group details
@@ -85,6 +86,7 @@ async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
                 chat_session["meeting_topic"] = meeting.topic
                 chat_session["meeting_name"] = meeting.name
                 chat_session["participants"] = meeting.participants
+                chat_session["meeting_strategy"] = meeting.strategy
 
                 # Check if meeting has a group_id and get group details
                 if meeting.group_ids and len(meeting.group_ids) > 0:

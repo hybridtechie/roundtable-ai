@@ -44,16 +44,12 @@ class CosmosDBClient:
 
             # Initialize main database and container
             self.database = self.client.get_database_client(DATABASE_NAME)
-            self.container = self.database.get_container_client(
-                CONTAINER_NAME
-            )
+            self.container = self.database.get_container_client(CONTAINER_NAME)
             logger.info(f"Successfully initialized Cosmos DB client for database: {DATABASE_NAME} and container: {CONTAINER_NAME}")
 
             # Initialize vector database and participant docs container
             self.vector_database = self.client.get_database_client(VECTOR_DATABASE_NAME)
-            self.participant_docs_container = self.vector_database.get_container_client(
-                PARTICIPANT_DOCO_CONTAINER_NAME
-            )
+            self.participant_docs_container = self.vector_database.get_container_client(PARTICIPANT_DOCO_CONTAINER_NAME)
             logger.info(f"Successfully initialized Cosmos DB client for database: {VECTOR_DATABASE_NAME} and container: {PARTICIPANT_DOCO_CONTAINER_NAME}")
 
         except exceptions.CosmosHttpResponseError as e:
@@ -404,8 +400,8 @@ class CosmosDBClient:
             container = self.get_participant_docs_container()
             # Ensure participant_id exists for partition key
             if "participant_id" not in doc_chunk_data:
-                 logger.error("Missing 'participant_id' in document chunk data.")
-                 raise ValueError("Document chunk data must include 'participant_id'")
+                logger.error("Missing 'participant_id' in document chunk data.")
+                raise ValueError("Document chunk data must include 'participant_id'")
 
             response = container.upsert_item(body=doc_chunk_data)
             logger.info(f"Successfully added/updated document chunk with id: {doc_chunk_data.get('id')}")
@@ -424,15 +420,11 @@ class CosmosDBClient:
             parameters = [{"name": "@participant_id", "value": participant_id}]
 
             # Query items using the participant_id as the partition key for efficiency
-            items_to_delete = list(container.query_items(
-                query=query,
-                parameters=parameters,
-                partition_key=participant_id
-            ))
+            items_to_delete = list(container.query_items(query=query, parameters=parameters, partition_key=participant_id))
 
             deleted_count = 0
             for item in items_to_delete:
-                container.delete_item(item=item['id'], partition_key=participant_id)
+                container.delete_item(item=item["id"], partition_key=participant_id)
                 deleted_count += 1
                 logger.debug(f"Deleted document chunk {item['id']} for participant {participant_id}")
 
@@ -442,6 +434,60 @@ class CosmosDBClient:
             logger.error(f"Error deleting document chunks for participant {participant_id}: {str(e)}", exc_info=True)
             # Decide if this should raise an exception or just log the error
             # raise # Uncomment if deletion failure should halt operations
+
+    async def vector_search_participant_docs(
+        self,
+        query_vector: List[float],
+        participant_id: Optional[str] = None,
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform a vector similarity search on participant document chunks.
+
+        Args:
+            query_vector: The embedding vector to search against.
+            participant_id: Optional participant ID to filter results.
+            top_k: The maximum number of results to return.
+
+        Returns:
+            A list of matching document chunks with similarity scores.
+        """
+        try:
+            container = self.get_participant_docs_container()
+            query = f"SELECT TOP @num_results c.id, c.text_chunk, VectorDistance(c.embeddings, @embedding) AS similarityScore FROM c"
+            parameters = [
+                {"name": "@num_results", "value": top_k},
+                {"name": "@embedding", "value": query_vector},
+            ]
+
+            enable_cross_partition = True
+            partition_key_param = None
+
+            if participant_id:
+                query += " WHERE c.participant_id = @participant_id"
+                parameters.append({"name": "@participant_id", "value": participant_id})
+                enable_cross_partition = False  # We can target a specific partition
+                partition_key_param = participant_id
+
+            query += " ORDER BY VectorDistance(c.embeddings, @embedding)"  # ORDER BY is required for vector search
+
+            logger.debug(f"Executing vector search query: {query} with params: {parameters}")
+
+            results = list(
+                container.query_items(query=query, parameters=parameters, enable_cross_partition_query=enable_cross_partition, partition_key=partition_key_param)  # Specify partition key if filtering
+            )
+
+            logger.info(f"Vector search found {len(results)} results for top_k={top_k}" + (f" and participant_id={participant_id}" if participant_id else ""))
+            return results
+
+        except exceptions.CosmosHttpResponseError as e:
+            logger.error(f"Cosmos DB HTTP error during vector search: {e}", exc_info=True)
+            # Depending on requirements, you might want to return empty list or re-raise
+            # For now, let's re-raise to signal a DB issue
+            raise HTTPException(status_code=500, detail=f"Database error during vector search: {e.message}")
+        except Exception as e:
+            logger.error(f"Unexpected error during vector search: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="An unexpected error occurred during vector search.")
 
     async def get_chat_sessions_container(self):
         """Get the chat sessions container."""

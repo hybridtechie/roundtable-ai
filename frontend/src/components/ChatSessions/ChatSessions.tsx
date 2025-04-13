@@ -1,14 +1,14 @@
 import React from "react"
-import { NavLink } from "react-router-dom"
+import { NavLink, Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { MoreHorizontal } from "lucide-react"
+import { MoreHorizontal, Plus, ChevronRight } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { deleteChatSession } from "@/lib/api"
 import { ChatSession } from "@/types/types"
 import { useAuth } from "@/context/AuthContext"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronRight } from "lucide-react"
 
 interface GroupedSessions {
   [key: string]: {
@@ -74,9 +74,9 @@ const ChatSessions: React.FC = () => {
     )
   }
 
-  if (sortedChatSessions.length === 0) {
-    return <div className="p-4 text-sm text-muted-foreground">No recent chats</div>
-  }
+  // if (sortedChatSessions.length === 0) {
+  //   return <div className="p-4 text-sm text-muted-foreground">No recent chats</div>
+  // }
 
   const groupedSessions = sortedChatSessions.reduce<GroupedSessions>((acc, session) => {
     // Check if it's a single participant session
@@ -127,8 +127,22 @@ const ChatSessions: React.FC = () => {
     <div className="flex flex-col space-y-4">
       {/* Chats Section */}
       <div>
-        <div className="px-2 mb-2">
+        <div className="flex items-center justify-between px-2 mb-2">
           <h3 className="text-sm font-medium">Direct Chat</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/chat/new">
+                  <Button variant="ghost" size="icon" className="w-6 h-6">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>New Chat</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="flex flex-col space-y-1 max-h-[300px] overflow-y-auto">
           {sortByTimestamp(chats)
@@ -172,8 +186,22 @@ const ChatSessions: React.FC = () => {
       {/* Meetings Section */}
       <div>
         <hr className="my-2 border-gray-200" />
-        <div className="px-2 mb-2">
-          <h3 className="text-sm font-medium">Groups</h3>
+        <div className="flex items-center justify-between px-2 mb-2">
+          <h3 className="text-sm font-medium">Group Meetings</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/meetings/new">
+                  <Button variant="ghost" size="icon" className="w-6 h-6">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>New Group Meeting</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="flex flex-col space-y-1">
           {sortByTimestamp(meetings).map((group) => {

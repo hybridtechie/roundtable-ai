@@ -48,7 +48,8 @@ function App() {
             <Route index element={<Home />} />
             <Route path="participants" element={<Participants />} />
             <Route path="participants/create" element={<CreateParticipant />} />
-            <Route path="participant/:participantId" element={<ParticipantViewPage />} /> {/* Add route for viewing a single participant */}
+            <Route path="participant/:participantId" element={<ParticipantViewPage />} />{" "}
+            {/* Add route for viewing a single participant */}
             <Route path="groups" element={<Groups />} />
             <Route path="meetings" element={<Meetings />} />
             <Route path="meetings/new" element={<NewMeeting />} />

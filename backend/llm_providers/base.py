@@ -21,7 +21,7 @@ class LLMBase(ABC):
     @abstractmethod
     def send_request_w_structured_response(self, prompt_or_messages, response_format, **kwargs):
         pass
-    
+
     @abstractmethod
     def generate_embeddings(self, text: str) -> list[float]:
         pass

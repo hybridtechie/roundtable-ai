@@ -9,9 +9,29 @@ from cosmos_db import cosmos_client
 from datetime import datetime, timezone
 import uuid
 from features.llm import get_llm_client
+from features.participant import search_participant_knowledge  # Added import
+from features.user import get_me
+from typing import List, Dict, Any  # Added for type hinting
 
 # Set up logger
 logger = setup_logger(__name__)
+
+
+# Helper function to fetch and filter knowledge
+async def _fetch_and_filter_knowledge(user_id: str, participant_id: str, search_text: str, top_k: int = 3, score_threshold: float = 0.80) -> List[Dict[str, Any]]:
+    """Fetches knowledge for a participant and filters by similarity score."""
+    knowledge = []
+    try:
+        knowledge = await search_participant_knowledge(user_id=user_id, participant_id=participant_id, search_text=search_text, top_k=top_k)
+        # Filter knowledge based on the score threshold
+        filtered_knowledge = [item for item in knowledge if item.get("similarityScore", 0) >= score_threshold]
+        logger.info(f"Fetched {len(knowledge)} items, kept {len(filtered_knowledge)} after filtering (threshold: {score_threshold}) for participant {participant_id} based on '{search_text[:30]}...'")
+        return filtered_knowledge
+    except HTTPException as e:
+        logger.warning(f"Could not fetch knowledge for participant {participant_id} (HTTP {e.status_code}): {e.detail}")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching knowledge for participant {participant_id}: {str(e)}", exc_info=True)
+    return []  # Return empty list on error or if no items meet threshold
 
 
 # SSE event formatting
@@ -47,6 +67,7 @@ class MeetingDiscussion:
                     "role": participant.get("role", "Team Member"),
                     "weight": order.weight,
                     "order": order.order,
+                    "related_knowledge": [],  # Initialize related_knowledge
                 }
         logger.info("Initialized meeting discussion for user '%s'", self.user_id)
 
@@ -60,9 +81,18 @@ class MeetingDiscussion:
             f"You are {participant['persona_description']}. "
             f"Your role is {participant['role']}. "
             f"You are participating in a meeting about '{self.topic}'. "
-            f"Meeting participants: {', '.join(participant_list)}. "
-            f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
+            f"Meeting participants: {', '.join(participant_list)}. " + "\nand a  Moderator: Moderator\n"
+            f"Keep it concise, to the point, and reflective of your persona. No extra fluff. Everyone except you in the meeting is human."
+            f"Provide response in a conversational manner, as you(human) would in a meeting. You can also refer to others conversationally and agree or disagree with them rather than repeating their points. "
         )
+
+        # Add related knowledge if available
+        related_knowledge = participant.get("related_knowledge", [])
+        if related_knowledge:
+            knowledge_context = "\n\nRelevant background information for you based on your knowledge base. Base your response on the knowledge found below as much as possible.:\n"
+            knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')}" for item in related_knowledge])  # Simplified for context length
+            # knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')} (Similarity: {item.get('similarityScore', 0):.2f})" for item in related_knowledge])
+            system_prompt += knowledge_context
 
         # Part 2: Message History
         messages = [{"role": "system", "content": system_prompt}]
@@ -70,7 +100,9 @@ class MeetingDiscussion:
             messages.extend(messages_list)
 
         # Part 3: Current Question
-        messages.append({"role": "user", "content": f"Please provide a concise response to this question based on the meeting topic: {question}"})
+        moderator_ques = res = json.dumps({"name": "Moderator", "content": f"Please provide a concise response in a conversational manner to this question based on the meeting topic: {question}"})
+        messages.append({"role": "user", "content": moderator_ques})
+        self.chat_session["messages"].append({"role": "user", "content": moderator_ques})
 
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
@@ -101,7 +133,7 @@ class MeetingDiscussion:
 
         system_prompt = (
             f"You are provided with a meeting transcript of a meeting conducted for topic '{self.topic}'. "
-            f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\n\n"
+            f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\nand a  Moderator: Moderator\n"
             f"Important Note: Each participant has a weight assigned (1-10) that indicates their expertise and influence level. "
             f"Participants with higher weights should have their contributions valued more heavily in the final analysis.\n\n"
             f"Objective: Understand the meeting discussion and provide a summary that includes:\n"
@@ -162,6 +194,29 @@ class MeetingDiscussion:
         session_id = str(uuid.uuid4())
         self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [], "display_messages": []}
 
+        # Fetch and filter related knowledge for each participant based on the topic
+        logger.info(f"Fetching and filtering related knowledge for participants based on topic: '{self.topic}'")
+        knowledge_fetch_tasks = []
+        participant_ids_for_knowledge = list(self.participants.keys())  # Get IDs before async operations
+
+        for pid in participant_ids_for_knowledge:
+            # Define a coroutine using the helper function
+            async def fetch_and_assign_knowledge(participant_id):
+                filtered_knowledge = await _fetch_and_filter_knowledge(
+                    user_id=self.user_id, participant_id=participant_id, search_text=self.topic, top_k=3, score_threshold=0.80  # Explicitly pass threshold
+                )
+                # Ensure participant still exists in the dictionary before updating
+                if participant_id in self.participants:
+                    self.participants[participant_id]["related_knowledge"] = filtered_knowledge
+                else:
+                    logger.warning(f"Participant {participant_id} no longer in participants dict after knowledge fetch.")
+
+            knowledge_fetch_tasks.append(fetch_and_assign_knowledge(pid))
+
+        # Run all knowledge fetch tasks concurrently
+        await asyncio.gather(*knowledge_fetch_tasks)
+        logger.info("Finished fetching and filtering related knowledge for all participants.")
+
         if self.strategy in ["round robin", "opinionated"]:
             yield format_sse_event("questions", {"questions": self.questions})
 
@@ -177,10 +232,10 @@ class MeetingDiscussion:
                     answer = self.ask_question(llm_client, pid, question, self.message_history)
                     # Add to discussion log
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
-                    # Add to message history
-                    self.message_history.append({"role": "assistant", "content": f"{self.participants[pid]['name']} said \"{answer}\""})
+                    res = json.dumps({"name": self.participants[pid]["name"], "content": answer})
+                    self.message_history.append({"role": "user", "content": res})
                     # Add to chat session
-                    self.chat_session["messages"].append({"role": "assistant", "content": answer})
+                    self.chat_session["messages"].append({"role": "user", "content": answer})
                     self.chat_session["display_messages"].append(
                         {
                             "role": self.participants[pid]["role"],
@@ -250,6 +305,7 @@ class MeetingDiscussion:
         """Handle a chat request for the chat strategy."""
         try:
             if self.strategy != "chat" or len(self.participants) != 1:
+                logger.error("Invalid meeting: must be chat strategy with exactly one participant")
                 raise HTTPException(status_code=400, detail="Invalid meeting: must be chat strategy with exactly one participant")
 
             # Get or create chat session
@@ -268,22 +324,74 @@ class MeetingDiscussion:
             participant_id = next(iter(self.participants.keys()))
             participant_info = self.participants[participant_id]
 
-            # Get full participant details for context
-            participant = await cosmos_client.get_participant(self.user_id, participant_id)
-            if not participant:
-                raise HTTPException(status_code=404, detail="Participant not found")
+            # Get LLM client (moved earlier)
+            llm_client = await get_llm_client(self.user_id)
 
-            # Create system prompt from participant details
-            system_prompt = (
-                f"You are {participant_info['persona_description']}. "
-                f"Your role is {participant_info['role']}. "
-                f"Respond to this question in a brief, conversational way, as you would in a meeting. "
-                f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
+            # --- Generate Summary for Knowledge Search ---
+            search_text = chat_request.user_message  # Default search text
+            if chat_session["messages"]:  # Only summarize if there's history
+                # Prepare messages for summarization (use existing history before adding current user message)
+                messages_for_summary = list(chat_session["messages"])  # Create a copy
+                # Add the current user message temporarily for context in summary
+                messages_for_summary.append({"role": "user", "content": chat_request.user_message})
+
+                summary_prompt = (
+                    "Summarize the following conversation history concisely. Focus specifically on the main topic and the *last user message* provided. "
+                    "The summary will be used to search a knowledge base for relevant information to help answer the last user message. "
+                    "Output only the summary text."
+                )
+                summary_messages = [{"role": "system", "content": summary_prompt}]
+                # Add conversation history as user messages for the summarizer LLM
+                for msg in messages_for_summary:
+                    # Simple concatenation, might need refinement based on LLM input format needs
+                    summary_messages.append({"role": "user", "content": f"{msg['role']}: {msg['content']}"})
+
+                try:
+                    summary_response, _ = llm_client.send_request(summary_messages)
+                    search_text = summary_response.strip()
+                    logger.info(f"Generated summary for knowledge search: '{search_text[:100]}...'")
+                except Exception as e:
+                    logger.error(f"Failed to generate summary for knowledge search: {str(e)}. Falling back to user message.")
+                    search_text = chat_request.user_message  # Fallback to original message
+
+            # Fetch related knowledge based on the generated summary or user message
+            related_knowledge = await _fetch_and_filter_knowledge(
+                user_id=self.user_id, participant_id=participant_id, search_text=search_text, top_k=3, score_threshold=0.80  # Use summary or fallback
             )
 
-            # If this is a new chat session, add the system prompt as first message
-            if not chat_session["messages"]:
-                chat_session["messages"].append({"role": "system", "content": system_prompt})
+            user_info = await get_me(self.user_id)
+
+            # Create system prompt from participant details
+            system_prompt_base = (
+                f"You are {participant_info['persona_description']}. "
+                f"Your role is {participant_info['role']}. "
+                f"You are chatting with a human user named {user_info['name']}.  "
+                f"Respond to the user's message in a brief, conversational way, like in a Slack chat done by your persona."
+                f"Keep it concise, to the point, and reflective of your persona. No extra fluff. The user you are chatting with is human."
+                f"For the first response, say Hi to the user like Hi {user_info['name']} and introducing yourself briefly along with the response "
+            )
+
+            # Add related knowledge to the system prompt if available
+            system_prompt = system_prompt_base
+            if related_knowledge:
+                knowledge_context = "\n\nRelevant background information for you based on your knowledge base. Base your response on the knowledge found below if relevant:\n"
+                knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')}" for item in related_knowledge])
+                system_prompt += knowledge_context
+
+            # If this is a new chat session or the system prompt has changed, update/add it
+            # We check if the first message is a system message and if its content differs
+            update_system_prompt = True
+            if chat_session["messages"] and chat_session["messages"][0]["role"] == "system":
+                if chat_session["messages"][0]["content"] == system_prompt:
+                    update_system_prompt = False
+                else:
+                    # Update existing system prompt
+                    chat_session["messages"][0]["content"] = system_prompt
+                    update_system_prompt = False  # Already updated
+
+            if update_system_prompt:
+                # Prepend the system prompt if it's new or wasn't the first message
+                chat_session["messages"].insert(0, {"role": "system", "content": system_prompt})
 
             # Add user message to history
             chat_session["messages"].append({"role": "user", "content": chat_request.user_message})
@@ -292,8 +400,7 @@ class MeetingDiscussion:
                 {"role": "user", "content": chat_request.user_message, "type": "user", "name": "You", "step": "", "timestamp": datetime.now(timezone.utc).isoformat()}
             )
 
-            # Get LLM client
-            llm_client = await get_llm_client(self.user_id)
+            # LLM client already initialized earlier for summary/knowledge search
 
             # Send complete history to LLM
             messages = chat_session["messages"]
