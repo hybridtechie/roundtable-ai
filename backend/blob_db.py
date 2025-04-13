@@ -62,11 +62,14 @@ class BlobDB:
             
             # Ensure container exists
             container_client = self.service_client.get_container_client(self.container_name)
-            if not container_client.exists():
+            try:
                 container_client.create_container()
+            except Exception:
+                # Container might already exist, which is fine
+                pass
 
             # Create blob path
-            blob_path = f"{user_id}/{participant_id}/knowledge/{clean_filename}"
+            blob_path = f"{user_id}/participant/{participant_id}/knowledge/{clean_filename}"
             blob_client = container_client.get_blob_client(blob_path)
 
             # Set content settings based on file type
@@ -75,7 +78,7 @@ class BlobDB:
             )
 
             # Upload the file
-            await blob_client.upload_blob(file.file, content_settings=content_settings)
+            blob_client.upload_blob(file.file, content_settings=content_settings, overwrite=True)
 
             return {
                 "file_id": file_id,
@@ -96,13 +99,15 @@ class BlobDB:
         """Delete a file from Azure Blob Storage."""
         try:
             container_client = self.service_client.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(f"{user_id}/{participant_id}/knowledge/{file_path}")
+            blob_client = container_client.get_blob_client(f"{user_id}/participant/{participant_id}/knowledge/{file_path}")
             
             # Check if blob exists before deleting
-            if not await blob_client.exists():
+            try:
+                blob_client.get_blob_properties()
+            except Exception:
                 raise HTTPException(status_code=404, detail="File not found")
                 
-            await blob_client.delete_blob()
+            blob_client.delete_blob()
             
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
@@ -114,7 +119,8 @@ class BlobDB:
             files = []
             
             # List all blobs in the user's directory
-            async for blob in container_client.list_blobs(name_starts_with=f"{user_id}/{participant_id}/knowledge/"):
+            blobs = container_client.list_blobs(name_starts_with=f"{user_id}/participant/{participant_id}/knowledge/")
+            for blob in blobs:
                 blob_name = blob.name.split('/')[-1]  # Get filename from path
                 file_id = os.path.splitext(blob_name)[0]  # Remove extension to get ID
                 

@@ -10,8 +10,8 @@ from features.llm import get_llm_client
 
 logger = setup_logger(__name__)
 
-DEFAULT_CHUNK_SIZE = 1000
-DEFAULT_CHUNK_OVERLAP = 100
+DEFAULT_CHUNK_SIZE = 10000
+DEFAULT_CHUNK_OVERLAP = 250
 
 def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, chunk_overlap: int = DEFAULT_CHUNK_OVERLAP) -> List[str]:
     """Splits text into chunks of a specified size with overlap."""
@@ -386,7 +386,7 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
     try:
         await file.seek(0)
         doc_info = await blob_db.upload_file(file, user_id, participant_id)
-        file_id = doc_info.get("id")
+        file_id = doc_info.get("file_id")
         original_filename = doc_info.get("name")
         clean_filename = doc_info.get("clean_name")
         blob_path = doc_info.get("path")
