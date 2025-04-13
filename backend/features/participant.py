@@ -541,3 +541,64 @@ async def delete_participant_document(participant_id: str, user_id: str, file_id
     except Exception as e:
         logger.error(f"Error deleting document file_id {file_id} for participant {participant_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while deleting document")
+
+
+async def search_participant_knowledge(
+    user_id: str,
+    participant_id: str,
+    search_text: str,
+    top_k: int = 5
+) -> List[Dict]:
+    """
+    Searches the knowledge documents of a specific participant using vector similarity.
+
+    Args:
+        user_id: The ID of the user performing the search.
+        participant_id: The ID of the participant whose documents to search.
+        search_text: The text query to search for.
+        top_k: The maximum number of similar document chunks to return.
+
+    Returns:
+        A list of dictionaries, each representing a matching document chunk
+        and its similarity score.
+
+    Raises:
+        HTTPException: If the participant is not found, or if there's an error
+                       during embedding generation or database search.
+    """
+    logger.info(f"Initiating knowledge search for participant '{participant_id}' with query: '{search_text[:50]}...'")
+
+    # 1. Check if participant exists
+    participant = await cosmos_client.get_participant(user_id, participant_id)
+    if not participant:
+        logger.error(f"Participant not found with ID: {participant_id} for user {user_id}")
+        raise HTTPException(status_code=404, detail=f"Participant with ID '{participant_id}' not found")
+
+    try:
+        # 2. Get LLM client and generate embeddings for the search text
+        llm_client = await get_llm_client(user_id)
+        logger.debug(f"Generating embeddings for search text using LLM client for user {user_id}")
+        query_vector = llm_client.generate_embeddings(search_text)
+        logger.debug(f"Successfully generated query vector.")
+
+        # 3. Perform vector search using the cosmos_client method
+        logger.info(f"Performing vector search in Cosmos DB for participant {participant_id}, top_k={top_k}")
+        search_results = await cosmos_client.vector_search_participant_docs(
+            query_vector=query_vector,
+            participant_id=participant_id, # Filter by this participant
+            top_k=top_k
+        )
+        logger.info(f"Vector search completed, found {len(search_results)} results.")
+
+        return search_results
+
+    except HTTPException:
+        # Re-raise HTTPExceptions (e.g., from get_llm_client or vector_search)
+        raise
+    except Exception as e:
+        logger.error(f"Error during knowledge search for participant {participant_id}: {str(e)}", exc_info=True)
+        # Check if it's an embedding error or other
+        if "generate_embeddings" in str(e):
+             raise HTTPException(status_code=500, detail="Failed to generate embeddings for the search query.")
+        else:
+             raise HTTPException(status_code=500, detail="An internal server error occurred during the knowledge search.")

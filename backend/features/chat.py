@@ -62,6 +62,7 @@ class MeetingDiscussion:
             f"You are participating in a meeting about '{self.topic}'. "
             f"Meeting participants: {', '.join(participant_list)}. "
             f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
+            f"Provide response in a conversational manner, as you(human) would in a meeting. "
         )
 
         # Part 2: Message History
@@ -70,7 +71,7 @@ class MeetingDiscussion:
             messages.extend(messages_list)
 
         # Part 3: Current Question
-        messages.append({"role": "user", "content": f"Please provide a concise response to this question based on the meeting topic: {question}"})
+        messages.append({"role": "user", "content": f"Please provide a concise response in a conversational manner to this question based on the meeting topic: {question}"})
 
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
