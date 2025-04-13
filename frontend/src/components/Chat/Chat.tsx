@@ -55,6 +55,7 @@ const Chat: React.FC = () => {
   const [sessionTitle, setSessionTitle] = useState<string>("")
   const [thinkingParticipant, setThinkingParticipant] = useState<string | null>(null)
   const [allMessagesExpanded, setAllMessagesExpanded] = useState<boolean | undefined>(undefined) // State for global expand/collapse
+  const [meetingStrategy, setMeetingStrategy] = useState<string | undefined>(undefined) // Store meeting strategy
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
 
@@ -78,6 +79,7 @@ const Chat: React.FC = () => {
       try {
         const response = await getChatSession(sessionId)
         const sessionData = response.data as ChatSessionDetails
+        setMeetingStrategy(sessionData.meeting_strategy) // Store the meeting strategy
 
         // Set session title from meeting name/topic if available
         if (sessionData.meeting_name || sessionData.meeting_topic) {
@@ -434,7 +436,7 @@ const Chat: React.FC = () => {
             </div>
           </div>
         </CardContent>
-        {!isStreamMode && (
+        {meetingStrategy === 'chat' && !isStreamMode && (
           <ChatInput
             value={inputValue}
             onChange={setInputValue}

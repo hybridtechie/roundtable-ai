@@ -328,8 +328,9 @@ class MeetingDiscussion:
             system_prompt = (
                 f"You are {participant_info['persona_description']}. "
                 f"Your role is {participant_info['role']}. "
-                f"Respond to this question in a brief, conversational way, as you would in a meeting. "
-                f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
+                f"Respond to this question in a brief, conversational way, as you would in a slack chat. "
+                f"Keep it concise, to the point, and reflective of your persona. No extra fluff. Everyone except you in the slack chat is human."
+                f"Provide response in a conversational manner, as you(human) would in a slack chat. You can also refer to others conversationally if you know their name and agree or disagree with them rather than repeating their points."
             )
 
             # If this is a new chat session, add the system prompt as first message
