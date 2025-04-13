@@ -7,6 +7,7 @@ from logger_config import setup_logger
 from cosmos_db import cosmos_client
 from blob_db import blob_db
 from features.llm import get_llm_client
+from utils.file_reader import read_file_content, get_supported_extensions # Added import
 
 logger = setup_logger(__name__)
 
@@ -372,11 +373,11 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
     """
     logger.info(f"Uploading document '{file.filename}' for participant ID: {participant_id}, user ID: {user_id}")
 
-    allowed_extensions = {".txt", ".md"}
+    supported_extensions = get_supported_extensions()
     file_extension = f".{file.filename.split('.')[-1].lower()}" if '.' in file.filename else ""
-    if file_extension not in allowed_extensions:
-        logger.error(f"Unsupported file type: {file_extension}")
-        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed types: {', '.join(allowed_extensions)}")
+    if file_extension not in supported_extensions:
+        logger.error(f"Unsupported file type: {file_extension} for file '{file.filename}'")
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file_extension}. Supported types: {', '.join(sorted(supported_extensions))}")
 
     participant = await cosmos_client.get_participant(user_id, participant_id)
     if not participant:
@@ -399,18 +400,11 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
 
         logger.info(f"File '{original_filename}' uploaded to blob storage at path: {blob_path}")
 
+        # Use the utility function to read content, handles different types and decoding
+        # The read_file_content function will raise HTTPException on failure
         await file.seek(0)
-        content_bytes = await file.read()
-        try:
-            text_content = content_bytes.decode('utf-8')
-        except UnicodeDecodeError:
-            logger.error(f"Failed to decode file '{original_filename}' as UTF-8.")
-            try:
-                await blob_db.delete_file(user_id, participant_id, blob_path)
-                logger.info(f"Cleaned up blob file '{blob_path}' due to decoding error.")
-            except Exception as cleanup_e:
-                logger.error(f"Failed to clean up blob file '{blob_path}' after decoding error: {cleanup_e}")
-            raise HTTPException(status_code=400, detail="Failed to decode file content as UTF-8.")
+        text_content = await read_file_content(file)
+        logger.info(f"Successfully read content from '{original_filename}' using file reader utility.")
 
         chunks = chunk_text(text_content)
         logger.info(f"Document '{original_filename}' split into {len(chunks)} chunks.")
