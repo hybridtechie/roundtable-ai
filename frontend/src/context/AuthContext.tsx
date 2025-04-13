@@ -384,7 +384,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Fetch chat sessions
             try {
               const chatSessionsResponse = await listChatSessions()
-              console.log("Chat sessions response:", chatSessionsResponse)
               // Ensure all required fields are present and use _ts for timestamp
               backendData.chat_sessions = chatSessionsResponse.data.chat_sessions.map((session) => ({
                 id: session.id,

@@ -205,7 +205,6 @@ const ChatSessions: React.FC = () => {
         </div>
         <div className="flex flex-col space-y-1">
           {sortByTimestamp(meetings).map((group) => {
-            console.log("Processing group:", group)
             return (
               <Collapsible key={group.key} defaultOpen={false} className="w-full">
                 <CollapsibleTrigger className="flex items-center w-full px-2 py-1 rounded-md hover:bg-accent/30">

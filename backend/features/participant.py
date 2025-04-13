@@ -85,7 +85,7 @@ def validate_participant_data(data: dict) -> None:
             "soft_skills": 1000,
             "core_qualities": 1000,
             "style_preferences": 1000,
-            "additional_info": 1000, # Added additional_info check
+            "additional_info": 1000,  # Added additional_info check
         }
 
         # Check required fields
@@ -102,8 +102,8 @@ def validate_participant_data(data: dict) -> None:
         for field, max_length in optional_fields_max_length.items():
             value = data.get(field)
             if value is not None and len(str(value)) > max_length:
-                 logger.error(f"Validation failed: Optional field '{field}' length exceeds {max_length} characters")
-                 raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters if provided")
+                logger.error(f"Validation failed: Optional field '{field}' length exceeds {max_length} characters")
+                raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters if provided")
 
         logger.debug("Participant data validation successful")
     except HTTPException:

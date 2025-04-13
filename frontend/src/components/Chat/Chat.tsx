@@ -437,6 +437,7 @@ const Chat: React.FC = () => {
               {thinkingParticipant && (
                 <div className="text-center text-muted-foreground">{thinkingParticipant} is thinking...</div>
               )}
+              {isSending && !isStreamMode && <div className="text-center text-muted-foreground">Thinking...</div>}
             </div>
           </div>
         </CardContent>

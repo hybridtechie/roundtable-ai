@@ -75,9 +75,7 @@ export function ChatMessage({
   return (
     <div className={cn("flex items-start gap-4 p-4 rounded-lg bg-secondary/50 relative group", className)}>
       <Avatar>
-        {name === "You" && userAvatar ? (
-          <AvatarImage src={userAvatar} alt={name || "User"} />
-        ) : null}
+        {name === "You" && userAvatar ? <AvatarImage src={userAvatar} alt={name || "User"} /> : null}
         <AvatarFallback className="bg-primary/5">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex-1 space-y-2">
