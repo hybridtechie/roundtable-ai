@@ -99,7 +99,7 @@ class BlobDB:
         """Delete a file from Azure Blob Storage."""
         try:
             container_client = self.service_client.get_container_client(self.container_name)
-            blob_client = container_client.get_blob_client(f"{user_id}/participant/{participant_id}/knowledge/{file_path}")
+            blob_client = container_client.get_blob_client(file_path)
             
             # Check if blob exists before deleting
             try:

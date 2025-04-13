@@ -427,13 +427,14 @@ const ParticipantViewPage: React.FC = () => {
                         <TableHead>File Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Size</TableHead>
+                        <TableHead>Chunks</TableHead> {/* Added Chunks header */}
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {documents.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground"> {/* Updated colSpan */}
                             No files uploaded yet.
                           </TableCell>
                         </TableRow>
@@ -443,6 +444,7 @@ const ParticipantViewPage: React.FC = () => {
                             <TableCell className="font-medium">{doc.name}</TableCell>
                             <TableCell>{doc.type.toUpperCase()}</TableCell>
                             <TableCell>{formatBytes(doc.size)}</TableCell>
+                            <TableCell>{doc.chunk_count}</TableCell> {/* Added chunk_count cell */}
                             <TableCell className="space-x-1 text-right"> {/* Reduced space */}
                               <Button
                                 variant="ghost"
