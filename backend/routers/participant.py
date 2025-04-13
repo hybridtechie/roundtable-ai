@@ -3,9 +3,16 @@ from typing import List
 from logger_config import setup_logger
 from auth import UserClaims, validate_token
 from features.participant import (
-    create_participant, get_participant, update_participant, delete_participant,
-    list_participants, ParticipantCreate, ParticipantUpdate,
-    list_participant_documents, upload_participant_document, delete_participant_document
+    create_participant,
+    get_participant,
+    update_participant,
+    delete_participant,
+    list_participants,
+    ParticipantCreate,
+    ParticipantUpdate,
+    list_participant_documents,
+    upload_participant_document,
+    delete_participant_document,
 )
 from models import ParticipantResponse, ListParticipantsResponse, DeleteResponse
 
@@ -102,11 +109,7 @@ async def list_documents_endpoint(participant_id: str, current_user: UserClaims 
 
 
 @router.post("/{participant_id}/documents", summary="Upload a document for a participant")
-async def upload_document_endpoint(
-    participant_id: str,
-    file: UploadFile = File(...),
-    current_user: UserClaims = Depends(validate_token)
-):
+async def upload_document_endpoint(participant_id: str, file: UploadFile = File(...), current_user: UserClaims = Depends(validate_token)):
     try:
         user_id = current_user.email
         logger.info("Uploading document for participant: %s by user: %s", participant_id, user_id)
@@ -119,11 +122,7 @@ async def upload_document_endpoint(
 
 
 @router.delete("/{participant_id}/documents/{doc_id}", summary="Delete a document from a participant")
-async def delete_document_endpoint(
-    participant_id: str,
-    doc_id: str,
-    current_user: UserClaims = Depends(validate_token)
-):
+async def delete_document_endpoint(participant_id: str, doc_id: str, current_user: UserClaims = Depends(validate_token)):
     try:
         user_id = current_user.email
         logger.info("Deleting document %s for participant: %s by user: %s", doc_id, participant_id, user_id)

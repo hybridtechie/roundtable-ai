@@ -3,7 +3,6 @@ import { NavLink } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { AiFillHome } from "react-icons/ai"
 import { TiMessages } from "react-icons/ti"
-import { FaMessage } from "react-icons/fa6"
 import { FaUser, FaUsers, FaUserPlus } from "react-icons/fa"
 import ChatSessions from "@/components/ChatSessions/ChatSessions"
 

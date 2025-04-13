@@ -7,12 +7,13 @@ from logger_config import setup_logger
 from cosmos_db import cosmos_client
 from blob_db import blob_db
 from features.llm import get_llm_client
-from utils.file_reader import read_file_content, get_supported_extensions # Added import
+from utils.file_reader import read_file_content, get_supported_extensions  # Added import
 
 logger = setup_logger(__name__)
 
 DEFAULT_CHUNK_SIZE = 5000
 DEFAULT_CHUNK_OVERLAP = 250
+
 
 def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, chunk_overlap: int = DEFAULT_CHUNK_OVERLAP) -> List[str]:
     """Splits text into chunks of a specified size with overlap."""
@@ -30,20 +31,21 @@ def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, chunk_overlap: i
         start_index += chunk_size - chunk_overlap
 
         if chunk_overlap == 0 and start_index == end_index:
-             break
+            break
         if start_index >= text_length:
             break
 
     if len(chunks) > 1 and chunks[-1] == chunks[-2]:
-         chunks.pop()
+        chunks.pop()
 
     if start_index < text_length and text_length - start_index < chunk_size:
-         last_chunk = text[start_index:]
-         if not chunks or last_chunk != chunks[-1]:
-             chunks.append(last_chunk)
-
+        last_chunk = text[start_index:]
+        if not chunks or last_chunk != chunks[-1]:
+            chunks.append(last_chunk)
 
     return chunks
+
+
 def generate_persona_description(participant: "ParticipantBase") -> str:
     """Generate a markdown formatted persona description from participant fields."""
     persona_parts = [f"You are {participant.name} with role {participant.role}. Your details are below:\n"]
@@ -113,7 +115,7 @@ class ParticipantBase(BaseModel):
     persona_description: Optional[str] = Field(default="", max_length=5000)
     docs: Optional[List[Dict]] = Field(default_factory=list)
 
-    @validator('docs')
+    @validator("docs")
     def validate_docs(cls, v):
         if v is None:
             return []
@@ -159,7 +161,7 @@ async def create_participant(participant: ParticipantCreate) -> ParticipantRespo
             "additional_info": participant.additional_info,
             "user_id": participant.user_id,
             "persona_description": persona_description,
-            "docs": []
+            "docs": [],
         }
 
         await cosmos_client.add_participant(participant.user_id, participant_data)
@@ -205,7 +207,7 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
             "additional_info": participant.additional_info,
             "user_id": participant.user_id,
             "persona_description": persona_description,
-            "docs": current_participant.get("docs", [])
+            "docs": current_participant.get("docs", []),
         }
 
         await cosmos_client.update_participant(participant.user_id, participant_id, participant_data)
@@ -218,7 +220,6 @@ async def update_participant(participant_id: str, participant: ParticipantUpdate
     except Exception as e:
         logger.error("Error updating participant %s: %s", participant_id, str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while updating participant")
-
 
 
 async def delete_participant(participant_id: str, user_id: str) -> dict:
@@ -237,11 +238,7 @@ async def delete_participant(participant_id: str, user_id: str) -> dict:
         doc_container = cosmos_client.get_participant_docs_container()
         query = "SELECT c.path FROM c WHERE c.participant_id = @participant_id"
         parameters = [{"name": "@participant_id", "value": participant_id}]
-        associated_docs = list(doc_container.query_items(
-            query=query,
-            parameters=parameters,
-            partition_key=participant_id
-        ))
+        associated_docs = list(doc_container.query_items(query=query, parameters=parameters, partition_key=participant_id))
 
         unique_blob_paths = {doc.get("path") for doc in associated_docs if doc.get("path")}
         for blob_path in unique_blob_paths:
@@ -256,7 +253,6 @@ async def delete_participant(participant_id: str, user_id: str) -> dict:
             logger.info(f"Successfully deleted document chunks from Cosmos DB for participant {participant_id}.")
         except Exception as e:
             logger.error(f"Failed to delete document chunks from Cosmos DB for participant {participant_id}: {str(e)}", exc_info=True)
-
 
         await cosmos_client.delete_participant(user_id, participant_id)
         logger.info(f"Successfully deleted participant record: {participant_id} for user: {user_id}")
@@ -324,11 +320,7 @@ async def list_participant_documents(participant_id: str, user_id: str) -> dict:
         query = "SELECT c.file_id, c.name, c.clean_name, c.path, c.size, c.type, c.chunk_no FROM c WHERE c.participant_id = @participant_id"
         parameters = [{"name": "@participant_id", "value": participant_id}]
 
-        all_chunks = list(doc_container.query_items(
-            query=query,
-            parameters=parameters,
-            partition_key=participant_id # Use partition key
-        ))
+        all_chunks = list(doc_container.query_items(query=query, parameters=parameters, partition_key=participant_id))  # Use partition key
 
         # 3. Process and Group Chunks into Document Summaries
         document_summaries = {}
@@ -341,13 +333,13 @@ async def list_participant_documents(participant_id: str, user_id: str) -> dict:
             if file_id not in document_summaries:
                 # Initialize summary for this file_id
                 document_summaries[file_id] = {
-                    "id": file_id, # Use file_id as the document ID in the summary
+                    "id": file_id,  # Use file_id as the document ID in the summary
                     "name": chunk.get("name"),
                     "clean_name": chunk.get("clean_name"),
                     "path": chunk.get("path"),
                     "size": chunk.get("size"),
                     "type": chunk.get("type"),
-                    "chunk_count": 0
+                    "chunk_count": 0,
                 }
 
             # Increment chunk count for this document
@@ -374,7 +366,7 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
     logger.info(f"Uploading document '{file.filename}' for participant ID: {participant_id}, user ID: {user_id}")
 
     supported_extensions = get_supported_extensions()
-    file_extension = f".{file.filename.split('.')[-1].lower()}" if '.' in file.filename else ""
+    file_extension = f".{file.filename.split('.')[-1].lower()}" if "." in file.filename else ""
     if file_extension not in supported_extensions:
         logger.error(f"Unsupported file type: {file_extension} for file '{file.filename}'")
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file_extension}. Supported types: {', '.join(sorted(supported_extensions))}")
@@ -395,8 +387,8 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
         file_type = doc_info.get("type")
 
         if not all([file_id, original_filename, clean_filename, blob_path, file_size, file_type]):
-             logger.error("Blob storage upload failed to return complete document info.")
-             raise HTTPException(status_code=500, detail="Failed to get complete info from blob storage upload.")
+            logger.error("Blob storage upload failed to return complete document info.")
+            raise HTTPException(status_code=500, detail="Failed to get complete info from blob storage upload.")
 
         logger.info(f"File '{original_filename}' uploaded to blob storage at path: {blob_path}")
 
@@ -427,7 +419,6 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
                     logger.error(f"Failed to clean up blob file '{blob_path}' after embedding error: {cleanup_e}")
                 raise HTTPException(status_code=500, detail=f"Failed to generate embeddings for chunk {chunk_no}.")
 
-
             doc_chunk_data = {
                 "id": chunk_id,
                 "chunk_no": chunk_no,
@@ -440,7 +431,7 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
                 "size": file_size,
                 "type": file_type,
                 "text_chunk": chunk,
-                "embeddings": embeddings
+                "embeddings": embeddings,
             }
 
             try:
@@ -457,22 +448,18 @@ async def upload_participant_document(participant_id: str, user_id: str, file: U
 
         logger.info(f"Successfully processed and stored {len(stored_chunk_ids)} chunks for document '{original_filename}' (file_id: {file_id})")
 
-        return {
-            **doc_info,
-            "chunk_count": len(chunks),
-            "stored_chunk_ids": stored_chunk_ids
-        }
+        return {**doc_info, "chunk_count": len(chunks), "stored_chunk_ids": stored_chunk_ids}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error uploading document for participant {participant_id}: {str(e)}", exc_info=True)
-        if 'blob_path' in locals() and blob_path:
-             try:
-                 await blob_db.delete_file(user_id, participant_id, blob_path)
-                 logger.info(f"Cleaned up blob file '{blob_path}' due to overall upload error.")
-             except Exception as cleanup_e:
-                 logger.error(f"Failed to clean up blob file '{blob_path}' after overall upload error: {cleanup_e}")
+        if "blob_path" in locals() and blob_path:
+            try:
+                await blob_db.delete_file(user_id, participant_id, blob_path)
+                logger.info(f"Cleaned up blob file '{blob_path}' due to overall upload error.")
+            except Exception as cleanup_e:
+                logger.error(f"Failed to clean up blob file '{blob_path}' after overall upload error: {cleanup_e}")
         raise HTTPException(status_code=500, detail="Internal server error while uploading and processing document")
     finally:
         await file.close()
@@ -493,16 +480,9 @@ async def delete_participant_document(participant_id: str, user_id: str, file_id
     try:
         doc_container = cosmos_client.get_participant_docs_container()
         query = "SELECT c.id, c.path FROM c WHERE c.participant_id = @participant_id AND c.file_id = @file_id"
-        parameters = [
-            {"name": "@participant_id", "value": participant_id},
-            {"name": "@file_id", "value": file_id}
-        ]
+        parameters = [{"name": "@participant_id", "value": participant_id}, {"name": "@file_id", "value": file_id}]
 
-        chunks_to_delete = list(doc_container.query_items(
-            query=query,
-            parameters=parameters,
-            partition_key=participant_id
-        ))
+        chunks_to_delete = list(doc_container.query_items(query=query, parameters=parameters, partition_key=participant_id))
 
         if not chunks_to_delete:
             logger.error(f"Document with file_id '{file_id}' not found for participant {participant_id}")
@@ -518,7 +498,6 @@ async def delete_participant_document(participant_id: str, user_id: str, file_id
         else:
             logger.warning(f"No blob path found in chunks for file_id {file_id}, cannot delete from blob storage.")
 
-
         deleted_chunk_count = 0
         for chunk in chunks_to_delete:
             chunk_id = chunk.get("id")
@@ -533,7 +512,7 @@ async def delete_participant_document(participant_id: str, user_id: str, file_id
         logger.info(f"Attempted deletion of {len(chunks_to_delete)} chunks for file_id {file_id}. Successfully deleted: {deleted_chunk_count}")
 
         if deleted_chunk_count != len(chunks_to_delete):
-             logger.error(f"Partial deletion: Only {deleted_chunk_count}/{len(chunks_to_delete)} chunks deleted for file_id {file_id}.")
+            logger.error(f"Partial deletion: Only {deleted_chunk_count}/{len(chunks_to_delete)} chunks deleted for file_id {file_id}.")
         return {"deleted_file_id": file_id, "deleted_chunk_count": deleted_chunk_count}
 
     except HTTPException:
@@ -543,12 +522,7 @@ async def delete_participant_document(participant_id: str, user_id: str, file_id
         raise HTTPException(status_code=500, detail="Internal server error while deleting document")
 
 
-async def search_participant_knowledge(
-    user_id: str,
-    participant_id: str,
-    search_text: str,
-    top_k: int = 5
-) -> List[Dict]:
+async def search_participant_knowledge(user_id: str, participant_id: str, search_text: str, top_k: int = 5) -> List[Dict]:
     """
     Searches the knowledge documents of a specific participant using vector similarity.
 
@@ -583,11 +557,7 @@ async def search_participant_knowledge(
 
         # 3. Perform vector search using the cosmos_client method
         logger.info(f"Performing vector search in Cosmos DB for participant {participant_id}, top_k={top_k}")
-        search_results = await cosmos_client.vector_search_participant_docs(
-            query_vector=query_vector,
-            participant_id=participant_id, # Filter by this participant
-            top_k=top_k
-        )
+        search_results = await cosmos_client.vector_search_participant_docs(query_vector=query_vector, participant_id=participant_id, top_k=top_k)  # Filter by this participant
         logger.info(f"Vector search completed, found {len(search_results)} results.")
 
         return search_results
@@ -599,6 +569,6 @@ async def search_participant_knowledge(
         logger.error(f"Error during knowledge search for participant {participant_id}: {str(e)}", exc_info=True)
         # Check if it's an embedding error or other
         if "generate_embeddings" in str(e):
-             raise HTTPException(status_code=500, detail="Failed to generate embeddings for the search query.")
+            raise HTTPException(status_code=500, detail="Failed to generate embeddings for the search query.")
         else:
-             raise HTTPException(status_code=500, detail="An internal server error occurred during the knowledge search.")
+            raise HTTPException(status_code=500, detail="An internal server error occurred during the knowledge search.")

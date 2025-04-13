@@ -11,7 +11,13 @@ import { ChevronDown, ChevronUp, ArrowLeft, Save, X, Pencil, Upload, FileText, T
 import { useAuth } from "@/context/AuthContext"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
-import { updateParticipant, listParticipantDocuments, uploadParticipantDocument, deleteParticipantDocument, downloadParticipantDocument } from "@/lib/api"
+import {
+  updateParticipant,
+  listParticipantDocuments,
+  uploadParticipantDocument,
+  deleteParticipantDocument,
+  downloadParticipantDocument,
+} from "@/lib/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useDropzone, FileRejection, FileError } from "react-dropzone" // Added react-dropzone types
 import { cn } from "@/lib/utils" // Added cn for conditional classes
@@ -118,18 +124,17 @@ const ParticipantViewPage: React.FC = () => {
         const fieldKey = key as keyof ParticipantUpdateData
         const value = editedData[fieldKey]
         // Only encode if the value is a string (it should be based on ParticipantUpdateData)
-        acc[fieldKey] = typeof value === 'string' ? encodeMarkdownContent(value) : value
+        acc[fieldKey] = typeof value === "string" ? encodeMarkdownContent(value) : value
         return acc
       }, {} as ParticipantUpdateData) // Initialize accumulator correctly
 
       // Ensure required fields (if any) are present before sending, though api.ts now accepts Partial
       // Example check (adjust if backend requires specific fields):
       if (!encodedData.name || !encodedData.role) {
-         toast.error("Name and Role cannot be empty.");
-         setIsSaving(false);
-         return;
+        toast.error("Name and Role cannot be empty.")
+        setIsSaving(false)
+        return
       }
-
 
       const response = await updateParticipant(participantId, encodedData)
       const updatedParticipant: Participant | undefined = response.data
@@ -172,26 +177,32 @@ const ParticipantViewPage: React.FC = () => {
     "application/pdf": [".pdf"],
   }
 
-  const onDrop = useCallback((acceptedFiles: File[], fileRejections: FileRejection[]) => { // Use FileRejection type
-    // Handle accepted files
-    const newFiles = acceptedFiles.filter(
-      (file) => !selectedFiles.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size),
-    )
-    setSelectedFiles((prevFiles) => [...prevFiles, ...newFiles])
+  const onDrop = useCallback(
+    (acceptedFiles: File[], fileRejections: FileRejection[]) => {
+      // Use FileRejection type
+      // Handle accepted files
+      const newFiles = acceptedFiles.filter(
+        (file) => !selectedFiles.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size),
+      )
+      setSelectedFiles((prevFiles) => [...prevFiles, ...newFiles])
 
-    // Handle rejected files
-    fileRejections.forEach(({ file, errors }: FileRejection) => { // Destructure with FileRejection type
-      errors.forEach((error: FileError) => { // Use FileError type
-        if (error.code === "file-too-large") {
-          toast.error(`File "${file.name}" is too large. Max size is 5MB.`)
-        } else if (error.code === "file-invalid-type") {
-          toast.error(`File "${file.name}" has an invalid type. Allowed types: .txt, .md, .pdf`)
-        } else {
-          toast.error(`Error with file "${file.name}": ${error.message}`)
-        }
+      // Handle rejected files
+      fileRejections.forEach(({ file, errors }: FileRejection) => {
+        // Destructure with FileRejection type
+        errors.forEach((error: FileError) => {
+          // Use FileError type
+          if (error.code === "file-too-large") {
+            toast.error(`File "${file.name}" is too large. Max size is 5MB.`)
+          } else if (error.code === "file-invalid-type") {
+            toast.error(`File "${file.name}" has an invalid type. Allowed types: .txt, .md, .pdf`)
+          } else {
+            toast.error(`Error with file "${file.name}": ${error.message}`)
+          }
+        })
       })
-    })
-  }, [selectedFiles])
+    },
+    [selectedFiles],
+  )
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -234,9 +245,9 @@ const ParticipantViewPage: React.FC = () => {
       // Create a blob URL and trigger download
       const blob = new Blob([response.data])
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
+      const a = document.createElement("a")
       a.href = url
-      a.download = documents.find(doc => doc.id === docId)?.name || 'document'
+      a.download = documents.find((doc) => doc.id === docId)?.name || "document"
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -258,7 +269,6 @@ const ParticipantViewPage: React.FC = () => {
       toast.error("Failed to delete document")
     }
   }
-
 
   const formatBytes = (bytes: number, decimals = 2) => {
     if (bytes === 0) return "0 Bytes"
@@ -353,13 +363,9 @@ const ParticipantViewPage: React.FC = () => {
 
       <Card>
         <CardHeader>
+          {isEditing ? renderField("Full Name", "name", false) : <CardTitle className="text-2xl">{editedData.name}</CardTitle>}
           {isEditing ? (
-             renderField("Full Name", "name", false)
-          ) : (
-            <CardTitle className="text-2xl">{editedData.name}</CardTitle>
-          )}
-           {isEditing ? (
-             renderField("Current Role", "role", false)
+            renderField("Current Role", "role", false)
           ) : (
             <p className="text-md text-muted-foreground">{editedData.role}</p>
           )}
@@ -370,7 +376,9 @@ const ParticipantViewPage: React.FC = () => {
           <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
             {!isEditing && (
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex items-center justify-start w-full p-0 text-sm hover:bg-transparent text-primary">
+                <Button
+                  variant="ghost"
+                  className="flex items-center justify-start w-full p-0 text-sm hover:bg-transparent text-primary">
                   {isDetailsOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
                   {isDetailsOpen ? "Hide Details" : "Show More Details"}
                 </Button>
@@ -392,7 +400,9 @@ const ParticipantViewPage: React.FC = () => {
             <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
               <X className="w-4 h-4 mr-2" /> Cancel
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !editedData.name || !editedData.role}> {/* Disable save if required fields empty */}
+            <Button onClick={handleSave} disabled={isSaving || !editedData.name || !editedData.role}>
+              {" "}
+              {/* Disable save if required fields empty */}
               {isSaving ? <LoadingSpinner size={16} className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save Changes
             </Button>
@@ -410,7 +420,9 @@ const ParticipantViewPage: React.FC = () => {
           <CardContent>
             <Collapsible open={isFileDetailsOpen} onOpenChange={setIsFileDetailsOpen}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex items-center justify-start w-full p-0 text-sm hover:bg-transparent text-primary">
+                <Button
+                  variant="ghost"
+                  className="flex items-center justify-start w-full p-0 text-sm hover:bg-transparent text-primary">
                   {isFileDetailsOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
                   {isFileDetailsOpen ? "Hide Files" : "Show Files"} ({documents.length} files)
                 </Button>
@@ -434,7 +446,9 @@ const ParticipantViewPage: React.FC = () => {
                     <TableBody>
                       {documents.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground"> {/* Updated colSpan */}
+                          <TableCell colSpan={5} className="text-center text-muted-foreground">
+                            {" "}
+                            {/* Updated colSpan */}
                             No files uploaded yet.
                           </TableCell>
                         </TableRow>
@@ -445,14 +459,15 @@ const ParticipantViewPage: React.FC = () => {
                             <TableCell>{doc.type.toUpperCase()}</TableCell>
                             <TableCell>{formatBytes(doc.size)}</TableCell>
                             <TableCell>{doc.chunk_count}</TableCell> {/* Added chunk_count cell */}
-                            <TableCell className="space-x-1 text-right"> {/* Reduced space */}
+                            <TableCell className="space-x-1 text-right">
+                              {" "}
+                              {/* Reduced space */}
                               <Button
                                 variant="ghost"
                                 size="icon" // Changed to icon for smaller footprint
                                 className="w-8 h-8" // Explicit size
                                 onClick={() => handleDownloadDocument(doc.id)}
-                                title={`Download ${doc.name}`}
-                              >
+                                title={`Download ${doc.name}`}>
                                 <Download className="w-4 h-4" />
                                 <span className="sr-only">Download {doc.name}</span>
                               </Button>
@@ -461,8 +476,7 @@ const ParticipantViewPage: React.FC = () => {
                                 size="icon" // Changed to icon
                                 className="w-8 h-8 text-destructive hover:text-destructive/90" // Explicit size
                                 onClick={() => handleDeleteDocument(doc.id)}
-                                title={`Delete ${doc.name}`}
-                              >
+                                title={`Delete ${doc.name}`}>
                                 <Trash2 className="w-4 h-4" />
                                 <span className="sr-only">Delete {doc.name}</span>
                               </Button>
@@ -519,7 +533,9 @@ const ParticipantViewPage: React.FC = () => {
                     <li key={file.name} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2 overflow-hidden">
                         <FileText className="flex-shrink-0 w-4 h-4 text-muted-foreground" />
-                        <span className="truncate" title={file.name}>{file.name}</span>
+                        <span className="truncate" title={file.name}>
+                          {file.name}
+                        </span>
                         <span className="flex-shrink-0 text-xs text-muted-foreground">({formatBytes(file.size)})</span>
                       </div>
                       <Button

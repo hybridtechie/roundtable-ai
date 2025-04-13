@@ -380,12 +380,16 @@ const Chat: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {sessionTitle && (
-        <div className="flex items-center justify-between p-4 pb-2"> {/* Use flex for layout */}
+        <div className="flex items-center justify-between p-4 pb-2">
+          {" "}
+          {/* Use flex for layout */}
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">{sessionTitle.split("\n")[0]}</h2>
             {sessionTitle.includes("\n") && <p className="text-sm text-muted-foreground">{sessionTitle.split("\n")[1]}</p>}
           </div>
-          <div className="flex items-center gap-1"> {/* Group buttons */}
+          <div className="flex items-center gap-1">
+            {" "}
+            {/* Group buttons */}
             <Button variant="ghost" size="icon" onClick={handleExportMessages} title="Export Chat as JSON">
               <Download className="w-5 h-5" />
             </Button>
@@ -436,7 +440,7 @@ const Chat: React.FC = () => {
             </div>
           </div>
         </CardContent>
-        {(!meetingStrategy || meetingStrategy === 'chat') && !isStreamMode && (
+        {(!meetingStrategy || meetingStrategy === "chat") && !isStreamMode && (
           <ChatInput
             value={inputValue}
             onChange={setInputValue}

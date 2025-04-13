@@ -64,13 +64,15 @@ export function ChatMessage({
         <div
           className={cn(
             "text-sm whitespace-pre-wrap relative",
-            type === "final" || type === "summary" && "text-green-500",
+            type === "final" || (type === "summary" && "text-green-500"),
             !showFullContent && "max-h-[7.5rem] overflow-hidden", // Use combined state
           )}>
           {content || ""}
-          {content && !showFullContent && content.split("\n").length > 5 && ( // Use combined state
-            <div className="absolute bottom-0 w-full h-8 bg-gradient-to-t from-secondary/50 to-transparent" />
-          )}
+          {content &&
+            !showFullContent &&
+            content.split("\n").length > 5 && ( // Use combined state
+              <div className="absolute bottom-0 w-full h-8 bg-gradient-to-t from-secondary/50 to-transparent" />
+            )}
         </div>
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">{timestamp?.toLocaleTimeString()}</div>

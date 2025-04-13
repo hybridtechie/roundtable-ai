@@ -79,8 +79,8 @@ class AzureOpenAIClient(LLMBase):
         except Exception as e:
             logger.error("Failed to send structured request: %s", str(e), exc_info=True)
             raise
-        
+
     def generate_embeddings(self, text: str) -> list[float]:
         response = self.client.embeddings.create(input=text, model="text-embedding-ada-002")
         embeddings = response.data[0].embedding
-        return embeddings    
+        return embeddings

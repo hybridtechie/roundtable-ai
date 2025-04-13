@@ -24,6 +24,7 @@ SUPPORTED_TEXT_EXTENSIONS = {".txt", ".md", ".json", ".yaml", ".yml", ".csv", ".
 SUPPORTED_PDF_EXTENSIONS = {".pdf"}
 SUPPORTED_DOCX_EXTENSIONS = {".docx"}
 
+
 async def read_file_content(file: UploadFile) -> str:
 
     filename = file.filename or "unknown_file"
@@ -41,7 +42,7 @@ async def read_file_content(file: UploadFile) -> str:
         if file_extension in SUPPORTED_TEXT_EXTENSIONS:
             logger.debug(f"Reading '{filename}' as a text file.")
             try:
-                return content_bytes.decode('utf-8')
+                return content_bytes.decode("utf-8")
             except UnicodeDecodeError:
                 logger.error(f"Failed to decode file '{filename}' as UTF-8.")
                 raise HTTPException(status_code=400, detail=f"Failed to decode file '{filename}' content as UTF-8.")
@@ -93,6 +94,7 @@ async def read_file_content(file: UploadFile) -> str:
             raise e
         # Wrap other exceptions in a generic 500 error
         raise HTTPException(status_code=500, detail=f"An internal error occurred while processing file '{filename}'.")
+
 
 def get_supported_extensions() -> set:
     """Returns a set of all supported file extensions."""

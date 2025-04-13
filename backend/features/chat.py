@@ -9,42 +9,29 @@ from cosmos_db import cosmos_client
 from datetime import datetime, timezone
 import uuid
 from features.llm import get_llm_client
-from features.participant import search_participant_knowledge # Added import
+from features.participant import search_participant_knowledge  # Added import
 from features.user import get_me
-from typing import List, Dict, Any # Added for type hinting
+from typing import List, Dict, Any  # Added for type hinting
 
 # Set up logger
 logger = setup_logger(__name__)
 
+
 # Helper function to fetch and filter knowledge
-async def _fetch_and_filter_knowledge(
-    user_id: str,
-    participant_id: str,
-    search_text: str,
-    top_k: int = 3,
-    score_threshold: float = 0.80
-) -> List[Dict[str, Any]]:
+async def _fetch_and_filter_knowledge(user_id: str, participant_id: str, search_text: str, top_k: int = 3, score_threshold: float = 0.80) -> List[Dict[str, Any]]:
     """Fetches knowledge for a participant and filters by similarity score."""
     knowledge = []
     try:
-        knowledge = await search_participant_knowledge(
-            user_id=user_id,
-            participant_id=participant_id,
-            search_text=search_text,
-            top_k=top_k
-        )
+        knowledge = await search_participant_knowledge(user_id=user_id, participant_id=participant_id, search_text=search_text, top_k=top_k)
         # Filter knowledge based on the score threshold
-        filtered_knowledge = [
-            item for item in knowledge
-            if item.get('similarityScore', 0) >= score_threshold
-        ]
+        filtered_knowledge = [item for item in knowledge if item.get("similarityScore", 0) >= score_threshold]
         logger.info(f"Fetched {len(knowledge)} items, kept {len(filtered_knowledge)} after filtering (threshold: {score_threshold}) for participant {participant_id} based on '{search_text[:30]}...'")
         return filtered_knowledge
     except HTTPException as e:
         logger.warning(f"Could not fetch knowledge for participant {participant_id} (HTTP {e.status_code}): {e.detail}")
     except Exception as e:
         logger.error(f"Unexpected error fetching knowledge for participant {participant_id}: {str(e)}", exc_info=True)
-    return [] # Return empty list on error or if no items meet threshold
+    return []  # Return empty list on error or if no items meet threshold
 
 
 # SSE event formatting
@@ -80,7 +67,7 @@ class MeetingDiscussion:
                     "role": participant.get("role", "Team Member"),
                     "weight": order.weight,
                     "order": order.order,
-                    "related_knowledge": [] # Initialize related_knowledge
+                    "related_knowledge": [],  # Initialize related_knowledge
                 }
         logger.info("Initialized meeting discussion for user '%s'", self.user_id)
 
@@ -100,10 +87,10 @@ class MeetingDiscussion:
         )
 
         # Add related knowledge if available
-        related_knowledge = participant.get('related_knowledge', [])
+        related_knowledge = participant.get("related_knowledge", [])
         if related_knowledge:
             knowledge_context = "\n\nRelevant background information for you based on your knowledge base. Base your response on the knowledge found below as much as possible.:\n"
-            knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')}" for item in related_knowledge]) # Simplified for context length
+            knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')}" for item in related_knowledge])  # Simplified for context length
             # knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')} (Similarity: {item.get('similarityScore', 0):.2f})" for item in related_knowledge])
             system_prompt += knowledge_context
 
@@ -113,7 +100,7 @@ class MeetingDiscussion:
             messages.extend(messages_list)
 
         # Part 3: Current Question
-        moderator_ques = res = json.dumps({"name": "Moderator",  "content": f"Please provide a concise response in a conversational manner to this question based on the meeting topic: {question}"})
+        moderator_ques = res = json.dumps({"name": "Moderator", "content": f"Please provide a concise response in a conversational manner to this question based on the meeting topic: {question}"})
         messages.append({"role": "user", "content": moderator_ques})
         self.chat_session["messages"].append({"role": "user", "content": moderator_ques})
 
@@ -210,21 +197,17 @@ class MeetingDiscussion:
         # Fetch and filter related knowledge for each participant based on the topic
         logger.info(f"Fetching and filtering related knowledge for participants based on topic: '{self.topic}'")
         knowledge_fetch_tasks = []
-        participant_ids_for_knowledge = list(self.participants.keys()) # Get IDs before async operations
+        participant_ids_for_knowledge = list(self.participants.keys())  # Get IDs before async operations
 
         for pid in participant_ids_for_knowledge:
             # Define a coroutine using the helper function
             async def fetch_and_assign_knowledge(participant_id):
                 filtered_knowledge = await _fetch_and_filter_knowledge(
-                    user_id=self.user_id,
-                    participant_id=participant_id,
-                    search_text=self.topic,
-                    top_k=3,
-                    score_threshold=0.80 # Explicitly pass threshold
+                    user_id=self.user_id, participant_id=participant_id, search_text=self.topic, top_k=3, score_threshold=0.80  # Explicitly pass threshold
                 )
                 # Ensure participant still exists in the dictionary before updating
                 if participant_id in self.participants:
-                    self.participants[participant_id]['related_knowledge'] = filtered_knowledge
+                    self.participants[participant_id]["related_knowledge"] = filtered_knowledge
                 else:
                     logger.warning(f"Participant {participant_id} no longer in participants dict after knowledge fetch.")
 
@@ -345,10 +328,10 @@ class MeetingDiscussion:
             llm_client = await get_llm_client(self.user_id)
 
             # --- Generate Summary for Knowledge Search ---
-            search_text = chat_request.user_message # Default search text
-            if chat_session["messages"]: # Only summarize if there's history
+            search_text = chat_request.user_message  # Default search text
+            if chat_session["messages"]:  # Only summarize if there's history
                 # Prepare messages for summarization (use existing history before adding current user message)
-                messages_for_summary = list(chat_session["messages"]) # Create a copy
+                messages_for_summary = list(chat_session["messages"])  # Create a copy
                 # Add the current user message temporarily for context in summary
                 messages_for_summary.append({"role": "user", "content": chat_request.user_message})
 
@@ -360,8 +343,8 @@ class MeetingDiscussion:
                 summary_messages = [{"role": "system", "content": summary_prompt}]
                 # Add conversation history as user messages for the summarizer LLM
                 for msg in messages_for_summary:
-                     # Simple concatenation, might need refinement based on LLM input format needs
-                     summary_messages.append({"role": "user", "content": f"{msg['role']}: {msg['content']}"})
+                    # Simple concatenation, might need refinement based on LLM input format needs
+                    summary_messages.append({"role": "user", "content": f"{msg['role']}: {msg['content']}"})
 
                 try:
                     summary_response, _ = llm_client.send_request(summary_messages)
@@ -369,17 +352,13 @@ class MeetingDiscussion:
                     logger.info(f"Generated summary for knowledge search: '{search_text[:100]}...'")
                 except Exception as e:
                     logger.error(f"Failed to generate summary for knowledge search: {str(e)}. Falling back to user message.")
-                    search_text = chat_request.user_message # Fallback to original message
+                    search_text = chat_request.user_message  # Fallback to original message
 
             # Fetch related knowledge based on the generated summary or user message
             related_knowledge = await _fetch_and_filter_knowledge(
-                user_id=self.user_id,
-                participant_id=participant_id,
-                search_text=search_text, # Use summary or fallback
-                top_k=3,
-                score_threshold=0.80
+                user_id=self.user_id, participant_id=participant_id, search_text=search_text, top_k=3, score_threshold=0.80  # Use summary or fallback
             )
-            
+
             user_info = await get_me(self.user_id)
 
             # Create system prompt from participant details
@@ -408,11 +387,11 @@ class MeetingDiscussion:
                 else:
                     # Update existing system prompt
                     chat_session["messages"][0]["content"] = system_prompt
-                    update_system_prompt = False # Already updated
+                    update_system_prompt = False  # Already updated
 
             if update_system_prompt:
-                 # Prepend the system prompt if it's new or wasn't the first message
-                 chat_session["messages"].insert(0, {"role": "system", "content": system_prompt})
+                # Prepend the system prompt if it's new or wasn't the first message
+                chat_session["messages"].insert(0, {"role": "system", "content": system_prompt})
 
             # Add user message to history
             chat_session["messages"].append({"role": "user", "content": chat_request.user_message})

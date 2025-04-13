@@ -152,7 +152,7 @@ async def login_user(name: str, email: str) -> Dict:
             new_user["_ts"] = None
 
             # Create new user in Cosmos DB using upsert_item with the full new_user object
-            created_user = cosmos_client.container.upsert_item(body=new_user) # Use upsert_item directly
+            created_user = cosmos_client.container.upsert_item(body=new_user)  # Use upsert_item directly
             logger.info(f"New user created: {email}")
             # Add 'name' field mapped from 'display_name' and return the full created user data
             created_user["name"] = created_user.get("display_name")
