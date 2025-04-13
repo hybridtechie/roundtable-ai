@@ -1,3 +1,18 @@
+// Document Management Types
+export interface Document {
+  id: string
+  name: string
+  clean_name: string
+  path: string
+  size: number
+  type: string
+  chunk_count: number
+}
+
+export interface DocumentListResponse {
+  documents: Document[]
+}
+
 export interface Participant {
   id: string
   name: string
@@ -10,6 +25,13 @@ export interface Participant {
   core_qualities: string
   style_preferences: string
   additional_info: string
+}
+
+// Type for updating participant data (all fields optional except maybe name/role if required by backend)
+export type ParticipantUpdateData = Partial<Omit<Participant, "id">> & {
+  // Add required fields if any, e.g.:
+  // name: string;
+  // role: string;
 }
 
 export interface Group {

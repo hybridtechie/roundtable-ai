@@ -21,12 +21,7 @@ class ChatSessionCreate(BaseModel):
 async def get_user_chat_sessions(user_id: str) -> list:
     """Fetch all chat sessions for a user with meeting details."""
     try:
-        # Get chat sessions container
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-
-        # Query all chat sessions for the user using the partition key
-        query = f"SELECT * FROM c WHERE c.user_id = '{user_id}'"
-        chat_sessions = list(chat_container.query_items(query=query, partition_key=user_id))
+        chat_sessions = await cosmos_client.get_user_chat_sessions(user_id)
 
         # Enhance each chat session with meeting details
         enhanced_sessions = []
@@ -73,12 +68,9 @@ async def get_user_chat_sessions(user_id: str) -> list:
 async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
     """Fetch a specific chat session by ID with meeting details."""
     try:
-        # Get chat sessions container
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-
         # Get the chat session
         try:
-            chat_session = chat_container.read_item(item=session_id, partition_key=user_id)
+            chat_session = await cosmos_client.get_chat_session(session_id, user_id)
         except Exception as e:
             logger.error(f"Error retrieving chat session {session_id}: {str(e)}")
             raise HTTPException(status_code=404, detail="Chat session not found")
@@ -122,18 +114,15 @@ async def get_chat_session_by_id(session_id: str, user_id: str) -> dict:
 async def delete_chat_session(session_id: str, user_id: str) -> dict:
     """Delete a chat session by ID."""
     try:
-        # Get chat sessions container
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-
         # Check if the chat session exists
         try:
-            chat_session = chat_container.read_item(item=session_id, partition_key=user_id)
+            chat_session = await cosmos_client.get_chat_session(session_id, user_id)
         except Exception as e:
             logger.error(f"Error retrieving chat session {session_id} for deletion: {str(e)}")
             raise HTTPException(status_code=404, detail="Chat session not found")
 
         # Delete the chat session
-        chat_container.delete_item(item=session_id, partition_key=user_id)
+        await cosmos_client.delete_chat_session(session_id, user_id)
 
         logger.info(f"Deleted chat session {session_id} for user {user_id}")
         return {"message": f"Chat session {session_id} deleted successfully"}
@@ -145,15 +134,14 @@ async def delete_chat_session(session_id: str, user_id: str) -> dict:
         raise HTTPException(status_code=500, detail="Failed to delete chat session")
 
 
-def create_chat_session(meeting_id: str, user_id: str, participant_id: str = None) -> dict:
+async def create_chat_session(meeting_id: str, user_id: str, participant_id: str = None) -> dict:
     """Create a new chat session."""
     session_id = str(uuid.uuid4())
     chat_session = {"id": session_id, "meeting_id": meeting_id, "user_id": user_id, "messages": [], "display_messages": []}
     if participant_id:
         chat_session["participant_id"] = participant_id
 
-    # Get chat sessions container and create session
-    chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-    chat_container.upsert_item(body=chat_session)
+    # Create session using cosmos_db client
+    await cosmos_client.create_chat_session(chat_session)
 
     return chat_session

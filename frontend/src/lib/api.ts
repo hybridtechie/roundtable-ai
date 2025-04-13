@@ -1,5 +1,7 @@
 import axios from "axios"
 import {
+  Document,
+  DocumentListResponse,
   Participant,
   MeetingRequest,
   ParticipantResponse,
@@ -15,7 +17,8 @@ import {
   LLMAccountUpdate,
   LLMAccountsResponse,
   DeleteResponse,
-} from "@/types/types"
+  ParticipantUpdateData, // Import the update type
+ } from "@/types/types"
 
 // Determine the base URL based on environment
 const getBaseUrl = () => {
@@ -75,21 +78,30 @@ export const getParticipant = (participantId: string) => api.get<Participant>(`/
 
 export const updateParticipant = (
   participantId: string,
-  data: {
-    name: string
-    role: string
-    professional_background: string
-    industry_experience: string
-    role_overview: string
-    technical_stack: string
-    soft_skills: string
-    core_qualities: string
-    style_preferences: string
-    additional_info: string
-  },
+  data: ParticipantUpdateData, // Use the imported partial type
 ) => api.put(`/participant/${participantId}`, { ...data, user_id: USER_ID })
 
 export const deleteParticipant = (participantId: string) => api.delete(`/participant/${participantId}`)
+
+// Document Management
+export const listParticipantDocuments = (participantId: string) =>
+  api.get<DocumentListResponse>(`/participant/${participantId}/documents`)
+
+export const uploadParticipantDocument = (participantId: string, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post<Document>(`/participant/${participantId}/documents`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
+export const deleteParticipantDocument = (participantId: string, docId: string) =>
+  api.delete<DeleteResponse>(`/participant/${participantId}/documents/${docId}`)
+
+export const downloadParticipantDocument = (participantId: string, docId: string) =>
+  api.get(`/participant/${participantId}/documents/${docId}/download`, { responseType: 'blob' })
 
 // Groups
 export const createGroup = (data: { name: string; description?: string; participant_ids: string[]; userId?: string }) =>

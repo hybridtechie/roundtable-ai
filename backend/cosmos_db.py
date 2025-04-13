@@ -17,6 +17,10 @@ COSMOS_ENDPOINT = "https://nithin-cosmos.documents.azure.com:443/"
 COSMOS_KEY = os.getenv("COSMOS_DB_KEY")
 DATABASE_NAME = "roundtable"
 CONTAINER_NAME = "users"
+CHAT_CONTAINER_NAME = "chat_sessions"
+VECTOR_DATABASE_NAME = "roundtable-vector"
+PARTICIPANT_DOCO_CONTAINER_NAME = "participant_docs"
+PARTICIPANT_DOCS_PARTITION_KEY = PartitionKey(path="/participant_id")
 
 
 class CosmosDBClient:
@@ -38,9 +42,19 @@ class CosmosDBClient:
                 raise ValueError("COSMOS_DB_KEY environment variable is not set")
             self.client = CosmosClient(endpoint, credential=key)
 
+            # Initialize main database and container
             self.database = self.client.get_database_client(DATABASE_NAME)
-            self.container = self.database.get_container_client(CONTAINER_NAME)
-            logger.info(f"Successfully initialized Cosmos DB client for database: {DATABASE_NAME}")
+            self.container = self.database.get_container_client(
+                CONTAINER_NAME
+            )
+            logger.info(f"Successfully initialized Cosmos DB client for database: {DATABASE_NAME} and container: {CONTAINER_NAME}")
+
+            # Initialize vector database and participant docs container
+            self.vector_database = self.client.get_database_client(VECTOR_DATABASE_NAME)
+            self.participant_docs_container = self.vector_database.get_container_client(
+                PARTICIPANT_DOCO_CONTAINER_NAME
+            )
+            logger.info(f"Successfully initialized Cosmos DB client for database: {VECTOR_DATABASE_NAME} and container: {PARTICIPANT_DOCO_CONTAINER_NAME}")
 
         except exceptions.CosmosHttpResponseError as e:
             if "blocked by your Cosmos DB account firewall settings" in str(e):
@@ -51,8 +65,12 @@ class CosmosDBClient:
             raise
 
     def get_container(self):
-        """Get the container client for direct operations"""
+        """Get the main container client ('users')"""
         return self.container
+
+    def get_participant_docs_container(self):
+        """Get the participant documents container client"""
+        return self.participant_docs_container
 
     async def get_user_data(self, user_id: str) -> Optional[Dict]:
         """Retrieve user data by user ID"""
@@ -378,12 +396,139 @@ class CosmosDBClient:
             logger.error(f"Connection test failed: {str(e)}", exc_info=True)
             return False
 
+    # --- Methods for Participant Documents ---
+
+    async def add_participant_doc_chunk(self, doc_chunk_data: Dict) -> Dict:
+        """Add a document chunk to the participant_docs container."""
+        try:
+            container = self.get_participant_docs_container()
+            # Ensure participant_id exists for partition key
+            if "participant_id" not in doc_chunk_data:
+                 logger.error("Missing 'participant_id' in document chunk data.")
+                 raise ValueError("Document chunk data must include 'participant_id'")
+
+            response = container.upsert_item(body=doc_chunk_data)
+            logger.info(f"Successfully added/updated document chunk with id: {doc_chunk_data.get('id')}")
+            return response
+        except Exception as e:
+            logger.error(f"Error adding document chunk {doc_chunk_data.get('id', 'N/A')}: {str(e)}", exc_info=True)
+            raise
+
+    async def delete_participant_docs(self, participant_id: str, user_id: str):
+        """Delete all document chunks for a specific participant."""
+        # Note: user_id might not be strictly needed if participant_id is unique across users,
+        # but it's good practice for potential future authorization checks.
+        try:
+            container = self.get_participant_docs_container()
+            query = "SELECT * FROM c WHERE c.participant_id = @participant_id"
+            parameters = [{"name": "@participant_id", "value": participant_id}]
+
+            # Query items using the participant_id as the partition key for efficiency
+            items_to_delete = list(container.query_items(
+                query=query,
+                parameters=parameters,
+                partition_key=participant_id
+            ))
+
+            deleted_count = 0
+            for item in items_to_delete:
+                container.delete_item(item=item['id'], partition_key=participant_id)
+                deleted_count += 1
+                logger.debug(f"Deleted document chunk {item['id']} for participant {participant_id}")
+
+            logger.info(f"Deleted {deleted_count} document chunks for participant {participant_id}")
+
+        except Exception as e:
+            logger.error(f"Error deleting document chunks for participant {participant_id}: {str(e)}", exc_info=True)
+            # Decide if this should raise an exception or just log the error
+            # raise # Uncomment if deletion failure should halt operations
+
+    async def get_chat_sessions_container(self):
+        """Get the chat sessions container."""
+        return self.client.get_database_client(DATABASE_NAME).get_container_client(CHAT_CONTAINER_NAME)
+
+    async def get_user_chat_sessions(self, user_id: str) -> list:
+        """Get all chat sessions for a user."""
+        try:
+            chat_container = await self.get_chat_sessions_container()
+            parameters = [{"name": "@user_id", "value": user_id}]
+            query = "SELECT * FROM c WHERE c.user_id = @user_id"
+            return list(chat_container.query_items(query=query, parameters=parameters, partition_key=user_id))
+        except Exception as e:
+            logger.error(f"Error getting chat sessions for user {user_id}: {str(e)}")
+            raise
+
+    async def get_chat_session(self, session_id: str, user_id: str) -> dict:
+        """Get a specific chat session."""
+        try:
+            chat_container = await self.get_chat_sessions_container()
+            return chat_container.read_item(item=session_id, partition_key=user_id)
+        except Exception as e:
+            logger.error(f"Error getting chat session {session_id}: {str(e)}")
+            raise
+
+    async def create_chat_session(self, session_data: dict) -> dict:
+        """Create a new chat session."""
+        try:
+            chat_container = await self.get_chat_sessions_container()
+            return chat_container.upsert_item(body=session_data)
+        except Exception as e:
+            logger.error(f"Error creating chat session: {str(e)}")
+            raise
+
+    async def update_chat_session(self, session_data: dict) -> dict:
+        """Update a chat session."""
+        try:
+            chat_container = await self.get_chat_sessions_container()
+            return chat_container.upsert_item(body=session_data)
+        except Exception as e:
+            logger.error(f"Error updating chat session: {str(e)}")
+            raise
+
+    async def delete_chat_session(self, session_id: str, user_id: str):
+        """Delete a chat session."""
+        try:
+            chat_container = await self.get_chat_sessions_container()
+            chat_container.delete_item(item=session_id, partition_key=user_id)
+        except Exception as e:
+            logger.error(f"Error deleting chat session {session_id}: {str(e)}")
+            raise
+
+    async def delete_meeting_chat_sessions(self, meeting_id: str, user_id: str):
+        """Delete all chat sessions for a meeting."""
+        try:
+            chat_container = await self.get_chat_sessions_container()
+            # Use parameterized query
+            parameters = [{"name": "@meeting_id", "value": meeting_id}, {"name": "@user_id", "value": user_id}]
+            query = "SELECT * FROM c WHERE c.meeting_id = @meeting_id AND c.user_id = @user_id"
+            sessions = list(chat_container.query_items(query=query, parameters=parameters, partition_key=user_id))
+
+            for session in sessions:
+                chat_container.delete_item(item=session["id"], partition_key=user_id)
+                logger.info(f"Deleted chat session {session['id']} for meeting {meeting_id}")
+        except Exception as e:
+            logger.error(f"Error deleting chat sessions for meeting {meeting_id}: {str(e)}")
+            raise
+
+    async def get_user_llm_settings(self, user_id: str) -> dict:
+        """Get LLM settings for a user."""
+        try:
+            parameters = [{"name": "@user_id", "value": user_id}]
+            query = "SELECT c.llmAccounts FROM c WHERE c.id = @user_id"
+            result = list(self.container.query_items(query=query, parameters=parameters, enable_cross_partition_query=True))
+            return result[0] if result else None
+        except Exception as e:
+            logger.error(f"Error getting LLM settings for user {user_id}: {str(e)}")
+            raise
+        raise
+
 
 # Initialize single instance of CosmosDB client
 try:
     cosmos_client = CosmosDBClient()
-    container = cosmos_client.get_container()
-    logger.info("Successfully initialized Cosmos DB container")
+    # container = cosmos_client.get_container() # Keep if needed elsewhere
+    # participant_docs_container = cosmos_client.get_participant_docs_container() # Keep if needed elsewhere
+    logger.info("Successfully initialized Cosmos DB client and containers")
 except exceptions.CosmosHttpResponseError as e:
     if "blocked by your Cosmos DB account firewall settings" in str(e):
         logger.error(

@@ -258,21 +258,14 @@ async def delete_meeting(meeting_id: str, user_id: str):
             logger.error("Meeting not found: %s", meeting_id)
             raise HTTPException(status_code=404, detail=f"Meeting ID '{meeting_id}' not found")
 
-        # Delete associated chat sessions
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-        query = f"SELECT * FROM c WHERE c.meeting_id = '{meeting_id}' AND c.user_id = '{user_id}'"
-        chat_sessions = list(chat_container.query_items(query=query, partition_key=user_id))
-
-        # Delete each chat session
-        for session in chat_sessions:
-            chat_container.delete_item(item=session["id"], partition_key=user_id)
-            logger.info(f"Deleted chat session {session['id']} for meeting {meeting_id}")
+        # Delete associated chat sessions using cosmos_db client
+        deleted_sessions = await cosmos_client.delete_meeting_chat_sessions(meeting_id, user_id)
 
         # Delete the meeting
         await cosmos_client.delete_meeting(user_id, meeting_id)
 
         logger.info("Successfully deleted meeting and associated chat sessions: %s", meeting_id)
-        return {"message": f"Meeting '{meeting_id}' and {len(chat_sessions)} associated chat sessions deleted successfully", "deleted_id": meeting_id}
+        return {"message": f"Meeting '{meeting_id}' and {len(deleted_sessions)} associated chat sessions deleted successfully", "deleted_id": meeting_id}
 
     except HTTPException:
         raise

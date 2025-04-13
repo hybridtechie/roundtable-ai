@@ -2,17 +2,18 @@ import React, { useState } from "react"
 import { Card, CardDescription, CardTitle, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+// Removed Dialog imports as Edit Dialog is gone
+// Removed Input import
+// Removed Textarea import
 import { Eye, Pencil, Trash2, Plus, Info } from "lucide-react"
-import { updateParticipant, deleteParticipant } from "@/lib/api" // Added deleteParticipant
+import { deleteParticipant } from "@/lib/api" // Removed updateParticipant
 import { Participant } from "@/types/types"
 import { useNavigate } from "react-router-dom"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
-import { encodeMarkdownContent, decodeMarkdownContent } from "@/lib/utils"
+import { decodeMarkdownContent } from "@/lib/utils" // Removed encodeMarkdownContent
 import { useAuth } from "@/context/AuthContext"
+// Removed ParticipantView import as it's now a separate page
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,12 +30,12 @@ const Participants: React.FC = () => {
   const navigate = useNavigate()
   const { state, dispatch, isLoading: isAuthLoading } = useAuth() // Get dispatch
 
-  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null)
-  const [editedParticipant, setEditedParticipant] = useState<Participant | null>(null)
+  // Removed selectedParticipant state
+  // Removed editedParticipant state
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null) // State for delete confirmation
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isUpdating, setIsUpdating] = useState(false)
+  // Removed isViewDialogOpen state
+  // Removed isEditDialogOpen state
+  // Removed isUpdating state
   const [isDeleting, setIsDeleting] = useState(false) // Loading state for delete
 
   // Derive participants from context state
@@ -73,70 +74,8 @@ const Participants: React.FC = () => {
     }
   }
 
-  // --- Edit Handler ---
-  const handleEdit = (participant: Participant) => {
-    const decodedParticipant = {
-      ...participant,
-      name: decodeMarkdownContent(participant.name),
-      role: decodeMarkdownContent(participant.role),
-      professional_background: decodeMarkdownContent(participant.professional_background),
-      industry_experience: decodeMarkdownContent(participant.industry_experience),
-      role_overview: decodeMarkdownContent(participant.role_overview),
-      technical_stack: decodeMarkdownContent(participant.technical_stack),
-      soft_skills: decodeMarkdownContent(participant.soft_skills),
-      core_qualities: decodeMarkdownContent(participant.core_qualities),
-      style_preferences: decodeMarkdownContent(participant.style_preferences),
-      additional_info: decodeMarkdownContent(participant.additional_info),
-    }
-    // Store the original participant (with ID) to know which one to update
-    setSelectedParticipant(participant)
-    setEditedParticipant(decodedParticipant) // Use decoded for editing form
-    setIsEditDialogOpen(true)
-  }
-
-  // --- Update Handler (inside Edit Dialog) ---
-  const handleUpdate = async () => {
-    // Use selectedParticipant.id for the update API call, editedParticipant for data
-    if (!editedParticipant || !selectedParticipant?.id) return
-    setIsUpdating(true)
-    try {
-      // Encode all text fields before sending to API
-      // Ensure the type matches what updateParticipant expects (likely excluding id/user_id)
-      const participantDataToUpdate = {
-        name: encodeMarkdownContent(editedParticipant.name),
-        role: encodeMarkdownContent(editedParticipant.role),
-        professional_background: encodeMarkdownContent(editedParticipant.professional_background),
-        industry_experience: encodeMarkdownContent(editedParticipant.industry_experience),
-        role_overview: encodeMarkdownContent(editedParticipant.role_overview),
-        technical_stack: encodeMarkdownContent(editedParticipant.technical_stack),
-        soft_skills: encodeMarkdownContent(editedParticipant.soft_skills),
-        core_qualities: encodeMarkdownContent(editedParticipant.core_qualities),
-        style_preferences: encodeMarkdownContent(editedParticipant.style_preferences),
-        additional_info: encodeMarkdownContent(editedParticipant.additional_info),
-      }
-
-      // API now returns the full updated participant object in response.data
-      const response = await updateParticipant(selectedParticipant.id, participantDataToUpdate)
-      const updatedParticipant: Participant | undefined = response.data
-
-      if (updatedParticipant && updatedParticipant.id) {
-        // Dispatch the updated participant data received from the API
-        dispatch({ type: "UPDATE_PARTICIPANT", payload: updatedParticipant })
-        toast.success("Participant updated successfully")
-        setIsEditDialogOpen(false)
-        setEditedParticipant(null) // Clear edit state
-        setSelectedParticipant(null) // Clear selected state
-      } else {
-        console.error("Update participant response did not contain expected participant data:", response.data)
-        toast.error("Failed to update participant (invalid server response).")
-      }
-    } catch (error) {
-      console.error("Error updating participant:", error)
-      toast.error("Failed to update participant")
-    } finally {
-      setIsUpdating(false)
-    }
-  }
+  // --- Edit Handler Removed ---
+  // --- Update Handler Removed ---
 
   // Handle loading state
   if (isAuthLoading || !state.isInitialized) {
@@ -193,13 +132,12 @@ const Participants: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => {
-                      setSelectedParticipant(participant)
-                      setIsViewDialogOpen(true)
-                    }}>
+                    onClick={() => navigate(`/participant/${participant.id}`)} // Navigate to the participant view page
+                  >
                     <Eye className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(participant)}>
+                  {/* Update Edit button to navigate */}
+                  <Button variant="ghost" size="icon" onClick={() => navigate(`/participant/${participant.id}`)}>
                     <Pencil className="w-4 h-4" />
                   </Button>
                   {/* --- Delete Button with Confirmation --- */}
@@ -240,185 +178,9 @@ const Participants: React.FC = () => {
         </div>
       )}
 
-      {/* --- View Dialog --- */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>View Participant</DialogTitle>
-          </DialogHeader>
-          {selectedParticipant && (
-            <div className="grid gap-4 py-4">
-              {" "}
-              {/* Added py-4 */}
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Name</label>
-                <p>{decodeMarkdownContent(selectedParticipant.name)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Role</label>
-                <p>{decodeMarkdownContent(selectedParticipant.role)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Professional Background</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[60px]">
-                  {decodeMarkdownContent(selectedParticipant.professional_background)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Industry Experience</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
-                  {decodeMarkdownContent(selectedParticipant.industry_experience)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Role Overview</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[50px]">
-                  {decodeMarkdownContent(selectedParticipant.role_overview)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Technical Stack</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
-                  {decodeMarkdownContent(selectedParticipant.technical_stack)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Soft Skills</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
-                  {decodeMarkdownContent(selectedParticipant.soft_skills)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Core Qualities</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
-                  {decodeMarkdownContent(selectedParticipant.core_qualities)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Style Preferences</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
-                  {decodeMarkdownContent(selectedParticipant.style_preferences)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Additional Information</label>
-                <div className="p-2 mt-1 text-sm border rounded-md bg-muted min-h-[40px]">
-                  {decodeMarkdownContent(selectedParticipant.additional_info)}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* --- View Dialog Removed --- */}
 
-      {/* --- Edit Dialog --- */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Participant</DialogTitle>
-          </DialogHeader>
-          {editedParticipant && (
-            <div className="grid gap-4 py-4">
-              {" "}
-              {/* Added py-4 */}
-              {/* Form fields remain largely the same, ensure they use editedParticipant state */}
-              <div>
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  value={editedParticipant.name || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, name: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Role</label>
-                <Input
-                  value={editedParticipant.role || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, role: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Professional Background</label>
-                <Textarea
-                  rows={5}
-                  value={editedParticipant.professional_background || ""}
-                  onChange={(e) =>
-                    setEditedParticipant((prev) => (prev ? { ...prev, professional_background: e.target.value } : null))
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Industry Experience</label>
-                <Textarea
-                  rows={3}
-                  value={editedParticipant.industry_experience || ""}
-                  onChange={(e) =>
-                    setEditedParticipant((prev) => (prev ? { ...prev, industry_experience: e.target.value } : null))
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Role Overview</label>
-                <Textarea
-                  rows={4}
-                  value={editedParticipant.role_overview || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, role_overview: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Technical Stack</label>
-                <Textarea
-                  rows={3}
-                  value={editedParticipant.technical_stack || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, technical_stack: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Soft Skills</label>
-                <Textarea
-                  rows={3}
-                  value={editedParticipant.soft_skills || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, soft_skills: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Core Qualities</label>
-                <Textarea
-                  rows={3}
-                  value={editedParticipant.core_qualities || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, core_qualities: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Style Preferences</label>
-                <Textarea
-                  rows={3}
-                  value={editedParticipant.style_preferences || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, style_preferences: e.target.value } : null))}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Additional Information</label>
-                <Textarea
-                  rows={3}
-                  value={editedParticipant.additional_info || ""}
-                  onChange={(e) => setEditedParticipant((prev) => (prev ? { ...prev, additional_info: e.target.value } : null))}
-                />
-              </div>
-              {/* Update Button */}
-              <Button className="mt-4" onClick={handleUpdate} disabled={isUpdating}>
-                {isUpdating ? (
-                  <>
-                    <LoadingSpinner className="mr-2" size={16} />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Participant"
-                )}
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* --- Edit Dialog Removed --- */}
     </div>
   )
 }

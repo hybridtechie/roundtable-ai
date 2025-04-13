@@ -138,7 +138,6 @@ class MeetingDiscussion:
         response = response.strip()
 
         # Create/update chat session
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
         if not self.chat_session:
             session_id = str(uuid.uuid4())
             self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [{"role": "system", "content": system_prompt}], "display_messages": []}
@@ -149,8 +148,8 @@ class MeetingDiscussion:
             {"role": "system", "content": response, "type": "summary", "name": "Meeting Summary", "step": "final", "timestamp": datetime.now(timezone.utc).isoformat()}
         )
 
-        # Save chat session
-        chat_container.upsert_item(body=self.chat_session)
+        # Save chat session using cosmos_db client
+        await cosmos_client.update_chat_session(self.chat_session)
         return response
 
     async def conduct_discussion(self, llm_client):
@@ -159,7 +158,7 @@ class MeetingDiscussion:
             raise HTTPException(status_code=400, detail="Invalid strategy")
 
         # Initialize chat session
-        chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
+        # Chat container is accessed via cosmos_client methods now
         session_id = str(uuid.uuid4())
         self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [], "display_messages": []}
 
@@ -193,7 +192,7 @@ class MeetingDiscussion:
                         }
                     )
                     # Save chat session
-                    chat_container.upsert_item(body=self.chat_session)
+                    await cosmos_client.update_chat_session(self.chat_session)
                     yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer})
                     await asyncio.sleep(0.1)  # Add delay after each response
 
@@ -229,7 +228,7 @@ class MeetingDiscussion:
                             }
                         )
                         # Save chat session
-                        chat_container.upsert_item(body=self.chat_session)
+                        await cosmos_client.update_chat_session(self.chat_session)
                         yield format_sse_event("participant_response", {"participant": self.participants[pid]["name"], "question": question, "answer": answer, "strength": strength})
                         await asyncio.sleep(0.1)  # Add delay after each response
 
@@ -253,15 +252,13 @@ class MeetingDiscussion:
             if self.strategy != "chat" or len(self.participants) != 1:
                 raise HTTPException(status_code=400, detail="Invalid meeting: must be chat strategy with exactly one participant")
 
-            chat_container = cosmos_client.client.get_database_client("roundtable").get_container_client("chat_sessions")
-
             # Get or create chat session
             if not chat_request.session_id:
-                chat_session = create_chat_session(chat_request.meeting_id, self.user_id, next(iter(self.participants.keys())))
+                chat_session = await create_chat_session(chat_request.meeting_id, self.user_id, next(iter(self.participants.keys())))
                 session_id = chat_session["id"]
             else:
                 try:
-                    chat_session = chat_container.read_item(item=chat_request.session_id, partition_key=self.user_id)
+                    chat_session = await cosmos_client.get_chat_session(chat_request.session_id, self.user_id)
                     session_id = chat_request.session_id
                 except Exception as e:
                     logger.error(f"Error retrieving chat session: {str(e)}")
@@ -312,7 +309,7 @@ class MeetingDiscussion:
             last_display_message = chat_session["display_messages"][-1]
 
             # Save updated chat session
-            chat_container.upsert_item(body=chat_session)
+            await cosmos_client.update_chat_session(chat_session)
 
             return {
                 "session_id": session_id,
