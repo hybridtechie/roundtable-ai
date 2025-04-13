@@ -139,6 +139,7 @@ const Chat: React.FC = () => {
           ) => {
             switch (eventType) {
               case ChatEventType.NextParticipant:
+                console.log("Next participant:", data)
                 setIsLoading(false)
                 if ("participant_name" in data && "participant_id" in data) {
                   setThinkingParticipant(data.participant_name)
@@ -346,7 +347,7 @@ const Chat: React.FC = () => {
               {messages.map((msg, index) => (
                 <ChatMessage key={index} {...msg} />
               ))}
-              {isLoading && thinkingParticipant && (
+              {thinkingParticipant && (
                 <div className="text-center text-muted-foreground">{thinkingParticipant} is thinking...</div>
               )}
             </div>

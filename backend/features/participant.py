@@ -11,7 +11,7 @@ from utils.file_reader import read_file_content, get_supported_extensions # Adde
 
 logger = setup_logger(__name__)
 
-DEFAULT_CHUNK_SIZE = 10000
+DEFAULT_CHUNK_SIZE = 5000
 DEFAULT_CHUNK_OVERLAP = 250
 
 def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, chunk_overlap: int = DEFAULT_CHUNK_OVERLAP) -> List[str]:

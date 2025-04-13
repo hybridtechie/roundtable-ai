@@ -9,6 +9,7 @@ from cosmos_db import cosmos_client
 from datetime import datetime, timezone
 import uuid
 from features.llm import get_llm_client
+from features.participant import search_participant_knowledge # Added import
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -47,6 +48,7 @@ class MeetingDiscussion:
                     "role": participant.get("role", "Team Member"),
                     "weight": order.weight,
                     "order": order.order,
+                    "related_knowledge": [] # Initialize related_knowledge
                 }
         logger.info("Initialized meeting discussion for user '%s'", self.user_id)
 
@@ -60,10 +62,18 @@ class MeetingDiscussion:
             f"You are {participant['persona_description']}. "
             f"Your role is {participant['role']}. "
             f"You are participating in a meeting about '{self.topic}'. "
-            f"Meeting participants: {', '.join(participant_list)}. "
-            f"Keep it concise, to the point, and reflective of your persona. No extra fluff."
-            f"Provide response in a conversational manner, as you(human) would in a meeting. "
+            f"Meeting participants: {', '.join(participant_list)}. " + "\nand a  Moderator: Moderator\n"
+            f"Keep it concise, to the point, and reflective of your persona. No extra fluff. Everyone except you in the meeting is human."
+            f"Provide response in a conversational manner, as you(human) would in a meeting. You can also refer to others conversationally and agree or disagree with them rather than repeating their points. "
         )
+
+        # Add related knowledge if available
+        related_knowledge = participant.get('related_knowledge', [])
+        if related_knowledge:
+            knowledge_context = "\n\nRelevant background information for you based on your knowledge base. Base your response on the knowledge found below as much as possible.:\n"
+            knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')}" for item in related_knowledge]) # Simplified for context length
+            # knowledge_context += "\n".join([f"- {item.get('text_chunk', 'N/A')} (Similarity: {item.get('similarityScore', 0):.2f})" for item in related_knowledge])
+            system_prompt += knowledge_context
 
         # Part 2: Message History
         messages = [{"role": "system", "content": system_prompt}]
@@ -71,7 +81,9 @@ class MeetingDiscussion:
             messages.extend(messages_list)
 
         # Part 3: Current Question
-        messages.append({"role": "user", "content": f"Please provide a concise response in a conversational manner to this question based on the meeting topic: {question}"})
+        moderator_ques = res = json.dumps({"name": "Moderator",  "content": f"Please provide a concise response in a conversational manner to this question based on the meeting topic: {question}"})
+        messages.append({"role": "user", "content": moderator_ques})
+        self.chat_session["messages"].append({"role": "user", "content": moderator_ques})
 
         response, _ = llm_client.send_request(messages)  # Unpack tuple, ignore token stats
         return response.strip()
@@ -102,7 +114,7 @@ class MeetingDiscussion:
 
         system_prompt = (
             f"You are provided with a meeting transcript of a meeting conducted for topic '{self.topic}'. "
-            f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\n\n"
+            f"\n\nParticipants in the meeting:\n" + "\n".join(participants_info) + "\nand a  Moderator: Moderator\n"
             f"Important Note: Each participant has a weight assigned (1-10) that indicates their expertise and influence level. "
             f"Participants with higher weights should have their contributions valued more heavily in the final analysis.\n\n"
             f"Objective: Understand the meeting discussion and provide a summary that includes:\n"
@@ -163,6 +175,43 @@ class MeetingDiscussion:
         session_id = str(uuid.uuid4())
         self.chat_session = {"id": session_id, "meeting_id": self.meeting_id, "user_id": self.user_id, "messages": [], "display_messages": []}
 
+        # Fetch related knowledge for each participant based on the topic
+        logger.info(f"Fetching related knowledge for participants based on topic: '{self.topic}'")
+        knowledge_fetch_tasks = []
+        participant_ids_for_knowledge = list(self.participants.keys()) # Get IDs before async operations
+
+        for pid in participant_ids_for_knowledge:
+            # Define a coroutine for each participant's knowledge search
+            async def fetch_knowledge(participant_id):
+                try:
+                    knowledge = await search_participant_knowledge(
+                        user_id=self.user_id,
+                        participant_id=participant_id,
+                        search_text=self.topic,
+                        top_k=3 # Fetch top 3 relevant chunks
+                    )
+                    # Ensure participant still exists in the dictionary before updating
+                    if participant_id in self.participants:
+                        self.participants[participant_id]['related_knowledge'] = knowledge
+                        logger.info(f"Fetched {len(knowledge)} knowledge items for participant {participant_id}")
+                    else:
+                         logger.warning(f"Participant {participant_id} no longer in participants dict after knowledge fetch.")
+
+                except HTTPException as e:
+                    logger.warning(f"Could not fetch knowledge for participant {participant_id} (HTTP {e.status_code}): {e.detail}")
+                    if participant_id in self.participants:
+                         self.participants[participant_id]['related_knowledge'] = [] # Ensure it's an empty list on error
+                except Exception as e:
+                    logger.error(f"Unexpected error fetching knowledge for participant {participant_id}: {str(e)}", exc_info=True)
+                    if participant_id in self.participants:
+                        self.participants[participant_id]['related_knowledge'] = [] # Ensure it's an empty list on error
+
+            knowledge_fetch_tasks.append(fetch_knowledge(pid))
+
+        # Run all knowledge fetch tasks concurrently
+        await asyncio.gather(*knowledge_fetch_tasks)
+        logger.info("Finished fetching related knowledge for all participants.")
+
         if self.strategy in ["round robin", "opinionated"]:
             yield format_sse_event("questions", {"questions": self.questions})
 
@@ -178,10 +227,10 @@ class MeetingDiscussion:
                     answer = self.ask_question(llm_client, pid, question, self.message_history)
                     # Add to discussion log
                     self.discussion_log.append({"participant": self.participants[pid]["name"], "question": question, "answer": answer})
-                    # Add to message history
-                    self.message_history.append({"role": "assistant", "content": f"{self.participants[pid]['name']} said \"{answer}\""})
+                    res = json.dumps({"name": self.participants[pid]["name"], "content": answer})
+                    self.message_history.append({"role": "user", "content": res})
                     # Add to chat session
-                    self.chat_session["messages"].append({"role": "assistant", "content": answer})
+                    self.chat_session["messages"].append({"role": "user", "content": answer})
                     self.chat_session["display_messages"].append(
                         {
                             "role": self.participants[pid]["role"],
