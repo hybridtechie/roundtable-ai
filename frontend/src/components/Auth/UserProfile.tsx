@@ -17,9 +17,9 @@ export function UserProfile() {
   } = useAuth()
 
   if (!isAuthenticated || !user) {
+    console.log("User is not authenticated or user data is missing")
     return null
   }
-
   // Get initials from name
   const getInitials = () => {
     if (!user.name) return "U"

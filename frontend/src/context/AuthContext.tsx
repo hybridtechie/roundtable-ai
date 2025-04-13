@@ -406,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               backendData.chat_sessions = [] // Initialize as empty array on error
             }
 
-            localStorage.setItem("backendData", JSON.stringify(backendData))
+            // localStorage.setItem("backendData", JSON.stringify(backendData))
 
             // Dispatch SET_BACKEND_USER which now handles defaults initialization
             dispatch({ type: "SET_BACKEND_USER", payload: backendData })

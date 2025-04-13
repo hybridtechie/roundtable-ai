@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar" // Added AvatarImage
 import { Copy, ChevronDown, ChevronUp } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react" // Added useEffect
 interface ChatMessageProps {
   type?: string
   name?: string
@@ -39,6 +39,30 @@ export function ChatMessage({
   const [copied, setCopied] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false) // Internal state for individual toggle
   const showFullContent = forceExpand !== undefined ? forceExpand : isExpanded // Prioritize forceExpand prop
+  const [userAvatar, setUserAvatar] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (name === "You") {
+      try {
+        const storedUser = localStorage.getItem("user")
+        if (storedUser) {
+          const user = JSON.parse(storedUser)
+          if (user && user.picture) {
+            setUserAvatar(user.picture)
+          } else {
+            setUserAvatar(null) // Reset if picture not found
+          }
+        } else {
+          setUserAvatar(null) // Reset if user not found
+        }
+      } catch (error) {
+        console.error("Error reading user from localStorage:", error)
+        setUserAvatar(null) // Reset on error
+      }
+    } else {
+      setUserAvatar(null) // Reset if name is not "You"
+    }
+  }, [name]) // Re-run effect if name changes
 
   const handleCopy = async () => {
     if (content) {
@@ -51,6 +75,9 @@ export function ChatMessage({
   return (
     <div className={cn("flex items-start gap-4 p-4 rounded-lg bg-secondary/50 relative group", className)}>
       <Avatar>
+        {name === "You" && userAvatar ? (
+          <AvatarImage src={userAvatar} alt={name || "User"} />
+        ) : null}
         <AvatarFallback className="bg-primary/5">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex-1 space-y-2">

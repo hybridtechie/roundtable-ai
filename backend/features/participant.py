@@ -71,26 +71,39 @@ def generate_persona_description(participant: "ParticipantBase") -> str:
 def validate_participant_data(data: dict) -> None:
     """Validate Participant data before creation."""
     try:
+        # Only name and role are strictly required and non-empty
         required_fields = [
             ("name", 100),
             ("role", 100),
-            ("professional_background", 2000),
-            ("industry_experience", 1000),
-            ("role_overview", 1000),
-            ("technical_stack", 1000),
-            ("soft_skills", 1000),
-            ("core_qualities", 1000),
-            ("style_preferences", 1000),
         ]
+        # Optional fields check only length if provided
+        optional_fields_max_length = {
+            "professional_background": 2000,
+            "industry_experience": 1000,
+            "role_overview": 1000,
+            "technical_stack": 1000,
+            "soft_skills": 1000,
+            "core_qualities": 1000,
+            "style_preferences": 1000,
+            "additional_info": 1000, # Added additional_info check
+        }
 
+        # Check required fields
         for field, max_length in required_fields:
-            if not data.get(field) or not str(data[field]).strip():
-                logger.error(f"Validation failed: {field} is empty or whitespace")
-                raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} is required")
-
-            if len(str(data[field])) > max_length:
-                logger.error(f"Validation failed: {field} length exceeds {max_length} characters")
+            value = data.get(field)
+            if not value or not str(value).strip():
+                logger.error(f"Validation failed: Required field '{field}' is empty or whitespace")
+                raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} is required and cannot be empty")
+            if len(str(value)) > max_length:
+                logger.error(f"Validation failed: Required field '{field}' length exceeds {max_length} characters")
                 raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters")
+
+        # Check optional fields max length if they exist and are not None
+        for field, max_length in optional_fields_max_length.items():
+            value = data.get(field)
+            if value is not None and len(str(value)) > max_length:
+                 logger.error(f"Validation failed: Optional field '{field}' length exceeds {max_length} characters")
+                 raise HTTPException(status_code=400, detail=f"{field.replace('_', ' ').title()} must be less than {max_length} characters if provided")
 
         logger.debug("Participant data validation successful")
     except HTTPException:
@@ -103,13 +116,13 @@ def validate_participant_data(data: dict) -> None:
 class ParticipantBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     role: str = Field(..., min_length=1, max_length=100)
-    professional_background: str = Field(..., min_length=1, max_length=2000)
-    industry_experience: str = Field(..., min_length=1, max_length=1000)
-    role_overview: str = Field(..., min_length=1, max_length=1000)
-    technical_stack: Optional[str] = Field(..., min_length=1, max_length=1000)
-    soft_skills: Optional[str] = Field(..., min_length=1, max_length=1000)
-    core_qualities: Optional[str] = Field(..., min_length=1, max_length=1000)
-    style_preferences: Optional[str] = Field(..., min_length=1, max_length=1000)
+    professional_background: Optional[str] = Field(default="", max_length=2000)
+    industry_experience: Optional[str] = Field(default="", max_length=1000)
+    role_overview: Optional[str] = Field(default="", max_length=1000)
+    technical_stack: Optional[str] = Field(default="", max_length=1000)
+    soft_skills: Optional[str] = Field(default="", max_length=1000)
+    core_qualities: Optional[str] = Field(default="", max_length=1000)
+    style_preferences: Optional[str] = Field(default="", max_length=1000)
     additional_info: Optional[str] = Field(default="", max_length=1000)
     user_id: str = Field(default="roundtable_ai_admin", min_length=1)
     persona_description: Optional[str] = Field(default="", max_length=5000)
