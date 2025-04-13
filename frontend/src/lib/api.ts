@@ -1,5 +1,7 @@
 import axios from "axios"
 import {
+  Document,
+  DocumentListResponse,
   Participant,
   MeetingRequest,
   ParticipantResponse,
@@ -80,6 +82,26 @@ export const updateParticipant = (
 ) => api.put(`/participant/${participantId}`, { ...data, user_id: USER_ID })
 
 export const deleteParticipant = (participantId: string) => api.delete(`/participant/${participantId}`)
+
+// Document Management
+export const listParticipantDocuments = (participantId: string) =>
+  api.get<DocumentListResponse>(`/participant/${participantId}/documents`)
+
+export const uploadParticipantDocument = (participantId: string, file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post<Document>(`/participant/${participantId}/documents`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
+export const deleteParticipantDocument = (participantId: string, docId: string) =>
+  api.delete<DeleteResponse>(`/participant/${participantId}/documents/${docId}`)
+
+export const downloadParticipantDocument = (participantId: string, docId: string) =>
+  api.get(`/participant/${participantId}/documents/${docId}/download`, { responseType: 'blob' })
 
 // Groups
 export const createGroup = (data: { name: string; description?: string; participant_ids: string[]; userId?: string }) =>

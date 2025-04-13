@@ -1,18 +1,18 @@
 import React, { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Participant, ParticipantUpdateData } from "@/types/types"
+import { Participant, ParticipantUpdateData, Document } from "@/types/types"
 import { decodeMarkdownContent, encodeMarkdownContent } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ChevronDown, ChevronUp, ArrowLeft, Save, X, Pencil, Upload, FileText, Trash2 } from "lucide-react" // Added Upload, FileText, Trash2
+import { ChevronDown, ChevronUp, ArrowLeft, Save, X, Pencil, Upload, FileText, Trash2, Download } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { toast } from "@/components/ui/sonner"
-import { updateParticipant } from "@/lib/api" // TODO: Add API call for file upload
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table" // Added Table components
+import { updateParticipant, listParticipantDocuments, uploadParticipantDocument, deleteParticipantDocument, downloadParticipantDocument } from "@/lib/api"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useDropzone, FileRejection, FileError } from "react-dropzone" // Added react-dropzone types
 import { cn } from "@/lib/utils" // Added cn for conditional classes
 
@@ -27,9 +27,11 @@ const ParticipantViewPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [isFileDetailsOpen, setIsFileDetailsOpen] = useState(false) // State for file list collapsible
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]) // State for files staged for upload
-  const [isUploading, setIsUploading] = useState(false) // State for upload process
+  const [isFileDetailsOpen, setIsFileDetailsOpen] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
   const loadParticipantData = useCallback(() => {
     if (!isAuthLoading && state.isInitialized && participantId) {
@@ -58,9 +60,25 @@ const ParticipantViewPage: React.FC = () => {
     }
   }, [participantId, state.backendUser?.participants, isAuthLoading, state.isInitialized])
 
+  // Load documents for the participant
+  const loadDocuments = useCallback(async () => {
+    if (!participantId) return
+    setIsLoadingDocs(true)
+    try {
+      const response = await listParticipantDocuments(participantId)
+      setDocuments(response.data.documents)
+    } catch (error) {
+      console.error("Error loading documents:", error)
+      toast.error("Failed to load documents")
+    } finally {
+      setIsLoadingDocs(false)
+    }
+  }, [participantId])
+
   useEffect(() => {
     loadParticipantData()
-  }, [loadParticipantData])
+    loadDocuments()
+  }, [loadParticipantData, loadDocuments])
 
   const handleInputChange = (field: keyof ParticipantUpdateData, value: string) => {
     // Add explicit type for prev
@@ -191,34 +209,56 @@ const ParticipantViewPage: React.FC = () => {
     if (!selectedFiles.length || !participantId) return
 
     setIsUploading(true)
-    toast.info(`Uploading ${selectedFiles.length} file(s)...`) // Placeholder
+    toast.info(`Uploading ${selectedFiles.length} file(s)...`)
 
-    // --- TODO: Implement actual API call here ---
-    // Example:
-    // const formData = new FormData();
-    // selectedFiles.forEach(file => {
-    //   formData.append('files', file);
-    // });
-    // try {
-    //   await uploadParticipantFiles(participantId, formData); // Replace with your actual API function
-    //   toast.success("Files uploaded successfully!");
-    //   setSelectedFiles([]); // Clear selection on success
-    //   // Optionally: Refresh the file list in the other card
-    // } catch (error) {
-    //   console.error("Error uploading files:", error);
-    //   toast.error("Failed to upload files.");
-    // } finally {
-    //   setIsUploading(false);
-    // }
-
-    // Placeholder simulation
-    await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate network delay
-    console.log("Simulating upload for files:", selectedFiles)
-    toast.success("Files uploaded successfully! (Simulation)")
-    setSelectedFiles([]) // Clear selection
-    setIsUploading(false)
-    // --- End Placeholder ---
+    try {
+      // Upload each file sequentially
+      for (const file of selectedFiles) {
+        await uploadParticipantDocument(participantId, file)
+      }
+      toast.success("Files uploaded successfully!")
+      setSelectedFiles([]) // Clear selection
+      loadDocuments() // Refresh document list
+    } catch (error) {
+      console.error("Error uploading files:", error)
+      toast.error("Failed to upload files.")
+    } finally {
+      setIsUploading(false)
+    }
   }
+
+  const handleDownloadDocument = async (docId: string) => {
+    if (!participantId) return
+    try {
+      const response = await downloadParticipantDocument(participantId, docId)
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data])
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = documents.find(doc => doc.id === docId)?.name || 'document'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error("Error downloading document:", error)
+      toast.error("Failed to download document")
+    }
+  }
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!participantId) return
+    try {
+      await deleteParticipantDocument(participantId, docId)
+      toast.success("Document deleted successfully")
+      loadDocuments() // Refresh document list
+    } catch (error) {
+      console.error("Error deleting document:", error)
+      toast.error("Failed to delete document")
+    }
+  }
+
 
   const formatBytes = (bytes: number, decimals = 2) => {
     if (bytes === 0) return "0 Bytes"
@@ -372,39 +412,65 @@ const ParticipantViewPage: React.FC = () => {
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="flex items-center justify-start w-full p-0 text-sm hover:bg-transparent text-primary">
                   {isFileDetailsOpen ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
-                  {isFileDetailsOpen ? "Hide Files" : "Show Files"} ({/* Placeholder count */} 0 files)
+                  {isFileDetailsOpen ? "Hide Files" : "Show Files"} ({documents.length} files)
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>File Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Uploaded</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* Placeholder row - replace with actual data mapping later */}
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No files uploaded yet.
-                      </TableCell>
-                    </TableRow>
-                    {/* Example Row Structure (commented out)
-                    <TableRow>
-                      <TableCell className="font-medium">Resume.pdf</TableCell>
-                      <TableCell>PDF</TableCell>
-                      <TableCell>2024-01-15</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">View</Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">Delete</Button>
-                      </TableCell>
-                    </TableRow>
-                    */}
-                  </TableBody>
-                </Table>
+                {isLoadingDocs ? (
+                  <div className="flex justify-center py-4">
+                    <LoadingSpinner size={24} />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>File Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {documents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground">
+                            No files uploaded yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        documents.map((doc) => (
+                          <TableRow key={doc.id}>
+                            <TableCell className="font-medium">{doc.name}</TableCell>
+                            <TableCell>{doc.type.toUpperCase()}</TableCell>
+                            <TableCell>{formatBytes(doc.size)}</TableCell>
+                            <TableCell className="space-x-1 text-right"> {/* Reduced space */}
+                              <Button
+                                variant="ghost"
+                                size="icon" // Changed to icon for smaller footprint
+                                className="w-8 h-8" // Explicit size
+                                onClick={() => handleDownloadDocument(doc.id)}
+                                title={`Download ${doc.name}`}
+                              >
+                                <Download className="w-4 h-4" />
+                                <span className="sr-only">Download {doc.name}</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon" // Changed to icon
+                                className="w-8 h-8 text-destructive hover:text-destructive/90" // Explicit size
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                title={`Delete ${doc.name}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="sr-only">Delete {doc.name}</span>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </CollapsibleContent>
             </Collapsible>
           </CardContent>

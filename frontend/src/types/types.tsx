@@ -1,3 +1,18 @@
+// Document Management Types
+export interface Document {
+  id: string
+  name: string
+  clean_name: string
+  path: string
+  size: number
+  type: string
+  chunk_count: number
+}
+
+export interface DocumentListResponse {
+  documents: Document[]
+}
+
 export interface Participant {
   id: string
   name: string
