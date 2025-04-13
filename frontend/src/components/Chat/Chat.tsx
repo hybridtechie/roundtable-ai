@@ -7,8 +7,8 @@ import { ChatInput } from "@/components/ui/chat-input"
 import { useAuth } from "@/context/AuthContext"
 import { getChatSession, sendChatMessage, streamChat } from "@/lib/api"
 import { toast } from "@/components/ui/sonner"
-import { Button } from "@/components/ui/button" // Added Button import
-import { Download } from "lucide-react" // Added Download icon import
+import { Button } from "@/components/ui/button"
+import { Download, FileText, Maximize2, Minimize2 } from "lucide-react" // Added more icons
 import {
   ChatMessage as ChatMessageType,
   ChatEventType,
@@ -38,6 +38,7 @@ interface ChatSessionDetails {
   participant_id: string
   meeting_name?: string
   meeting_topic?: string
+  meeting_strategy?: string
 }
 const Chat: React.FC = () => {
   const { meetingId, sessionId } = useParams<{ meetingId: string; sessionId?: string }>()
@@ -53,6 +54,7 @@ const Chat: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [sessionTitle, setSessionTitle] = useState<string>("")
   const [thinkingParticipant, setThinkingParticipant] = useState<string | null>(null)
+  const [allMessagesExpanded, setAllMessagesExpanded] = useState<boolean | undefined>(undefined) // State for global expand/collapse
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
 
@@ -304,7 +306,9 @@ const Chat: React.FC = () => {
       setInputValue("")
     } catch (error) {
       console.error("Error sending message:", error)
-      setError("Failed to send message")
+      // Display error using toast
+      toast.error("Failed to send message. Please try again.")
+      setError("Failed to send message") // Keep setting local error state if needed by UI
     } finally {
       setIsSending(false)
     }
@@ -331,6 +335,46 @@ const Chat: React.FC = () => {
     toast.success("Messages exported successfully.")
   }
 
+  const handleExportText = () => {
+    if (messages.length === 0) {
+      toast.info("No messages to export.")
+      return
+    }
+
+    const transcript = messages
+      .map((msg) => {
+        const time = msg.timestamp.toLocaleTimeString()
+        if (msg.type === "participant" || msg.type === "user") {
+          return `[${time}] ${msg.name}${msg.role ? ` (${msg.role})` : ""}:\n${msg.content}\n`
+        } else if (msg.type === "final") {
+          return `[${time}] Final Response:\n${msg.content}\n`
+        }
+        return `[${time}] System Message:\n${msg.content}\n` // Fallback for other types
+      })
+      .join("\n")
+
+    const blob = new Blob([transcript], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
+    const meetingName = sessionTitle.split("\n")[0] || "chat"
+    link.download = `${meetingName.replace(/\s+/g, "_")}_transcript_${timestamp}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success("Transcript exported successfully.")
+  }
+
+  const handleExpandAll = () => {
+    setAllMessagesExpanded(true)
+  }
+
+  const handleCollapseAll = () => {
+    setAllMessagesExpanded(false)
+  }
+
   return (
     <div className="flex flex-col h-full">
       {sessionTitle && (
@@ -339,9 +383,20 @@ const Chat: React.FC = () => {
             <h2 className="text-xl font-semibold">{sessionTitle.split("\n")[0]}</h2>
             {sessionTitle.includes("\n") && <p className="text-sm text-muted-foreground">{sessionTitle.split("\n")[1]}</p>}
           </div>
-          <Button variant="ghost" size="icon" onClick={handleExportMessages} title="Export Chat">
-            <Download className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1"> {/* Group buttons */}
+            <Button variant="ghost" size="icon" onClick={handleExportMessages} title="Export Chat as JSON">
+              <Download className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleExportText} title="Export Transcript as Text">
+              <FileText className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleExpandAll} title="Expand All Messages">
+              <Maximize2 className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleCollapseAll} title="Collapse All Messages">
+              <Minimize2 className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       )}
       <Card className="flex flex-col flex-1 border-none">
@@ -371,7 +426,7 @@ const Chat: React.FC = () => {
                 </div>
               ) : null}
               {messages.map((msg, index) => (
-                <ChatMessage key={index} {...msg} />
+                <ChatMessage key={index} {...msg} forceExpand={allMessagesExpanded} /> // Pass expand state
               ))}
               {thinkingParticipant && (
                 <div className="text-center text-muted-foreground">{thinkingParticipant} is thinking...</div>

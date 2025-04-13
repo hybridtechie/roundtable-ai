@@ -300,6 +300,7 @@ class MeetingDiscussion:
         """Handle a chat request for the chat strategy."""
         try:
             if self.strategy != "chat" or len(self.participants) != 1:
+                logger.error("Invalid meeting: must be chat strategy with exactly one participant")
                 raise HTTPException(status_code=400, detail="Invalid meeting: must be chat strategy with exactly one participant")
 
             # Get or create chat session
