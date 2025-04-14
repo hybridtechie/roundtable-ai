@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from logger_config import setup_logger
+from typing import Annotated, Optional  # Import Annotated and Optional
 
 from features.meeting import get_meeting
 from features.chat import stream_meeting_discussion, MeetingDiscussion
 from features.chat_session import ChatSessionCreate
 
-from auth import UserClaims, validate_token
+# Import the new validation function and UserClaims
+from auth import UserClaims, validate_token, validate_token_from_string
 
 logger = setup_logger(__name__)
 
@@ -14,9 +16,17 @@ router = APIRouter(tags=["Chat"])
 
 
 @router.get("/chat-stream", summary="Start streaming chat discussion for a meeting")
-async def chat_stream_endpoint(meeting_id: str):
+# Add token as a query parameter dependency
+async def chat_stream_endpoint(meeting_id: str, token: Annotated[Optional[str], Query()] = None):
     try:
-        user_id = "ping.nith@gmail.com"
+        if not token:
+            logger.warning("Chat stream request failed: No token provided for Meeting %s", meeting_id)
+            raise HTTPException(status_code=401, detail="Authentication token required")
+
+        # Validate the token from the query parameter
+        current_user: UserClaims = validate_token_from_string(token)
+        user_id = current_user.email  # Get user_id from validated token
+
         logger.info("User '%s' requesting chat stream for Meeting: %s", user_id, meeting_id)
 
         meeting = await get_meeting(meeting_id, user_id)

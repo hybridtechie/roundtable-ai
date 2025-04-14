@@ -114,3 +114,47 @@ def validate_token(
     except Exception as error:  # Catch unexpected errors during validation
         logger.error("Unexpected error during token validation: %s", str(error), exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred during authentication.")
+
+
+def validate_token_from_string(token: str) -> UserClaims:
+    """Validates a JWT token string directly."""
+    if not AUTH0_DOMAIN or not AUTH0_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Auth0 configuration missing on server.")
+
+    try:
+        unverified_headers = jws.get_unverified_header(token)
+        public_key = find_public_key(unverified_headers.get("kid"))
+
+        token_payload = jwt.decode(
+            token=token,
+            key=public_key,
+            algorithms=["RS256"],
+            audience=AUTH0_CLIENT_ID,
+            issuer=f"https://{AUTH0_DOMAIN}/",
+        )
+
+        if "name" not in token_payload or "email" not in token_payload:
+            logger.error("Token missing required claims (name, email): %s", token_payload)
+            raise HTTPException(status_code=401, detail="Token missing required claims.")
+
+        return UserClaims(
+            name=token_payload["name"],
+            email=token_payload["email"],
+        )
+    except ExpiredSignatureError:
+        logger.warning("Token validation failed: Expired signature")
+        raise HTTPException(status_code=401, detail="Token has expired.")
+    except JWTClaimsError as error:
+        logger.warning("Token validation failed: Invalid claims - %s", str(error))
+        raise HTTPException(status_code=401, detail=f"Invalid token claims: {error}")
+    except JWTError as error:
+        logger.warning("Token validation failed: JWTError - %s", str(error))
+        raise HTTPException(status_code=401, detail=f"Invalid token: {error}")
+    except JWSError as error:
+        logger.error("Token validation failed: JWSError - %s", str(error), exc_info=True)
+        raise HTTPException(status_code=401, detail=f"Token validation error: {error}")
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as error:
+        logger.error("Unexpected error during token validation: %s", str(error), exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during authentication.")

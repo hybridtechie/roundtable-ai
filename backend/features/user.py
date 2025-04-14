@@ -165,8 +165,7 @@ async def login_user(name: str, email: str) -> Dict:
                     for provider in providers:
                         if isinstance(provider, dict) and "api_key" in provider:
                             provider["api_key"] = "SECRET"
-        
-        
+
         logger.info(f"Existing user logged in: {email}")
         # Add 'name' field mapped from 'display_name' and return the full existing user data
         user_data["name"] = user_data.get("display_name")

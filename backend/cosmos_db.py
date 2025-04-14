@@ -2,6 +2,7 @@ from typing import Dict, List, Optional, Any
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
 from azure.identity import DefaultAzureCredential
 from fastapi import HTTPException
+import logging
 from logger_config import setup_logger
 import os
 from dotenv import load_dotenv
@@ -10,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Set up logger
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, level=logging.WARNING)
 
 # Azure Cosmos DB configuration
 COSMOS_ENDPOINT = "https://nithin-cosmos.documents.azure.com:443/"

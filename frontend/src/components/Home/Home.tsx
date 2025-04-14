@@ -141,9 +141,7 @@ const Home: React.FC = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowProviderPrompt(false)}>
-                No, I am browsing
-              </AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setShowProviderPrompt(false)}>No, I am browsing</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   setShowProviderPrompt(false) // Close this dialog
