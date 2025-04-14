@@ -157,7 +157,16 @@ async def login_user(name: str, email: str) -> Dict:
             # Add 'name' field mapped from 'display_name' and return the full created user data
             created_user["name"] = created_user.get("display_name")
             return created_user
-
+        else:
+            # Mask API keys in llmAccounts.providers before returning
+            if user_data and "llmAccounts" in user_data and "providers" in user_data["llmAccounts"]:
+                providers = user_data["llmAccounts"].get("providers", [])
+                if isinstance(providers, list):
+                    for provider in providers:
+                        if isinstance(provider, dict) and "api_key" in provider:
+                            provider["api_key"] = "SECRET"
+        
+        
         logger.info(f"Existing user logged in: {email}")
         # Add 'name' field mapped from 'display_name' and return the full existing user data
         user_data["name"] = user_data.get("display_name")

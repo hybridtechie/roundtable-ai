@@ -72,15 +72,6 @@ class CosmosDBClient:
         """Retrieve user data by user ID and mask API keys."""
         try:
             response = self.container.read_item(item=user_id, partition_key=user_id)
-
-            # Mask API keys in llmAccounts.providers before returning
-            if response and "llmAccounts" in response and "providers" in response["llmAccounts"]:
-                providers = response["llmAccounts"].get("providers", [])
-                if isinstance(providers, list):
-                    for provider in providers:
-                        if isinstance(provider, dict) and "api_key" in provider:
-                            provider["api_key"] = "SECRET"
-
             return response
         except exceptions.CosmosResourceNotFoundError:
             logger.warning(f"User {user_id} not found")

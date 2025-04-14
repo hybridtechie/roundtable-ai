@@ -25,6 +25,7 @@ router = APIRouter(prefix="/participant", tags=["Participants"])
 async def create_participant_endpoint(participant: ParticipantCreate, current_user: UserClaims = Depends(validate_token)):
     try:
         logger.info("Attempting to create new participant: %s", participant.name)
+        participant.user_id = current_user.email
         created_participant = await create_participant(participant)
         logger.info("Successfully created participant ID: %s Name: %s", created_participant.id, created_participant.name)
         return created_participant

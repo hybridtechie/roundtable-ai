@@ -23,6 +23,13 @@ async def login_endpoint(current_user: UserClaims = Depends(validate_token)):
             logger.error("Login feature function returned None for user: %s", user_email)
             raise HTTPException(status_code=500, detail="Login process failed internally.")
         logger.info("Successfully processed login for user: %s", user_email)
+        # Mask API keys in llmAccounts.providers before returning
+        if result and "llmAccounts" in result and "providers" in result["llmAccounts"]:
+            providers = result["llmAccounts"].get("providers", [])
+            if isinstance(providers, list):
+                for provider in providers:
+                    if isinstance(provider, dict) and "api_key" in provider:
+                        provider["api_key"] = "SECRET"
         return result
     except Exception as e:
         logger.error("Login failed for user %s: %s", current_user.email if current_user else "Unknown", str(e), exc_info=True)
